@@ -7,7 +7,7 @@ import shutil
 from photo_tidy.reporting.report import Report
 from photo_tidy.reporting.move_report_item import MoveReportItem
 from photo_tidy.reporting.skipped_report_item import SkippedReportItem
-from .whatsapp_preprocessor import WhatsAppPreprocessor
+from photo_tidy.preprocessors.whatsapp_preprocessor import WhatsAppPreprocessor
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
