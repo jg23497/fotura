@@ -1,6 +1,5 @@
 from pathlib import Path
 from datetime import datetime
-import piexif
 import logging
 import shutil
 
@@ -8,22 +7,15 @@ from photo_tidy.reporting.report import Report
 from photo_tidy.reporting.move_report_item import MoveReportItem
 from photo_tidy.reporting.skipped_report_item import SkippedReportItem
 from photo_tidy.preprocessors.whatsapp_preprocessor import WhatsAppPreprocessor
+from photo_tidy.exif_utils import ExifDateExtractor
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
 class PhotoSorter:
-    """Handles the sorting of photos."""
 
     def __init__(self, input_path: Path, target_root: Path, dry_run: bool = False):
-        """Initialize the photo sorter with the input directory path.
-
-        Args:
-            input_path (Path): Path to the directory containing photos to sort
-            target_root (Path): Path to the root directory where photos will be organized
-            dry_run (bool): If True, only show what would be done without making changes
-        """
         self.input_path = input_path
         self.target_root = target_root
         self.preprocessors = [WhatsAppPreprocessor(dry_run=dry_run)]
@@ -31,55 +23,15 @@ class PhotoSorter:
         self.report = Report()
 
     def get_photo_date(self, image_path: Path) -> datetime:
-        """Extract the date from a photo using preprocessors or EXIF data.
-
-        Args:
-            image_path (Path): Path to the photo file
-
-        Returns:
-            datetime: The date the photo was taken, or None if not found
-        """
-        # First try preprocessors
         for preprocessor in self.preprocessors:
             if preprocessor.can_handle(image_path):
                 date = preprocessor.process(image_path)
+                if date:
+                    return date
 
-        # If no preprocessor handled it, try EXIF data
-        try:
-            exif_dict = piexif.load(str(image_path))
-
-            # Try different EXIF date fields in order of preference
-            date_fields = [
-                (piexif.ExifIFD.DateTimeOriginal, "Exif"),
-                (piexif.ExifIFD.DateTimeDigitized, "Exif"),
-                (piexif.ImageIFD.DateTime, "0th"),
-            ]
-
-            for field, ifd in date_fields:
-                if ifd in exif_dict and field in exif_dict[ifd]:
-                    date_str = exif_dict[ifd][field].decode("utf-8")
-                    try:
-                        return datetime.strptime(date_str, "%Y:%m:%d %H:%M:%S")
-                    except ValueError:
-                        continue
-
-            logger.warning(f"No EXIF date found in {image_path}")
-            return None
-
-        except Exception as e:
-            logger.error(f"Error reading EXIF data from {image_path}: {str(e)}")
-            return None
+        return ExifDateExtractor.extract_date(image_path)
 
     def get_target_path(self, date: datetime, original_path: Path) -> Path:
-        """Get the target path for a photo based on its date.
-
-        Args:
-            date (datetime): The date the photo was taken
-            original_path (Path): The original path of the photo
-
-        Returns:
-            Path: The target path where the photo should be copied
-        """
         # Create year/month directory structure
         target_dir = self.target_root / str(date.year) / f"{date.year}-{date.month:02d}"
         target_dir.mkdir(parents=True, exist_ok=True)
@@ -98,12 +50,6 @@ class PhotoSorter:
         return target_path
 
     def _find_photos(self):
-        """Generator that yields photo files recursively from the input directory.
-
-        Yields:
-            Path: Path to each photo file found
-        """
-        # Supported image extensions
         image_extensions = {".jpg", ".jpeg", ".tiff", ".tif"}
 
         for file_path in self.input_path.rglob("*"):
@@ -122,11 +68,6 @@ class PhotoSorter:
             yield file_path
 
     def process_photos(self):
-        """Process and sort the photos in the input directory.
-
-        Extracts dates from photos and copies them to appropriate year/month directories.
-        Recursively processes all subdirectories.
-        """
         logger.info(f"Processing photos in {self.input_path}")
         logger.info(f"Target root directory: {self.target_root}")
         if self.dry_run:
