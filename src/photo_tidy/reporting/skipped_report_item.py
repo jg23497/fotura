@@ -13,6 +13,3 @@ class SkippedReportItem(ReportItem):
 
     def as_dict(self):
         return {"source": self.source, "reason": self.reason}
-
-    def __str__(self) -> str:
-        return f"{self.source}"

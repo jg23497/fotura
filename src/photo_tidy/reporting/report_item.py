@@ -14,9 +14,6 @@ class ReportItem(ABC):
     def as_dict(self) -> str:
         pass
 
-    @abstractmethod
-    def __str__(self) -> str:
-        pass
-
     def __repr__(self) -> str:
-        return f"{self.timestamp}"
+        description = ", ".join(f"{k}: {v}" for k, v in self.as_dict().items())
+        return f"[{self.name()}] {description}"

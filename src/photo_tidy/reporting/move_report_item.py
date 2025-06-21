@@ -13,6 +13,3 @@ class MoveReportItem(ReportItem):
 
     def as_dict(self):
         return {"source": self.source, "destination": self.destination}
-
-    def __str__(self) -> str:
-        return f"source: {self.source}, destination: {self.destination}"

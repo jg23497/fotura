@@ -1,14 +1,32 @@
+import logging
+import sys
 from datetime import datetime
 from pathlib import Path
 from .report_item import ReportItem
+
+logger = logging.getLogger(__name__)
 
 
 class Report:
     def __init__(self):
         self.report_items = []
 
-    def log_specific(self, item: ReportItem):
+    def log(self, item: ReportItem):
         self.report_items.append(item)
+
+        frame = sys._getframe(1)
+
+        record = logging.LogRecord(
+            name=logger.name,
+            level=logging.INFO,
+            pathname=frame.f_code.co_filename,
+            lineno=frame.f_lineno,
+            msg=str(item),
+            args=(),
+            exc_info=None,
+            func=frame.f_code.co_name,
+        )
+        logger.handle(record)
 
     def get_report(self) -> list[ReportItem]:
         return self.report_items
