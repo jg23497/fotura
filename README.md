@@ -1,5 +1,7 @@
 # PhotoTidy
 
+<img src="./docs/images/logo.jpg" width="400px" alt="PhotoTidy logo"/>
+
 A command-line tool for organizing and sorting photos.
 
 ## Setup
