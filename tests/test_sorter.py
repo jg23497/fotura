@@ -23,7 +23,11 @@ def test_photo_sorting():
         print(f"Input directory path: {input_temp_dir}")
         print(f"Temporary directory path: {target_temp_dir}")
 
-        sorter = PhotoSorter(Path(input_temp_dir), Path(target_temp_dir))
+        sorter = PhotoSorter(
+            Path(input_temp_dir),
+            Path(target_temp_dir),
+            enabled_preprocessors=["whatsapp"],
+        )
         sorter.process_photos()
 
         print("Contents of temporary directory:")

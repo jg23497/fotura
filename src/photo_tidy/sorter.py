@@ -16,13 +16,34 @@ logger = logging.getLogger(__name__)
 
 
 class PhotoSorter:
+    PREPROCESSOR_MAP = {"whatsapp": WhatsAppPreprocessor}
 
-    def __init__(self, input_path: Path, target_root: Path, dry_run: bool = False):
+    def __init__(
+        self,
+        input_path: Path,
+        target_root: Path,
+        dry_run: bool = False,
+        enabled_preprocessors: list = None,
+    ):
         self.input_path = input_path
         self.target_root = target_root
-        self.preprocessors = [WhatsAppPreprocessor(dry_run=dry_run)]
+        self.preprocessors = []
+
+        if enabled_preprocessors:
+            for preprocessor_name in enabled_preprocessors:
+                if preprocessor_name in self.PREPROCESSOR_MAP:
+                    self.preprocessors.append(
+                        self.PREPROCESSOR_MAP[preprocessor_name](dry_run=dry_run)
+                    )
+                else:
+                    logger.warning(f"Unknown preprocessor: {preprocessor_name}")
+
         self.dry_run = dry_run
         self.report = Report()
+
+    @classmethod
+    def get_available_preprocessors(cls):
+        return list(cls.PREPROCESSOR_MAP.keys())
 
     def get_photo_date(self, image_path: Path) -> datetime:
         for preprocessor in self.preprocessors:
