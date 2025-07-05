@@ -5,6 +5,9 @@ from typing import Optional, List, Dict, Any
 import logging
 import shutil
 
+from photo_tidy.postprocessors.google_photos_upload_postprocessor import (
+    GooglePhotosUploadPostprocessor,
+)
 from photo_tidy.preprocessors.fact_type import FactType
 from photo_tidy.reporting.initialize_report_item import InitializeReportItem
 from photo_tidy.reporting.report import Report
@@ -20,6 +23,7 @@ logger = logging.getLogger(__name__)
 
 class PhotoSorter:
     PREPROCESSOR_MAP = {"whatsapp": WhatsAppPreprocessor}
+    POSTPROCESSOR_MAP = {"google_photos_upload": GooglePhotosUploadPostprocessor}
 
     def __init__(
         self,
@@ -27,10 +31,12 @@ class PhotoSorter:
         target_root: Path,
         dry_run: bool = False,
         enabled_preprocessors: Optional[List[str]] = None,
+        enabled_postprocessors: Optional[List[str]] = None,
     ):
         self.input_path = input_path
         self.target_root = target_root
         self.preprocessors = []
+        self.postprocessors = []
 
         if enabled_preprocessors:
             for preprocessor_name in enabled_preprocessors:
@@ -42,6 +48,16 @@ class PhotoSorter:
                     logger.error(f"Unknown preprocessor: {preprocessor_name}")
                     sys.exit(1)
 
+        if enabled_postprocessors:
+            for postprocessor_name in enabled_postprocessors:
+                if postprocessor_name in self.POSTPROCESSOR_MAP:
+                    self.postprocessors.append(
+                        self.POSTPROCESSOR_MAP[postprocessor_name](dry_run=dry_run)
+                    )
+                else:
+                    logger.error(f"Unknown postprocessor: {postprocessor_name}")
+                    sys.exit(1)
+
         self.dry_run = dry_run
         self.report = Report()
 
@@ -49,12 +65,20 @@ class PhotoSorter:
     def get_available_preprocessors(cls):
         return list(cls.PREPROCESSOR_MAP.keys())
 
+    @classmethod
+    def get_available_postprocessors(cls):
+        return list(cls.POSTPROCESSOR_MAP.keys())
+
     def run_preprocessors(self, image_path: Path) -> Optional[Dict[FactType, Any]]:
         facts = dict()
         for preprocessor in self.preprocessors:
             if preprocessor.can_handle(image_path):
                 facts.update(preprocessor.process(image_path))
         return facts
+
+    def run_postprocessors(self, target_path: Path):
+        for postprocessor in self.postprocessors:
+            postprocessor.process(target_path)
 
     def get_target_path(self, date: datetime, original_path: Path) -> Path:
         # Create year/month directory structure
@@ -111,6 +135,7 @@ class PhotoSorter:
                 if not self.dry_run:
                     shutil.move(file_path, target_path)
                 self.report.log(MoveReportItem(file_path, target_path))
+                self.run_postprocessors(target_path)
             except Exception as e:
                 self.report.log(FailedReportItem(file_path, target_path, e))
 
