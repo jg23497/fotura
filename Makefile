@@ -4,6 +4,11 @@ help:
 	@echo "Usage:"
 	@echo "  make test               CI: Run tests"
 	@echo "  make format             CI: Format the code"
+	@echo "  make check              CI: Run the linter"
+	@echo "  make type               CI: Type check the code"
+	@echo "  make build              CI: Build the package"
+	@echo "  make publish            CI: Publish the package"
+	@echo "  make ci                 CI: Run all checks"
 
 test:
 	uv run pytest
