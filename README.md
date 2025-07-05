@@ -2,6 +2,8 @@
 
 <img src="./docs/images/logo.jpg" width="400px" alt="PhotoTidy logo"/>
 
+[![Python CI](https://github.com/jg23497/phototidy/actions/workflows/main.yml/badge.svg?branch=main)](https://github.com/jg23497/phototidy/actions/workflows/main.yml)
+
 A command-line tool for organizing and sorting photos based on their metadata and EXIF data. PhotoTidy automatically organizes photos into a structured directory hierarchy by year and month, and can extract date information from various sources including WhatsApp filenames and EXIF metadata.
 
 ## Features
