@@ -2,6 +2,8 @@ import logging
 import sys
 from datetime import datetime
 from pathlib import Path
+from typing import List
+from jinja2 import Environment, FileSystemLoader, select_autoescape
 from .report_item import ReportItem
 
 logger = logging.getLogger(__name__)
@@ -9,7 +11,8 @@ logger = logging.getLogger(__name__)
 
 class Report:
     def __init__(self):
-        self.report_items = []
+        self.report_items: List[ReportItem] = []
+        self._template_env = None
 
     def log(self, item: ReportItem):
         self.report_items.append(item)
@@ -28,56 +31,51 @@ class Report:
         )
         logger.handle(record)
 
-    def get_report(self) -> list[ReportItem]:
+    def get_report(self) -> List[ReportItem]:
         return self.report_items
 
-    def _generate_html(self) -> str:
-        html = [
-            "<!DOCTYPE html>",
-            "<html>",
-            "<head>",
-            "    <title>PhotoTidy Report</title>",
-            "    <style>",
-            "        body { font-family: Arial, sans-serif; margin: 20px; }",
-            "        table { border-collapse: collapse; width: 100%; }",
-            "        th, td { border: 1px solid #ddd; padding: 8px; }",
-            "        th { background-color: #575757; color: white; }",
-            "        .main-report-table > tbody > tr:nth-child(even) { background-color: #f2f2f2; }",
-            "        .timestamp { color: #666; font-size: 0.9em; }",
-            "    </style>",
-            "</head>",
-            "<body>",
-            "    <h1>PhotoTidy Report</h1>",
-            f"    <p>Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>",
-            "    <table class='main-report-table'>",
-            "        <tr><th>Timestamp</th><th>Event</th><th>Details</th></tr>",
-            "        <tbody>",
+    def _get_summary_stats(self) -> dict:
+        moved_count = sum(1 for item in self.report_items if item.name() == "Moved")
+        skipped_count = sum(1 for item in self.report_items if item.name() == "Skipped")
+        failed_count = sum(1 for item in self.report_items if item.name() == "Failed")
+        initialize_events = [
+            item for item in self.report_items if item.name() == "Initialize"
         ]
+        initialize_event = initialize_events[0] if initialize_events else None
 
-        for item in self.report_items:
-            details = item.as_dict()
-            details_html = (
-                "<table style='width:auto;border:none;'>"
-                + "".join(
-                    f"<tr><td style='border:none;padding:0 8px 0 0;'><b>{key}</b></td><td style='border:none;padding:0;'>{value}</td></tr>"
-                    for key, value in details.items()
-                )
-                + "</table>"
+        return {
+            "moved_count": moved_count,
+            "skipped_count": skipped_count,
+            "failed_count": failed_count,
+            "initialize_event": initialize_event,
+        }
+
+    def _get_template_env(self):
+        if self._template_env is None:
+            template_dir = Path(__file__).parent.parent / "templates"
+            self._template_env = Environment(
+                loader=FileSystemLoader(str(template_dir)),
+                autoescape=select_autoescape(["html", "xml"]),
             )
-            html.append(
-                f"<tr>"
-                f"<td class='timestamp'>{item.timestamp}</td>"
-                f"<td>{item.name()}</td>"
-                f"<td>{details_html}</td>"
-                f"</tr>"
-            )
+        return self._template_env
 
-        html.extend(["        </tbody>", "    </table>", "</body>", "</html>"])
+    def _generate_html(self, dry_run: bool = False) -> str:
+        template_env = self._get_template_env()
+        template = template_env.get_template("report.html")
 
-        return "\n".join(html)
+        summary_stats = self._get_summary_stats()
 
-    def create_report(self, output_path: Path) -> None:
+        context = {
+            "report_items": self.report_items,
+            "generation_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "dry_run": dry_run,
+            **summary_stats,
+        }
+
+        return template.render(context)
+
+    def create_report(self, output_path: Path, dry_run: bool = False) -> None:
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        html_report = self._generate_html()
+        html_report = self._generate_html(dry_run)
         output_path.write_text(html_report, encoding="utf-8")

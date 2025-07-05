@@ -114,4 +114,4 @@ class PhotoSorter:
             except Exception as e:
                 self.report.log(FailedReportItem(file_path, target_path, e))
 
-        self.report.create_report(Path("output/report.html"))
+        self.report.create_report(Path("output/report.html"), self.dry_run)
