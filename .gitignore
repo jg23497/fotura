@@ -11,3 +11,4 @@ wheels/
 
 # Files we generate
 output/report.html
+.secrets/
