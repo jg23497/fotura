@@ -9,6 +9,16 @@ dependencies = [
     "piexif>=1.1.3",
 ]
 
+[project.scripts]
+phototidy = "photo_tidy.main:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/photo_tidy"]
+
 [project.optional-dependencies]
 dev = [
     "pytest>=7.0.0",
@@ -25,7 +35,7 @@ addopts = [
   "-s"
 ]
 pythonpath = [
-  "."
+  "src"
 ]
 
 [dependency-groups]
