@@ -47,7 +47,7 @@ class Report:
             "    </style>",
             "</head>",
             "<body>",
-            f"    <h1>PhotoTidy Report</h1>",
+            "    <h1>PhotoTidy Report</h1>",
             f"    <p>Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>",
             "    <table class='main-report-table'>",
             "        <tr><th>Timestamp</th><th>Event</th><th>Details</th></tr>",
