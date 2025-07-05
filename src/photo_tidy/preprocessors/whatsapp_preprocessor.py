@@ -1,32 +1,28 @@
 from pathlib import Path
 from datetime import datetime
-from typing import Optional
+from typing import Dict, Optional
 import piexif
 import re
 import logging
+
+from photo_tidy.preprocessors.fact_type import FactType
 from .preprocessor import Preprocessor
 
 logger = logging.getLogger(__name__)
 
 
 class WhatsAppPreprocessor(Preprocessor):
-    """Preprocessor for WhatsApp images that extracts date from filename and updates EXIF."""
+    """Preprocessor for WhatsApp images that extracts the taken timestamp
+    from the filename and updates the image's EXIF data."""
 
     def __init__(self, dry_run: bool = False):
-        """Initialize the WhatsApp preprocessor.
-
-        Args:
-            dry_run (bool): If True, only show what would be done without making changes
-        """
         self.dry_run = dry_run
 
     def can_handle(self, image_path: Path) -> bool:
         filename = image_path.name
-        return bool(re.match(r"^IMG-\d{8}-WA\d{4}.*", filename)) and not bool(
-            re.match(r"^IMG-\d{8}-WA\d{4}-ANIMATION\.gif$", filename)
-        )
+        return bool(re.match(r"^IMG-\d{8}-WA\d{4}.*", filename))
 
-    def process(self, image_path: Path) -> Optional[datetime]:
+    def process(self, image_path: Path) -> Optional[Dict[FactType, datetime]]:
         filename = image_path.name
         match = re.search(r"^IMG-(\d{4})(\d{2})(\d{2})-WA\d{4}.*", filename)
         if match:
@@ -36,7 +32,6 @@ class WhatsAppPreprocessor(Preprocessor):
             date = datetime(year, month, day)
 
             try:
-                # Load existing EXIF data
                 exif_dict = piexif.load(str(image_path))
 
                 # Update DateTimeOriginal
@@ -57,7 +52,6 @@ class WhatsAppPreprocessor(Preprocessor):
                         f"[DRY RUN] Would update EXIF date fields for {image_path.name} to {date.strftime('%Y-%m-%d')}"
                     )
                 else:
-                    # Save the updated EXIF data
                     exif_bytes = piexif.dump(exif_dict)
                     piexif.insert(exif_bytes, str(image_path))
                     logger.info(f"Updated EXIF date fields for {image_path.name}")
@@ -66,5 +60,5 @@ class WhatsAppPreprocessor(Preprocessor):
                     f"Error updating EXIF data for {image_path.name}: {str(e)}"
                 )
 
-            return date
+            return {FactType.TAKEN_TIMESTAMP: date}
         return None

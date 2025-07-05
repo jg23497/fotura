@@ -1,9 +1,10 @@
 from pathlib import Path
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 import logging
 import shutil
 
+from photo_tidy.preprocessors.fact_type import FactType
 from photo_tidy.reporting.initialize_report_item import InitializeReportItem
 from photo_tidy.reporting.report import Report
 from photo_tidy.reporting.move_report_item import MoveReportItem
@@ -46,14 +47,12 @@ class PhotoSorter:
     def get_available_preprocessors(cls):
         return list(cls.PREPROCESSOR_MAP.keys())
 
-    def get_photo_date(self, image_path: Path) -> Optional[datetime]:
+    def run_preprocessors(self, image_path: Path) -> Optional[Dict[FactType, Any]]:
+        facts = dict()
         for preprocessor in self.preprocessors:
             if preprocessor.can_handle(image_path):
-                date = preprocessor.process(image_path)
-                if date:
-                    return date
-
-        return ExifDateExtractor.extract_date(image_path)
+                facts.update(preprocessor.process(image_path))
+        return facts
 
     def get_target_path(self, date: datetime, original_path: Path) -> Path:
         # Create year/month directory structure
@@ -97,7 +96,10 @@ class PhotoSorter:
         )
 
         for file_path in self._find_photos():
-            date = self.get_photo_date(file_path)
+            facts = self.run_preprocessors(file_path)
+            date = facts.get(FactType.TAKEN_TIMESTAMP)
+            if not date:
+                date = ExifDateExtractor.extract_date(file_path)
             if not date:
                 self.report.log(SkippedReportItem(file_path, "No date found"))
                 continue
