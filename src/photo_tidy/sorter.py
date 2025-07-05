@@ -1,5 +1,6 @@
 from pathlib import Path
 from datetime import datetime
+import sys
 from typing import Optional, List, Dict, Any
 import logging
 import shutil
@@ -38,7 +39,8 @@ class PhotoSorter:
                         self.PREPROCESSOR_MAP[preprocessor_name](dry_run=dry_run)
                     )
                 else:
-                    logger.warning(f"Unknown preprocessor: {preprocessor_name}")
+                    logger.error(f"Unknown preprocessor: {preprocessor_name}")
+                    sys.exit(1)
 
         self.dry_run = dry_run
         self.report = Report()
