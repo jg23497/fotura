@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Optional
 import piexif
 import logging
 from pathlib import Path
@@ -8,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 class ExifDateExtractor:
     @staticmethod
-    def extract_date(image_path: Path) -> datetime:
+    def extract_date(image_path: Path) -> Optional[datetime]:
         try:
             exif_dict = piexif.load(str(image_path))
 

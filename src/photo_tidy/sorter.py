@@ -1,5 +1,6 @@
 from pathlib import Path
 from datetime import datetime
+from typing import Optional, List
 import logging
 import shutil
 
@@ -23,7 +24,7 @@ class PhotoSorter:
         input_path: Path,
         target_root: Path,
         dry_run: bool = False,
-        enabled_preprocessors: list = None,
+        enabled_preprocessors: Optional[List[str]] = None,
     ):
         self.input_path = input_path
         self.target_root = target_root
@@ -45,7 +46,7 @@ class PhotoSorter:
     def get_available_preprocessors(cls):
         return list(cls.PREPROCESSOR_MAP.keys())
 
-    def get_photo_date(self, image_path: Path) -> datetime:
+    def get_photo_date(self, image_path: Path) -> Optional[datetime]:
         for preprocessor in self.preprocessors:
             if preprocessor.can_handle(image_path):
                 date = preprocessor.process(image_path)

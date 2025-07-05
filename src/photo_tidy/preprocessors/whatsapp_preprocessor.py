@@ -1,5 +1,6 @@
 from pathlib import Path
 from datetime import datetime
+from typing import Optional
 import piexif
 import re
 import logging
@@ -21,11 +22,11 @@ class WhatsAppPreprocessor(Preprocessor):
 
     def can_handle(self, image_path: Path) -> bool:
         filename = image_path.name
-        return re.match(r"^IMG-\d{8}-WA\d{4}.*", filename) and not re.match(
-            r"^IMG-\d{8}-WA\d{4}-ANIMATION\.gif$", filename
+        return bool(re.match(r"^IMG-\d{8}-WA\d{4}.*", filename)) and not bool(
+            re.match(r"^IMG-\d{8}-WA\d{4}-ANIMATION\.gif$", filename)
         )
 
-    def process(self, image_path: Path) -> datetime:
+    def process(self, image_path: Path) -> Optional[datetime]:
         filename = image_path.name
         match = re.search(r"^IMG-(\d{4})(\d{2})(\d{2})-WA\d{4}.*", filename)
         if match:
