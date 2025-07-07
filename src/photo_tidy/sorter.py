@@ -37,6 +37,7 @@ class PhotoSorter:
         self.target_root = target_root
         self.preprocessors = []
         self.postprocessors = []
+        self.report = Report()
 
         if enabled_preprocessors:
             for preprocessor_name in enabled_preprocessors:
@@ -51,15 +52,16 @@ class PhotoSorter:
         if enabled_postprocessors:
             for postprocessor_name in enabled_postprocessors:
                 if postprocessor_name in self.POSTPROCESSOR_MAP:
-                    self.postprocessors.append(
-                        self.POSTPROCESSOR_MAP[postprocessor_name](dry_run=dry_run)
+                    postprocessor_instance = self.POSTPROCESSOR_MAP[postprocessor_name](
+                        self.report, dry_run=dry_run
                     )
+                    postprocessor_instance.set_up()
+                    self.postprocessors.append(postprocessor_instance)
                 else:
                     logger.error(f"Unknown postprocessor: {postprocessor_name}")
                     sys.exit(1)
 
         self.dry_run = dry_run
-        self.report = Report()
 
     @classmethod
     def get_available_preprocessors(cls):

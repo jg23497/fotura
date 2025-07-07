@@ -55,3 +55,8 @@ extend-exclude = '''
 # in the root of the project.
 ^/docs
 '''
+
+[tool.poetry.dependencies]
+google-auth = "^2.22.0"
+google-auth-oauthlib = "^1.0.0"
+google-api-python-client = "^2.97.0"

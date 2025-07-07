@@ -84,6 +84,10 @@
         .event-initialize {
             color: #17a2b8;
         }
+        .wordwrap {
+            word-break: break-all;
+            overflow-wrap: anywhere;
+        }
     </style>
 </head>
 <body>
@@ -133,7 +137,7 @@
                             {% for key, value in item.as_dict().items() %}
                             <tr>
                                 <td>{{ key|title }}</td>
-                                <td>{{ value }}</td>
+                                <td class="wordwrap">{{ value }}</td>
                             </tr>
                             {% endfor %}
                         </table>

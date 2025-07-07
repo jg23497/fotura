@@ -10,3 +10,7 @@ class Postprocessor(ABC):
     @abstractmethod
     def process(self, image_path: Path) -> None:
         pass
+
+    @abstractmethod
+    def set_up(self) -> None:
+        pass
