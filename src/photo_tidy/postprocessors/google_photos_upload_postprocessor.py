@@ -57,7 +57,7 @@ class GooglePhotosUploadPostprocessor(Postprocessor):
             )
 
     def can_handle(self, image_path: Path) -> bool:
-        return True
+        return image_path.suffix.lower() in {".jpg", ".jpeg", ".png"}
 
     def process(self, image_path: Path) -> None:
         if self.dry_run:
