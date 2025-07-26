@@ -36,8 +36,9 @@ def get_google_photos_service():
             creds = flow.run_local_server(port=0)
         with open(TOKEN_PICKLE_FILE, "wb") as token:
             pickle.dump(creds, token)
-        flow = InstalledAppFlow.from_client_secrets_file(CREDENTIALS_FILE, SCOPES)
-        creds = flow.run_local_server(port=0)
+        # TODO: presumably can this duplication be removed?
+        # flow = InstalledAppFlow.from_client_secrets_file(CREDENTIALS_FILE, SCOPES)
+        # creds = flow.run_local_server(port=0)
     return build("photoslibrary", "v1", credentials=creds, static_discovery=False)
 
 
