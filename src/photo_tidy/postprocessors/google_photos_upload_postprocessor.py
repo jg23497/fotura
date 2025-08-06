@@ -25,7 +25,7 @@ TOKEN_PICKLE_FILE = os.getenv("GOOGLE_TOKEN_PICKLE_FILE", ".secrets/token.pickle
 
 def get_google_photos_service():
     """
-    https://ai.google.dev/palm_docs/oauth_quickstart#2_write_the_credential_manager
+    See https://ai.google.dev/palm_docs/oauth_quickstart#2_write_the_credential_manager
     """
     creds = None
     if os.path.exists(TOKEN_PICKLE_FILE):
@@ -108,7 +108,6 @@ class GooglePhotosUploadPostprocessor(Postprocessor):
         body = {
             "newMediaItems": [
                 {
-                    "description": "Uploaded by PhotoTidy",
                     "simpleMediaItem": {
                         "fileName": filename,
                         "uploadToken": upload_token,
