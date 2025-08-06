@@ -24,6 +24,9 @@ TOKEN_PICKLE_FILE = os.getenv("GOOGLE_TOKEN_PICKLE_FILE", ".secrets/token.pickle
 
 
 def get_google_photos_service():
+    """
+    https://ai.google.dev/palm_docs/oauth_quickstart#2_write_the_credential_manager
+    """
     creds = None
     if os.path.exists(TOKEN_PICKLE_FILE):
         with open(TOKEN_PICKLE_FILE, "rb") as token:
@@ -36,9 +39,6 @@ def get_google_photos_service():
             creds = flow.run_local_server(port=0)
         with open(TOKEN_PICKLE_FILE, "wb") as token:
             pickle.dump(creds, token)
-        # TODO: presumably can this duplication be removed?
-        # flow = InstalledAppFlow.from_client_secrets_file(CREDENTIALS_FILE, SCOPES)
-        # creds = flow.run_local_server(port=0)
     return build("photoslibrary", "v1", credentials=creds, static_discovery=False)
 
 
