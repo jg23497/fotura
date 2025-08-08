@@ -10,9 +10,11 @@ from datetime import datetime, timedelta
 
 from google.oauth2.credentials import Credentials
 
+from photo_tidy.processors.processor_setup_error import ProcessorSetupError
 from photo_tidy.reporting.report import Report
 from photo_tidy.postprocessors.google_photos_upload_postprocessor import (
     GooglePhotosUploadPostprocessor,
+    CREDENTIALS_FILE,
     TOKEN_FILE,
 )
 
@@ -82,12 +84,12 @@ def client_secret():
 
 
 @pytest.fixture
-def creds_expired():
+def cached_credentials_expired():
     return create_credentials(expiry=datetime.now() - timedelta(days=1))
 
 
 @pytest.fixture
-def creds_fresh():
+def cached_credentials_valid():
     return create_credentials(expiry=datetime.now() + timedelta(days=1))
 
 
@@ -106,6 +108,7 @@ def processor():
 
 # Tests
 
+## can_handle method
 
 @pytest.mark.parametrize("ext", [".jpg", ".jpeg", ".png", ".txt.jpg"])
 def test_handles_supported_extensions(ext, processor):
@@ -117,13 +120,15 @@ def test_rejects_unsupported_extensions(ext, processor):
     assert not processor.can_handle(Path(f"foo{ext}"))
 
 
-def test_uses_oauth_flow_if_no_cached_credentials_found(
-    secrets_dir, creds_fresh, processor
+## set_up method
+
+def test_uses_oauth_flow_and_caches_credentials_if_no_cached_credentials_exist(
+    secrets_dir, cached_credentials_valid, processor
 ):
     assert not os.path.exists(TOKEN_FILE)
 
     flow = Mock()
-    flow.run_local_server.return_value = creds_fresh
+    flow.run_local_server.return_value = cached_credentials_valid
 
     with mock_installed_app_flow(flow):
         processor.set_up()
@@ -132,8 +137,20 @@ def test_uses_oauth_flow_if_no_cached_credentials_found(
         assert processor.service is not None, "Processor service should be initialized"
 
 
-def test_reuses_valid_cached_token(secrets_dir, creds_fresh, processor):
-    write_token(secrets_dir, creds_fresh)
+def test_raises_error_if_no_cached_credentials_exist_and_client_secret_is_not_found(
+    secrets_dir, processor
+):
+    assert not os.path.exists(CREDENTIALS_FILE)
+    assert not os.path.exists(TOKEN_FILE)
+
+    with pytest.raises(
+        ProcessorSetupError, match=r"Google credentials file not found at.*"
+    ):
+        processor.set_up()
+
+
+def test_reuses_valid_cached_token(secrets_dir, cached_credentials_valid, processor):
+    write_token(secrets_dir, cached_credentials_valid)
 
     processor.set_up()
 
@@ -144,9 +161,9 @@ def test_reuses_valid_cached_token(secrets_dir, creds_fresh, processor):
 
 @responses.activate
 def test_refreshes_expired_credentials_if_token_has_expired_and_refresh_token_is_present(
-    secrets_dir, creds_expired, client_secret, processor
+    secrets_dir, cached_credentials_expired, client_secret, processor
 ):
-    write_token(secrets_dir, creds_expired)
+    write_token(secrets_dir, cached_credentials_expired)
     write_secret(secrets_dir, client_secret)
 
     responses.add(
@@ -158,21 +175,21 @@ def test_refreshes_expired_credentials_if_token_has_expired_and_refresh_token_is
 
     processor.set_up()
 
-    credentials = read_token()
-    assert "ya29.new-token" in credentials.token
     service = processor.service
     assert service is not None
-    assert hasattr(service, "mediaItems")
+
+    credentials = read_token()
+    assert "ya29.new-token" in credentials.token
 
 
-def test_oauth_flow_if_token_has_expired_and_no_refresh_is_present(
+def test_oauth_flow_if_token_has_expired_and_no_refresh_token_is_present(
     secrets_dir, processor
 ):
-    expired_creds = create_credentials(
+    expired_credentials = create_credentials(
         expiry=(datetime.now() - timedelta(days=1)),
         refresh_token=None,
     )
-    write_token(secrets_dir, expired_creds)
+    write_token(secrets_dir, expired_credentials)
     assert os.path.exists(TOKEN_FILE)
 
     flow = Mock()
@@ -186,3 +203,5 @@ def test_oauth_flow_if_token_has_expired_and_no_refresh_is_present(
 
         assert os.path.exists(TOKEN_FILE)
         assert processor.service is not None, "Processor service should be initialized"
+
+## process method

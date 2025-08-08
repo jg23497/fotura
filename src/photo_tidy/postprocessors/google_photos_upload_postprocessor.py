@@ -5,8 +5,9 @@
 
 
 from pathlib import Path
+import requests
 import logging
-from photo_tidy.postprocessors.postprocessor import Postprocessor
+from typing import Optional, Any
 import os
 
 from google.auth.transport.requests import Request
@@ -14,6 +15,8 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 
+from photo_tidy.postprocessors.postprocessor import Postprocessor
+from photo_tidy.reporting.report import Report
 from photo_tidy.processors.processor_setup_error import ProcessorSetupError
 from photo_tidy.reporting.uploaded_report_item import UploadedReportItem
 
@@ -24,54 +27,70 @@ CREDENTIALS_FILE = os.getenv("GOOGLE_CREDENTIALS_FILE", ".secrets/client_secret.
 TOKEN_FILE = os.getenv("GOOGLE_TOKEN_FILE", ".secrets/token.json")
 
 
-def load_creds():
-    """Converts the client secret file or saved token into to a credential object.
-
-    This function caches the generated tokens to minimize the use of the
-    consent screen.
-    """
-    creds = None
-    # The file token.json stores the user's access and refresh tokens, and is
-    # created automatically when the authorization flow completes for the first
-    # time.
-    if os.path.exists(TOKEN_FILE):
-        try:
-            creds = Credentials.from_authorized_user_file(TOKEN_FILE, SCOPES)
-        except (ValueError, OSError):
-            # Invalid or corrupted credentials file, will start new OAuth flow
-            creds = None
-    # If there are no (valid) credentials available, let the user log in.
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            flow = InstalledAppFlow.from_client_secrets_file(CREDENTIALS_FILE, SCOPES)
-            creds = flow.run_local_server(port=0)
-        # Save the credentials for the next run
-        with open(TOKEN_FILE, "w") as token:
-            token.write(creds.to_json())
-    return creds
-
-
-def get_google_photos_service():
-    creds = load_creds()
-    return build("photoslibrary", "v1", credentials=creds, static_discovery=False)
-
-
 class GooglePhotosUploadPostprocessor(Postprocessor):
-    def __init__(self, report, dry_run: bool = False):
+    def __init__(self, report: Report, dry_run: bool = False) -> None:
         self.report = report
         self.dry_run = dry_run
         self.service = None
 
     def set_up(self) -> None:
+        credentials = self._obtain_credentials()
+        self.service = build(
+            "photoslibrary", "v1", credentials=credentials, static_discovery=False
+        )
+
+    def _load_cached_credentials(self, token_file_path: str) -> Optional[Credentials]:
         try:
-            self.service = get_google_photos_service()
-        except Exception as e:
-            logger.error(f"Failed to set up {self.__class__.__name__}: {e}")
-            raise ProcessorSetupError(
-                f"Missing secrets file for {self.__class__.__name__}", e
+            return Credentials.from_authorized_user_file(token_file_path, SCOPES)
+        except (ValueError, OSError):
+            # Invalid or corrupted credentials file. Let's start start a new OAuth flow.
+            return None
+
+    def _initiate_oauth_flow(self, credentials_file_path: str) -> Credentials:
+        try:
+            flow = InstalledAppFlow.from_client_secrets_file(
+                credentials_file_path, SCOPES
             )
+            return flow.run_local_server(port=0)
+        except FileNotFoundError as e:
+            raise ProcessorSetupError(
+                f"Google credentials file not found at {credentials_file_path}.", e
+            )
+
+    def _save_credentials(self, credentials: Credentials) -> None:
+        with open(TOKEN_FILE, "w") as token:
+            token.write(credentials.to_json())
+
+    def _obtain_credentials(self) -> Optional[Credentials]:
+        """
+        Obtain and manage Google OAuth credentials for the Google Photos API.
+
+        This method implements a complete OAuth 2.0 credential lifecycle:
+        1. First attempts to load cached credentials from the token file
+        2. If cached credentials exist but are expired, attempts to refresh them
+        3. If no valid credentials exist, initiates a new OAuth flow
+        4. Saves the credentials for future use
+
+        Returns:
+            Credentials: Valid Google OAuth credentials for Photos API access
+
+        Raises:
+            ProcessorSetupError: If the credentials file is not found during
+                               OAuth flow initiation
+        """
+        credentials = None
+
+        if os.path.exists(TOKEN_FILE):
+            credentials = self._load_cached_credentials(TOKEN_FILE)
+
+        if not credentials or not credentials.valid:
+            if credentials and credentials.expired and credentials.refresh_token:
+                credentials.refresh(Request())
+            else:
+                credentials = self._initiate_oauth_flow(CREDENTIALS_FILE)
+            self._save_credentials(credentials)
+
+        return credentials
 
     def can_handle(self, image_path: Path) -> bool:
         return image_path.suffix.lower() in {".jpg", ".jpeg", ".png"}
@@ -97,9 +116,7 @@ class GooglePhotosUploadPostprocessor(Postprocessor):
         except Exception as e:
             logger.error(f"Error uploading {image_path} to Google Photos: {e}")
 
-    def _upload_bytes(self, file_path: str) -> str | None:
-        import requests
-
+    def _upload_bytes(self, file_path: str) -> Optional[str]:
         creds = self.service._http.credentials
         headers = {
             "Authorization": f"Bearer {creds.token}",
@@ -120,7 +137,7 @@ class GooglePhotosUploadPostprocessor(Postprocessor):
             logger.error(f"Upload bytes failed: {response.status_code} {response.text}")
             return None
 
-    def _create_media_item(self, upload_token: str, filename: str):
+    def _create_media_item(self, upload_token: str, filename: str) -> dict[str, Any]:
         body = {
             "newMediaItems": [
                 {
