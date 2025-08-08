@@ -1,5 +1,4 @@
 import os
-import pickle
 import pytest
 import responses
 import json
@@ -14,11 +13,13 @@ from google.oauth2.credentials import Credentials
 from photo_tidy.reporting.report import Report
 from photo_tidy.postprocessors.google_photos_upload_postprocessor import (
     GooglePhotosUploadPostprocessor,
-    TOKEN_PICKLE_FILE,
+    TOKEN_FILE,
 )
 
+# Test helper methods
 
-def _create_google_oauth_2_client_secret_file_content():
+
+def create_client_secret():
     return {
         "installed": {
             "client_id": "foobar.apps.googleusercontent.com",
@@ -32,12 +33,7 @@ def _create_google_oauth_2_client_secret_file_content():
     }
 
 
-@pytest.fixture
-def google_oauth_2_client_secret():
-    return _create_google_oauth_2_client_secret_file_content()
-
-
-def _create_google_oauth_credentials(expiry, refresh_token="refresh-token"):
+def create_credentials(expiry, refresh_token="refresh-token"):
     return Credentials(
         token="ya29.valid-token",
         refresh_token=refresh_token,
@@ -49,24 +45,54 @@ def _create_google_oauth_credentials(expiry, refresh_token="refresh-token"):
     )
 
 
-@pytest.fixture
-def google_oauth_credentials_expired():
-    return _create_google_oauth_credentials(
-        expiry=(datetime.now() - timedelta(days=1)),
-        refresh_token="refresh-token",
-    )
+def write_secret(secrets_dir, client_secret):
+    secret_path = secrets_dir / "client_secret.json"
+    with open(secret_path, "w") as f:
+        json.dump(client_secret, f)
+
+
+def write_token(secrets_dir, creds):
+    creds_path = secrets_dir / "token.json"
+    with open(creds_path, "w") as f:
+        f.write(creds.to_json())
+    return creds_path
+
+
+def read_token():
+    creds_path = Path(".secrets/token.json")
+    with open(creds_path, "r") as f:
+        return Credentials.from_authorized_user_info(json.load(f))
+
+
+@contextlib.contextmanager
+def mock_installed_app_flow(flow):
+    with patch(
+        "google_auth_oauthlib.flow.InstalledAppFlow.from_client_secrets_file"
+    ) as mock:
+        mock.return_value = flow
+        yield mock
+
+
+# Fixtures
 
 
 @pytest.fixture
-def google_oauth_credentials_fresh():
-    return _create_google_oauth_credentials(
-        expiry=(datetime.now() + timedelta(days=1)),
-        refresh_token="refresh-token",
-    )
+def client_secret():
+    return create_client_secret()
 
 
 @pytest.fixture
-def secrets_dir_fs(fs):
+def creds_expired():
+    return create_credentials(expiry=datetime.now() - timedelta(days=1))
+
+
+@pytest.fixture
+def creds_fresh():
+    return create_credentials(expiry=datetime.now() + timedelta(days=1))
+
+
+@pytest.fixture
+def secrets_dir(fs):
     secrets_dir = Path(".secrets")
     fs.create_dir(secrets_dir)
     return secrets_dir
@@ -78,65 +104,36 @@ def processor():
     return GooglePhotosUploadPostprocessor(report)
 
 
-@contextlib.contextmanager
-def mock_installed_app_flow(flow):
-    with patch(
-        "google_auth_oauthlib.flow.InstalledAppFlow.from_client_secrets_file"
-    ) as mock_from_client_secrets_file:
-        mock_from_client_secrets_file.return_value = flow
-        yield mock_from_client_secrets_file
+# Tests
 
 
-def write_pickled_credentials(secrets_dir, credentials):
-    creds_path = secrets_dir / "token.pickle"
-    with open(creds_path, "wb") as f:
-        pickle.dump(credentials, f)
-    return creds_path
+@pytest.mark.parametrize("ext", [".jpg", ".jpeg", ".png", ".txt.jpg"])
+def test_handles_supported_extensions(ext, processor):
+    assert processor.can_handle(Path(f"foo{ext}"))
 
 
-def read_pickled_credentials():
-    creds_path = Path(".secrets/token.pickle")
-    with open(creds_path, "rb") as f:
-        return pickle.load(f)
+@pytest.mark.parametrize("ext", [None, "", ".txt", ".mp4"])
+def test_rejects_unsupported_extensions(ext, processor):
+    assert not processor.can_handle(Path(f"foo{ext}"))
 
 
-@pytest.mark.parametrize("extension", [".jpg", ".jpeg", ".png", ".txt.jpg"])
-def test_can_handle_returns_true_when_file_extension_is_in_supported_list(
-    extension, processor
+def test_uses_oauth_flow_if_no_cached_credentials_found(
+    secrets_dir, creds_fresh, processor
 ):
-    assert processor.can_handle(Path(f"foo{extension}")), (
-        f"Should handle extension: {extension}"
-    )
-
-
-@pytest.mark.parametrize("extension", [None, "", ".txt", ".mp4"])
-def test_can_handle_returns_false_when_file_extension_is_not_supported(
-    extension, processor
-):
-    assert not processor.can_handle(Path(f"Foo{extension}")), (
-        f"Should not handle extension: {extension}"
-    )
-
-
-def test_initiates_oauth_flow_when_pickled_credentials_are_not_present(
-    secrets_dir_fs, google_oauth_credentials_fresh, processor
-):
-    assert not os.path.exists(TOKEN_PICKLE_FILE)
+    assert not os.path.exists(TOKEN_FILE)
 
     flow = Mock()
-    flow.run_local_server.return_value = google_oauth_credentials_fresh
+    flow.run_local_server.return_value = creds_fresh
 
     with mock_installed_app_flow(flow):
         processor.set_up()
 
-        assert os.path.exists(TOKEN_PICKLE_FILE)
+        assert os.path.exists(TOKEN_FILE)
         assert processor.service is not None, "Processor service should be initialized"
 
 
-def test_pickled_credentials_are_reused_when_present_and_valid(
-    secrets_dir_fs, google_oauth_credentials_fresh, processor
-):
-    write_pickled_credentials(secrets_dir_fs, google_oauth_credentials_fresh)
+def test_reuses_valid_cached_token(secrets_dir, creds_fresh, processor):
+    write_token(secrets_dir, creds_fresh)
 
     processor.set_up()
 
@@ -146,44 +143,40 @@ def test_pickled_credentials_are_reused_when_present_and_valid(
 
 
 @responses.activate
-def test_refreshes_pickled_credentials_when_pickled_credentials_are_present_but_have_expired(
-    secrets_dir_fs,
-    google_oauth_credentials_expired,
-    google_oauth_2_client_secret,
-    processor,
+def test_refreshes_expired_credentials_if_token_has_expired_and_refresh_token_is_present(
+    secrets_dir, creds_expired, client_secret, processor
 ):
+    write_token(secrets_dir, creds_expired)
+    write_secret(secrets_dir, client_secret)
+
     responses.add(
         responses.POST,
         "https://oauth2.googleapis.com/token",
         json={"access_token": "ya29.new-token", "expires_in": 3600},
         status=200,
     )
-    write_pickled_credentials(secrets_dir_fs, google_oauth_credentials_expired)
-    secret_path = secrets_dir_fs / "client_secret.json"
-    with open(secret_path, "w") as f:
-        json.dump(google_oauth_2_client_secret, f)
 
     processor.set_up()
 
-    credentials = read_pickled_credentials()
+    credentials = read_token()
     assert "ya29.new-token" in credentials.token
     service = processor.service
     assert service is not None
     assert hasattr(service, "mediaItems")
 
 
-def test_triggers_oauth_flow_when_credentials_have_expired_and_no_refresh_token_is_available(
-    secrets_dir_fs, processor
+def test_oauth_flow_if_token_has_expired_and_no_refresh_is_present(
+    secrets_dir, processor
 ):
-    expired_creds = _create_google_oauth_credentials(
+    expired_creds = create_credentials(
         expiry=(datetime.now() - timedelta(days=1)),
         refresh_token=None,
     )
-    write_pickled_credentials(secrets_dir_fs, expired_creds)
-    assert os.path.exists(TOKEN_PICKLE_FILE)
+    write_token(secrets_dir, expired_creds)
+    assert os.path.exists(TOKEN_FILE)
 
     flow = Mock()
-    flow.run_local_server.return_value = _create_google_oauth_credentials(
+    flow.run_local_server.return_value = create_credentials(
         expiry=(datetime.now() + timedelta(days=1)),
         refresh_token="refresh-token",
     )
@@ -191,5 +184,5 @@ def test_triggers_oauth_flow_when_credentials_have_expired_and_no_refresh_token_
     with mock_installed_app_flow(flow):
         processor.set_up()
 
-        assert os.path.exists(TOKEN_PICKLE_FILE)
+        assert os.path.exists(TOKEN_FILE)
         assert processor.service is not None, "Processor service should be initialized"
