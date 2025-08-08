@@ -1,16 +1,17 @@
 # NOTE: To use this postprocessor, you must:
 # 1. Create OAuth credentials for a desktop app in Google Cloud Console.
 # 2. Download the client_secret.json and place it at .secrets/client_secret.json (or set GOOGLE_CREDENTIALS_FILE).
-# 3. The first run will prompt for authentication and store a token at .secrets/token.pickle (or set GOOGLE_TOKEN_PICKLE_FILE).
+# 3. The first run will prompt for authentication and store a token at .secrets/token.json (or set GOOGLE_TOKEN_FILE).
 
 
 from pathlib import Path
 import logging
 from photo_tidy.postprocessors.postprocessor import Postprocessor
 import os
-import pickle
-from google_auth_oauthlib.flow import InstalledAppFlow
+
 from google.auth.transport.requests import Request
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 
 from photo_tidy.processors.processor_setup_error import ProcessorSetupError
@@ -20,25 +21,40 @@ logger = logging.getLogger(__name__)
 
 SCOPES = ["https://www.googleapis.com/auth/photoslibrary.appendonly"]
 CREDENTIALS_FILE = os.getenv("GOOGLE_CREDENTIALS_FILE", ".secrets/client_secret.json")
-TOKEN_PICKLE_FILE = os.getenv("GOOGLE_TOKEN_PICKLE_FILE", ".secrets/token.pickle")
+TOKEN_FILE = os.getenv("GOOGLE_TOKEN_FILE", ".secrets/token.json")
 
 
-def get_google_photos_service():
-    """
-    See https://ai.google.dev/palm_docs/oauth_quickstart#2_write_the_credential_manager
+def load_creds():
+    """Converts the client secret file or saved token into to a credential object.
+
+    This function caches the generated tokens to minimize the use of the
+    consent screen.
     """
     creds = None
-    if os.path.exists(TOKEN_PICKLE_FILE):
-        with open(TOKEN_PICKLE_FILE, "rb") as token:
-            creds = pickle.load(token)
+    # The file token.json stores the user's access and refresh tokens, and is
+    # created automatically when the authorization flow completes for the first
+    # time.
+    if os.path.exists(TOKEN_FILE):
+        try:
+            creds = Credentials.from_authorized_user_file(TOKEN_FILE, SCOPES)
+        except (ValueError, OSError):
+            # Invalid or corrupted credentials file, will start new OAuth flow
+            creds = None
+    # If there are no (valid) credentials available, let the user log in.
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
         else:
             flow = InstalledAppFlow.from_client_secrets_file(CREDENTIALS_FILE, SCOPES)
             creds = flow.run_local_server(port=0)
-        with open(TOKEN_PICKLE_FILE, "wb") as token:
-            pickle.dump(creds, token)
+        # Save the credentials for the next run
+        with open(TOKEN_FILE, "w") as token:
+            token.write(creds.to_json())
+    return creds
+
+
+def get_google_photos_service():
+    creds = load_creds()
     return build("photoslibrary", "v1", credentials=creds, static_discovery=False)
 
 
