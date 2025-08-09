@@ -75,6 +75,42 @@ def mock_installed_app_flow(flow):
         yield mock
 
 
+@contextlib.contextmanager
+def mock_successful_media_item_creation(processor):
+    with patch.object(processor.service, "mediaItems") as mock_media_items:
+        mock_batch_create = Mock()
+        mock_batch_create.return_value.execute.return_value = {
+            "newMediaItemResults": [
+                {
+                    "mediaItem": {
+                        "productUrl": "https://photos.google.com/photo/AF1QipM_12345"
+                    }
+                }
+            ]
+        }
+        mock_media_items.return_value.batchCreate = mock_batch_create
+        yield mock_batch_create
+
+
+def mock_successful_upload_response():
+    responses.add(
+        responses.POST,
+        "https://photoslibrary.googleapis.com/v1/uploads",
+        body="upload-token-12345",
+        status=200,
+        content_type="text/plain",
+    )
+
+
+def mock_failed_upload_response():
+    responses.add(
+        responses.POST,
+        "https://photoslibrary.googleapis.com/v1/uploads",
+        json={"error": {"message": "Upload failed"}},
+        status=400,
+    )
+
+
 # Fixtures
 
 
@@ -106,9 +142,25 @@ def processor():
     return GooglePhotosUploadPostprocessor(report)
 
 
+@pytest.fixture
+def processor_with_valid_credentials(secrets_dir, cached_credentials_valid, processor):
+    """Fixture that sets up a processor with valid cached credentials."""
+    write_token(secrets_dir, cached_credentials_valid)
+    processor.set_up()
+    return processor
+
+
+@pytest.fixture
+def test_image_file(fs):
+    test_image_path = Path("test_image.jpg")
+    fs.create_file(test_image_path, contents=b"fake image data")
+    return test_image_path
+
+
 # Tests
 
 ## can_handle method
+
 
 @pytest.mark.parametrize("ext", [".jpg", ".jpeg", ".png", ".txt.jpg"])
 def test_handles_supported_extensions(ext, processor):
@@ -121,6 +173,7 @@ def test_rejects_unsupported_extensions(ext, processor):
 
 
 ## set_up method
+
 
 def test_uses_oauth_flow_and_caches_credentials_if_no_cached_credentials_exist(
     secrets_dir, cached_credentials_valid, processor
@@ -204,4 +257,144 @@ def test_oauth_flow_if_token_has_expired_and_no_refresh_token_is_present(
         assert os.path.exists(TOKEN_FILE)
         assert processor.service is not None, "Processor service should be initialized"
 
+
 ## process method
+
+
+@responses.activate
+def test_process_uploads_image_bytes_correctly(
+    processor_with_valid_credentials, test_image_file
+):
+    mock_successful_upload_response()
+
+    processor_with_valid_credentials.process(test_image_file)
+
+    assert len(responses.calls) == 1
+    upload_call = responses.calls[0]
+    assert upload_call.request is not None
+    assert upload_call.request.url == "https://photoslibrary.googleapis.com/v1/uploads"
+    assert upload_call.request.headers is not None
+    assert upload_call.request.headers["Authorization"] == "Bearer ya29.valid-token"
+    assert upload_call.request.headers["Content-type"] == "application/octet-stream"
+    assert upload_call.request.headers["X-Goog-Upload-Content-Type"] == "image/jpeg"
+    assert upload_call.request.headers["X-Goog-Upload-Protocol"] == "raw"
+    assert upload_call.request.body == b"fake image data"
+
+
+@responses.activate
+def test_successful_upload_process_creates_media_item_with_upload_token(
+    processor_with_valid_credentials, test_image_file
+):
+    mock_successful_upload_response()
+
+    with mock_successful_media_item_creation(
+        processor_with_valid_credentials
+    ) as mock_batch_create:
+        processor_with_valid_credentials.process(test_image_file)
+
+        assert mock_batch_create.call_count == 1
+        called_body = mock_batch_create.call_args.kwargs["body"]
+        assert called_body == {
+            "newMediaItems": [
+                {
+                    "simpleMediaItem": {
+                        "fileName": test_image_file.name,
+                        "uploadToken": "upload-token-12345",
+                    }
+                }
+            ]
+        }
+
+
+@responses.activate
+def test_successful_upload_process_logs_uploaded_report_item(
+    processor_with_valid_credentials, test_image_file
+):
+    mock_successful_upload_response()
+
+    with mock_successful_media_item_creation(processor_with_valid_credentials):
+        processor_with_valid_credentials.process(test_image_file)
+
+        report_items = processor_with_valid_credentials.report.get_report()
+        uploaded_items = [item for item in report_items if item.name() == "Uploaded"]
+        assert len(uploaded_items) == 1
+        assert uploaded_items[0].source == str(test_image_file)
+        assert (
+            uploaded_items[0].destination
+            == "https://photos.google.com/photo/AF1QipM_12345"
+        )
+
+
+@responses.activate
+def test_process_skips_upload_when_upload_bytes_returns_none(
+    processor_with_valid_credentials, test_image_file
+):
+    mock_failed_upload_response()
+
+    processor_with_valid_credentials.process(test_image_file)
+
+    assert len(responses.calls) == 1
+
+    report_items = processor_with_valid_credentials.report.get_report()
+    uploaded_items = [item for item in report_items if item.name() == "Uploaded"]
+    assert len(uploaded_items) == 0
+
+
+def test_process_skips_upload_when_service_not_initialized(processor, test_image_file):
+    processor.service = None
+
+    processor.process(test_image_file)
+
+    report_items = processor.report.get_report()
+    uploaded_items = [item for item in report_items if item.name() == "Uploaded"]
+    assert len(uploaded_items) == 0
+
+
+@responses.activate
+def test_process_skips_upload_when_dry_run_enabled(test_image_file):
+    report = Report()
+    dry_run_processor = GooglePhotosUploadPostprocessor(report, dry_run=True)
+
+    dry_run_processor.process(test_image_file)
+
+    assert len(responses.calls) == 0
+
+
+def test_process_logs_dry_run_message_when_dry_run_enabled(test_image_file):
+    report = Report()
+    dry_run_processor = GooglePhotosUploadPostprocessor(report, dry_run=True)
+
+    dry_run_processor.process(test_image_file)
+
+    assert len(responses.calls) == 0
+    report_items = dry_run_processor.report.get_report()
+    uploaded_items = [item for item in report_items if item.name() == "Uploaded"]
+    assert len(uploaded_items) == 0
+
+
+@responses.activate
+def test_process_handles_exception_during_upload(
+    processor, secrets_dir, cached_credentials_valid, test_image_file
+):
+    write_token(secrets_dir, cached_credentials_valid)
+    processor.set_up()
+
+    mock_http = Mock()
+    mock_http.credentials = cached_credentials_valid
+
+    def mock_request_that_fails(uri, method, *args, **kwargs):
+        raise Exception("API Error")
+
+    mock_http.request = mock_request_that_fails
+    assert processor.service is not None
+    processor.service._http = mock_http
+
+    mock_successful_upload_response()
+
+    processor.process(test_image_file)
+
+    assert len(responses.calls) == 1
+
+    report_items = processor.report.get_report()
+    uploaded_items = [item for item in report_items if item.name() == "Uploaded"]
+    assert len(uploaded_items) == 0
