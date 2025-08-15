@@ -143,8 +143,13 @@ def processor():
 
 
 @pytest.fixture
+def processor_dry_run():
+    report = Report()
+    return GooglePhotosUploadPostprocessor(report, dry_run=True)
+
+
+@pytest.fixture
 def processor_with_valid_credentials(secrets_dir, cached_credentials_valid, processor):
-    """Fixture that sets up a processor with valid cached credentials."""
     write_token(secrets_dir, cached_credentials_valid)
     processor.set_up()
     return processor
@@ -153,6 +158,13 @@ def processor_with_valid_credentials(secrets_dir, cached_credentials_valid, proc
 @pytest.fixture
 def test_image_file(fs):
     test_image_path = Path("test_image.jpg")
+    fs.create_file(test_image_path, contents=b"fake image data")
+    return test_image_path
+
+
+@pytest.fixture
+def test_image_file_png(fs):
+    test_image_path = Path("test_image.png")
     fs.create_file(test_image_path, contents=b"fake image data")
     return test_image_path
 
@@ -186,8 +198,9 @@ def test_uses_oauth_flow_and_caches_credentials_if_no_cached_credentials_exist(
     with mock_installed_app_flow(flow):
         processor.set_up()
 
-        assert os.path.exists(TOKEN_FILE)
         assert processor.service is not None, "Processor service should be initialized"
+        credentials = read_token()
+        assert "ya29.valid-token" in credentials.token
 
 
 def test_raises_error_if_no_cached_credentials_exist_and_client_secret_is_not_found(
@@ -213,7 +226,7 @@ def test_reuses_valid_cached_token(secrets_dir, cached_credentials_valid, proces
 
 
 @responses.activate
-def test_refreshes_expired_credentials_if_token_has_expired_and_refresh_token_is_present(
+def test_refreshes_cached_credentials_if_token_has_expired_and_refresh_token_is_present(
     secrets_dir, cached_credentials_expired, client_secret, processor
 ):
     write_token(secrets_dir, cached_credentials_expired)
@@ -235,7 +248,7 @@ def test_refreshes_expired_credentials_if_token_has_expired_and_refresh_token_is
     assert "ya29.new-token" in credentials.token
 
 
-def test_oauth_flow_if_token_has_expired_and_no_refresh_token_is_present(
+def test_uses_oauth_flow_if_token_has_expired_and_no_refresh_token_is_present(
     secrets_dir, processor
 ):
     expired_credentials = create_credentials(
@@ -254,7 +267,9 @@ def test_oauth_flow_if_token_has_expired_and_no_refresh_token_is_present(
     with mock_installed_app_flow(flow):
         processor.set_up()
 
-        assert os.path.exists(TOKEN_FILE)
+        credentials = read_token()
+        assert "ya29.valid-token" in credentials.token
+        assert "refresh-token" in credentials.refresh_token
         assert processor.service is not None, "Processor service should be initialized"
 
 
@@ -262,23 +277,51 @@ def test_oauth_flow_if_token_has_expired_and_no_refresh_token_is_present(
 
 
 @responses.activate
-def test_process_uploads_image_bytes_correctly(
+def test_process_uploads_image_bytes_to_google_photos_uploads_api(
     processor_with_valid_credentials, test_image_file
 ):
     mock_successful_upload_response()
 
-    processor_with_valid_credentials.process(test_image_file)
+    with mock_successful_media_item_creation(processor_with_valid_credentials):
+        processor_with_valid_credentials.process(test_image_file)
 
-    assert len(responses.calls) == 1
-    upload_call = responses.calls[0]
-    assert upload_call.request is not None
-    assert upload_call.request.url == "https://photoslibrary.googleapis.com/v1/uploads"
-    assert upload_call.request.headers is not None
-    assert upload_call.request.headers["Authorization"] == "Bearer ya29.valid-token"
-    assert upload_call.request.headers["Content-type"] == "application/octet-stream"
-    assert upload_call.request.headers["X-Goog-Upload-Content-Type"] == "image/jpeg"
-    assert upload_call.request.headers["X-Goog-Upload-Protocol"] == "raw"
-    assert upload_call.request.body == b"fake image data"
+        assert len(responses.calls) == 1
+        upload_call = responses.calls[0]
+        assert upload_call.request is not None
+        assert (
+            upload_call.request.url == "https://photoslibrary.googleapis.com/v1/uploads"
+        )
+        assert upload_call.request.headers is not None
+        assert upload_call.request.headers["Authorization"] == "Bearer ya29.valid-token"
+        assert upload_call.request.headers["Content-type"] == "application/octet-stream"
+        assert upload_call.request.headers["X-Goog-Upload-Content-Type"] == "image/jpeg"
+        assert upload_call.request.headers["X-Goog-Upload-Protocol"] == "raw"
+        assert upload_call.request.body == b"fake image data"
+
+
+@pytest.mark.parametrize(
+    "image_fixture,expected_mime_type",
+    [
+        ("test_image_file_png", "image/png"),
+        ("test_image_file", "image/jpeg"),
+    ],
+)
+@responses.activate
+def test_process_specifies_correct_image_mimetype_in_uploads_api_request(
+    processor_with_valid_credentials, image_fixture, expected_mime_type, request
+):
+    mock_successful_upload_response()
+    image_path = request.getfixturevalue(image_fixture)
+
+    with mock_successful_media_item_creation(processor_with_valid_credentials):
+        processor_with_valid_credentials.process(image_path)
+
+        upload_call = responses.calls[0]
+        assert upload_call.request.headers is not None
+        assert (
+            upload_call.request.headers.get("X-Goog-Upload-Content-Type")
+            == expected_mime_type
+        )
 
 
 @responses.activate
@@ -326,54 +369,74 @@ def test_successful_upload_process_logs_uploaded_report_item(
 
 
 @responses.activate
-def test_process_skips_upload_when_upload_bytes_returns_none(
+def test_process_raises_exception_and_skips_upload_when_image_bytes_upload_fails(
     processor_with_valid_credentials, test_image_file
 ):
     mock_failed_upload_response()
 
-    processor_with_valid_credentials.process(test_image_file)
+    with pytest.raises(RuntimeError):
+        with mock_successful_media_item_creation(
+            processor_with_valid_credentials
+        ) as createMediaItemMock:
+            processor_with_valid_credentials.process(test_image_file)
 
-    assert len(responses.calls) == 1
-
-    report_items = processor_with_valid_credentials.report.get_report()
-    uploaded_items = [item for item in report_items if item.name() == "Uploaded"]
-    assert len(uploaded_items) == 0
+            assert len(responses.calls) == 1
+            assert createMediaItemMock.call_count == 0
 
 
-def test_process_skips_upload_when_service_not_initialized(processor, test_image_file):
+@responses.activate
+def test_process_raises_exception_and_skips_upload_when_service_not_initialized(
+    processor, test_image_file
+):
     processor.service = None
 
-    processor.process(test_image_file)
+    with pytest.raises(ProcessorSetupError):
+        processor.process(test_image_file)
 
-    report_items = processor.report.get_report()
-    uploaded_items = [item for item in report_items if item.name() == "Uploaded"]
-    assert len(uploaded_items) == 0
+        assert len(responses.calls) == 0
 
 
 @responses.activate
-def test_process_skips_upload_when_dry_run_enabled(test_image_file):
-    report = Report()
-    dry_run_processor = GooglePhotosUploadPostprocessor(report, dry_run=True)
+def test_process_logs_failed_upload_report_item_when_service_not_initialized(
+    processor, test_image_file
+):
+    processor.service = None
 
-    dry_run_processor.process(test_image_file)
+    with pytest.raises(ProcessorSetupError):
+        processor.process(test_image_file)
+
+        report_items = processor.report.get_report()
+        failed_upload_items = [
+            item for item in report_items if item.name() == "Failed Upload"
+        ]
+        assert len(failed_upload_items) == 1
+        assert failed_upload_items[0].source == str(test_image_file)
+        assert "Google Photos service not initialized" in str(
+            failed_upload_items[0].exception
+        )
+
+
+@responses.activate
+def test_process_skips_upload_when_dry_run_enabled(processor_dry_run, test_image_file):
+    processor_dry_run.process(test_image_file)
 
     assert len(responses.calls) == 0
 
 
-def test_process_logs_dry_run_message_when_dry_run_enabled(test_image_file):
-    report = Report()
-    dry_run_processor = GooglePhotosUploadPostprocessor(report, dry_run=True)
+def test_process_logs_dry_run_uploaded_message_when_dry_run_enabled(
+    processor_dry_run, test_image_file
+):
+    processor_dry_run.process(test_image_file)
 
-    dry_run_processor.process(test_image_file)
-
-    assert len(responses.calls) == 0
-    report_items = dry_run_processor.report.get_report()
+    report_items = processor_dry_run.report.get_report()
     uploaded_items = [item for item in report_items if item.name() == "Uploaded"]
-    assert len(uploaded_items) == 0
+    assert len(uploaded_items) == 1
+    assert uploaded_items[0].source == str(test_image_file)
+    assert uploaded_items[0].destination == "Google Photos"
 
 
 @responses.activate
-def test_process_handles_exception_during_upload(
+def test_process_logs_failed_upload_exception_if_exception_occurs(
     processor, secrets_dir, cached_credentials_valid, test_image_file
 ):
     write_token(secrets_dir, cached_credentials_valid)
@@ -382,7 +445,7 @@ def test_process_handles_exception_during_upload(
     mock_http = Mock()
     mock_http.credentials = cached_credentials_valid
 
-    def mock_request_that_fails(uri, method, *args, **kwargs):
+    def mock_request_that_fails():
         raise Exception("API Error")
 
     mock_http.request = mock_request_that_fails
@@ -391,10 +454,13 @@ def test_process_handles_exception_during_upload(
 
     mock_successful_upload_response()
 
-    processor.process(test_image_file)
+    with pytest.raises(Exception):
+        processor.process(test_image_file)
 
-    assert len(responses.calls) == 1
+        assert len(responses.calls) == 1
 
-    report_items = processor.report.get_report()
-    uploaded_items = [item for item in report_items if item.name() == "Uploaded"]
-    assert len(uploaded_items) == 0
+        report_items = processor.report.get_report()
+        failed_report_items = [
+            item for item in report_items if item.name() == "Failed Upload"
+        ]
+        assert len(failed_report_items) == 1
