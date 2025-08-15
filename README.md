@@ -4,18 +4,18 @@
 
 [![Python CI](https://github.com/jg23497/phototidy/actions/workflows/main.yml/badge.svg?branch=main)](https://github.com/jg23497/phototidy/actions/workflows/main.yml)
 
-A command-line tool for organizing and sorting photos based on their metadata and EXIF data. PhotoTidy automatically organizes photos into a structured directory hierarchy by year and month, and can extract date information from various sources including WhatsApp filenames and EXIF metadata.
+A command-line tool for organizing and sorting photos based on their metadata and EXIF data. PhotoTidy automatically organizes photos into a structured directory hierarchy by year and month, and can extract date information from various sources including WhatsApp filenames and EXIF metadata. It also provides an extensible pre and post-processors system for plugging in new functionality, like automated Google Photos uploads.
 
 ## Features
 
-- **Automatic photo organization**: Sorts photos into year/month directory structure
+- **Automatic photo organization**: Sorts photos into a year/month directory structure.
 - **Multiple date extraction methods**: 
   - WhatsApp filename parsing (IMG-YYYYMMDD-WA####.jpg)
   - EXIF metadata extraction
-- **Preprocessor system**: Extensible framework for handling different photo sources
-- **Dry-run mode**: Preview changes without actually moving files
-- **Comprehensive reporting**: HTML report of all operations performed
-- **Conflict resolution**: Automatically handles filename conflicts
+- **Pre-processor and post-processor system**: Extensible framework for plugging in photo additional processing functionality.
+- **Dry-run mode**: Preview changes without actually moving files.
+- **Comprehensive reporting**: HTML report of all operations performed.
+- **Conflict resolution**: Automatically handles filename conflicts.
 
 ## Supported File Formats
 
@@ -82,6 +82,7 @@ phototidy [OPTIONS] DIRECTORY TARGET_ROOT
 **Options:**
 - `--dry-run`: Show what would be done without making changes
 - `--preprocessors TEXT`: Comma-separated list of preprocessors to enable
+- `--postprocessors TEXT`: Comma-separated list of postprocessors to enable
 
 ### Examples
 
@@ -92,32 +93,38 @@ phototidy ~/Pictures/unsorted ~/Pictures/organized
 
 **Dry-run to preview changes:**
 ```bash
-phototidy --dry-run ~/Pictures/unsorted ~/Pictures/organized
+phototidy ~/Pictures/unsorted ~/Pictures/organized --dry-run
 ```
 
-**Enable WhatsApp preprocessor:**
+#### Processors
+
+You can specify multiple pre and post-processors using commas, like: `"foo,bar"` to use the `foo` and `bar` processors:
+
+**Enable WhatsApp pre-processor:**
 ```bash
-phototidy --preprocessors whatsapp ~/Pictures/unsorted ~/Pictures/organized
+phototidy --preprocessors "whatsapp" ~/Pictures/unsorted ~/Pictures/organized
 ```
 
-**Multiple preprocessors:**
+**Enable the Google Photos Upload post-processor:**
+
 ```bash
-phototidy --preprocessors "whatsapp,other_preprocessor" ~/Pictures/unsorted ~/Pictures/organized
+phototidy --preprocessors "whatsapp" --postprocessors "google_photos_upload" ~/Pictures/unsorted ~/Pictures/organized
 ```
 
 ## How It Works
 
-1. **Photo Discovery**: Recursively finds all image files (jpg, jpeg, tiff, tif) in the source directory
-2. **Date Extraction**: Attempts to extract date information using:
-   - Enabled preprocessors (e.g., WhatsApp filename parsing)
-   - EXIF metadata (DateTimeOriginal, DateTimeDigitized, DateTime)
-3. **Organization**: Creates year/month directory structure and moves files
-4. **Conflict Resolution**: Automatically handles filename conflicts by appending numbers
-5. **Reporting**: Generates an HTML report of all operations
+1. **Photo Discovery**: Recursively finds all image files in the source directory.
+2. **Pre-processor execution**: Executes all specified pre-processors.
+3. **Date Extraction**: Attempts to extract date information using EXIF metadata.
+4. **Organization**: Creates year/month directory structure and moves files.
+5. **Conflict Resolution**: Automatically handles filename conflicts by appending numbers.
+6. **Post-processor execution**: Executes all specified post-processors.
+7. **Reporting**: Generates an HTML report of all operations.
 
 ## Directory Structure
 
-Photos are organized into the following structure:
+By default, photos are organized into the following structure:
+
 ```
 target_root/
 ├── 2023/
@@ -131,25 +138,17 @@ target_root/
 └── ...
 ```
 
-## Preprocessors
+## Pre-processors
 
-### WhatsApp Preprocessor
-- **Pattern**: `IMG-YYYYMMDD-WA####.jpg`
-- **Function**: Extracts date from WhatsApp image filenames and updates EXIF metadata
-- **Usage**: `--preprocessors whatsapp`
+- **WhatsApp Preprocessor**: Extract image timestamp data from WhatsApp images and updates EXIF metadata (`--preprocessors "whatsapp"`)
+
+## Post-processors
+
+- **[Google Photos Upload Processor](./docs/postprocessors/google_photos_upload_postprocessor/google_photos_upload_postprocessor.md)**: Uploads photos to the Google Photos API (`--postprocessors "google_photos_upload"`).
 
 ## Development
 
-The project structure is organized as follows:
-- `src/` - Source code directory
-  - `photo_tidy/` - Core functionality
-    - `main.py` - Main CLI entry point
-    - `sorter.py` - Photo sorting logic
-    - `preprocessors/` - Preprocessor implementations
-    - `reporting/` - Reporting system
-    - `exif_utils.py` - EXIF data extraction utilities
-
-### Development
+### Running PhotoTidy in development
 
 In development, access the main entrypoint like so:
 
