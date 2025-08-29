@@ -5,16 +5,13 @@ from typing import Optional, List, Dict, Any
 import logging
 import shutil
 
-from photo_tidy.postprocessors.google_photos_upload_postprocessor import (
-    GooglePhotosUploadPostprocessor,
-)
 from photo_tidy.preprocessors.fact_type import FactType
+from photo_tidy.processors.registry import POSTPROCESSOR_MAP, PREPROCESSOR_MAP
 from photo_tidy.reporting.initialize_report_item import InitializeReportItem
 from photo_tidy.reporting.report import Report
 from photo_tidy.reporting.move_report_item import MoveReportItem
 from photo_tidy.reporting.skipped_report_item import SkippedReportItem
 from photo_tidy.reporting.failed_report_item import FailedReportItem
-from photo_tidy.preprocessors.whatsapp_preprocessor import WhatsAppPreprocessor
 from photo_tidy.exif_utils import ExifDateExtractor
 
 logging.basicConfig(level=logging.INFO)
@@ -22,9 +19,6 @@ logger = logging.getLogger(__name__)
 
 
 class PhotoSorter:
-    PREPROCESSOR_MAP = {"whatsapp": WhatsAppPreprocessor}
-    POSTPROCESSOR_MAP = {"google_photos_upload": GooglePhotosUploadPostprocessor}
-
     def __init__(
         self,
         input_path: Path,
@@ -41,35 +35,33 @@ class PhotoSorter:
 
         if enabled_preprocessors:
             for preprocessor_name in enabled_preprocessors:
-                if preprocessor_name in self.PREPROCESSOR_MAP:
+                processor_name = preprocessor_name[0]
+                processor_args = preprocessor_name[1]
+                if processor_name in PREPROCESSOR_MAP:
                     self.preprocessors.append(
-                        self.PREPROCESSOR_MAP[preprocessor_name](dry_run=dry_run)
+                        PREPROCESSOR_MAP[processor_name](
+                            dry_run=dry_run, **processor_args
+                        )
                     )
                 else:
-                    logger.error(f"Unknown preprocessor: {preprocessor_name}")
+                    logger.error(f"Unknown preprocessor: {processor_name}")
                     sys.exit(1)
 
         if enabled_postprocessors:
             for postprocessor_name in enabled_postprocessors:
-                if postprocessor_name in self.POSTPROCESSOR_MAP:
-                    postprocessor_instance = self.POSTPROCESSOR_MAP[postprocessor_name](
-                        self.report, dry_run=dry_run
+                processor_name = postprocessor_name[0]
+                processor_args = postprocessor_name[1]
+                if processor_name in POSTPROCESSOR_MAP:
+                    postprocessor_instance = POSTPROCESSOR_MAP[processor_name](
+                        self.report, dry_run=dry_run, **processor_args
                     )
                     postprocessor_instance.set_up()
                     self.postprocessors.append(postprocessor_instance)
                 else:
-                    logger.error(f"Unknown postprocessor: {postprocessor_name}")
+                    logger.error(f"Unknown postprocessor: {processor_name}")
                     sys.exit(1)
 
         self.dry_run = dry_run
-
-    @classmethod
-    def get_available_preprocessors(cls):
-        return list(cls.PREPROCESSOR_MAP.keys())
-
-    @classmethod
-    def get_available_postprocessors(cls):
-        return list(cls.POSTPROCESSOR_MAP.keys())
 
     def run_preprocessors(self, image_path: Path) -> Optional[Dict[FactType, Any]]:
         facts = dict()

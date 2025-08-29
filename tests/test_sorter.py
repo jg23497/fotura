@@ -26,7 +26,7 @@ def test_photo_sorting():
         sorter = PhotoSorter(
             Path(input_temp_dir),
             Path(target_temp_dir),
-            enabled_preprocessors=["whatsapp"],
+            enabled_preprocessors=[("whatsapp", {})],
         )
         sorter.process_photos()
 
