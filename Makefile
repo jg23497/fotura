@@ -17,7 +17,7 @@ format:
 	uv run ruff format $$(git diff --name-only --cached -- '*.py')
 
 check:
-	uv run ruff check $$(git diff --name-only --cached -- '*.py')
+	uv run ruff check $$(git diff --name-only --cached -- '*.py') --fix
 
 type:
 	uv run ty check $$(git diff --name-only --cached -- '*.py')
