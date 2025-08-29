@@ -67,13 +67,15 @@ def main(
     enabled_preprocessors = []
     if preprocessors:
         enabled_preprocessors = [
-            __parse_processor_arguments(p.strip()) for p in preprocessors
+            __parse_processor_arguments(p.strip(), PREPROCESSOR_MAP)
+            for p in preprocessors
         ]
 
     enabled_postprocessors = []
     if postprocessors:
         enabled_postprocessors = [
-            __parse_processor_arguments(p.strip()) for p in postprocessors
+            __parse_processor_arguments(p.strip(), POSTPROCESSOR_MAP)
+            for p in postprocessors
         ]
 
     sorter = PhotoSorter(
@@ -86,16 +88,36 @@ def main(
     sorter.process_photos()
 
 
-def __parse_processor_arguments(input):
+def __cast_arg(value, cls):
+    if cls is bool:
+        val = value.strip().lower()
+        if val == "false":
+            return False
+        elif val == "true":
+            return True
+    if isinstance(value, cls):
+        return value
+    try:
+        return cls(value)
+    except Exception as e:
+        raise ValueError(f"Cannot cast {value!r} to {cls}: {e}")
+
+
+def __parse_processor_arguments(input, processor_map):
     arguments = dict()
 
     parts = input.split(":")
     processor_name = parts[0]
     options = parts[1:]
 
+    processor_class = processor_map[processor_name]
+    allowed_params = __get_processor_params(processor_class)
+
     for argument in options:
         param, arg = argument.split("=")
-        arguments[param] = arg
+        param_class = allowed_params[param]
+        casted_arg = __cast_arg(arg, param_class)
+        arguments[param] = casted_arg
 
     result = (processor_name, arguments)
     return result
