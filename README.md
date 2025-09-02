@@ -99,7 +99,7 @@ phototidy ~/Pictures/unsorted ~/Pictures/organized --dry-run
 
 #### Processors
 
-You can specify multiple pre and post-processors using commas, like: `"foo,bar"` to use the `foo` and `bar` processors:
+You can specify multiple pre and post-processors like: `--preprocessors "foo" --preprocessors "bar"` to use the `foo` and `bar` processors:
 
 **Enable FilenameTimestampExtract pre-processor:**
 ```bash
