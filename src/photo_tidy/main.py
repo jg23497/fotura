@@ -4,7 +4,7 @@ import inspect
 import click
 from pathlib import Path
 from photo_tidy.processors.registry import POSTPROCESSOR_MAP, PREPROCESSOR_MAP
-from photo_tidy.sorter import PhotoSorter
+from photo_tidy.tidy import Tidy
 
 
 def __get_processor_params(cls):
@@ -78,14 +78,14 @@ def main(
             for p in postprocessors
         ]
 
-    sorter = PhotoSorter(
+    tidy = Tidy(
         directory,
         target_root,
         dry_run=dry_run,
         enabled_preprocessors=enabled_preprocessors,
         enabled_postprocessors=enabled_postprocessors,
     )
-    sorter.process_photos()
+    tidy.process_photos()
 
 
 def __cast_arg(value, cls):

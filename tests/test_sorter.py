@@ -4,7 +4,8 @@ import tempfile
 import shutil
 import piexif
 
-from photo_tidy.sorter import PhotoSorter
+from photo_tidy.tidy import Tidy
+
 
 TEST_DIR = Path(__file__).resolve().parent
 print(TEST_DIR)
@@ -23,12 +24,12 @@ def test_photo_sorting():
         print(f"Input directory path: {input_temp_dir}")
         print(f"Temporary directory path: {target_temp_dir}")
 
-        sorter = PhotoSorter(
+        tidy = Tidy(
             Path(input_temp_dir),
             Path(target_temp_dir),
             enabled_preprocessors=[("filename_timestamp_extract", {})],
         )
-        sorter.process_photos()
+        tidy.process_photos()
 
         results = []
         for f in get_all_files(path=target_temp_dir):

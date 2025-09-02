@@ -18,7 +18,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-class PhotoSorter:
+class Tidy:
     def __init__(
         self,
         input_path: Path,
