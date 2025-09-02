@@ -26,11 +26,10 @@ def test_photo_sorting():
         sorter = PhotoSorter(
             Path(input_temp_dir),
             Path(target_temp_dir),
-            enabled_preprocessors=[("whatsapp", {})],
+            enabled_preprocessors=[("filename_timestamp_extract", {})],
         )
         sorter.process_photos()
 
-        print("Contents of temporary directory:")
         results = []
         for f in get_all_files(path=target_temp_dir):
             # Convert to Path and get the relative path from the temporary directory
@@ -38,33 +37,24 @@ def test_photo_sorting():
             # Use forward slashes for consistency across platforms
             results.append(str(relative_path).replace("\\", "/"))
 
-        print(results)
-
         assert set(results) == {
             "2008/2008-05/Pentax_K10D.jpg",
             "2008/2008-05/Pentax_K10D_1.jpg",
             "2023/2023-10/sony_alpha_a58.JPG",
             "2008/2008-05/Canon_40D.jpg",
             "2025/2025-05/IMG-20250521-WA0002.jpg",
+            "2024/2024-09/IMG_20240909_103402.jpg",
         }
 
-        # Verify EXIF date data for WhatsApp image
         whatsapp_image_path = (
             Path(target_temp_dir) / "2025" / "2025-05" / "IMG-20250521-WA0002.jpg"
         )
-        exif_dict = piexif.load(str(whatsapp_image_path))
+        _verify_exif_dates(whatsapp_image_path, "2025:05:21 12:00:00")
 
-        # Check DateTimeOriginal
-        date_str = exif_dict["Exif"][piexif.ExifIFD.DateTimeOriginal].decode("utf-8")
-        assert date_str == "2025:05:21 04:00:00"
-
-        # Check DateTimeDigitized
-        date_str = exif_dict["Exif"][piexif.ExifIFD.DateTimeDigitized].decode("utf-8")
-        assert date_str == "2025:05:21 04:00:00"
-
-        # Check DateTime
-        date_str = exif_dict["0th"][piexif.ImageIFD.DateTime].decode("utf-8")
-        assert date_str == "2025:05:21 04:00:00"
+        android_image_path = (
+            Path(target_temp_dir) / "2024" / "2024-09" / "IMG_20240909_103402.jpg"
+        )
+        _verify_exif_dates(android_image_path, "2024:09:09 10:34:02")
 
 
 def get_all_files(path="."):
@@ -74,3 +64,25 @@ def get_all_files(path="."):
                 yield (entry.path)
             elif entry.is_dir():
                 yield from get_all_files(entry.path)
+
+
+def _verify_exif_dates(image_path, expected_date_str):
+    """Verify that an image has the correct EXIF date metadata.
+
+    Args:
+        image_path: Path to the image file
+        expected_date_str: Expected date string in format "YYYY:MM:DD HH:MM:SS"
+    """
+    exif_dict = piexif.load(str(image_path))
+
+    # Check DateTimeOriginal
+    date_str = exif_dict["Exif"][piexif.ExifIFD.DateTimeOriginal].decode("utf-8")
+    assert date_str == expected_date_str
+
+    # Check DateTimeDigitized
+    date_str = exif_dict["Exif"][piexif.ExifIFD.DateTimeDigitized].decode("utf-8")
+    assert date_str == expected_date_str
+
+    # Check DateTime
+    date_str = exif_dict["0th"][piexif.ImageIFD.DateTime].decode("utf-8")
+    assert date_str == expected_date_str

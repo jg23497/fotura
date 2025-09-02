@@ -4,14 +4,15 @@
 
 [![Python CI](https://github.com/jg23497/phototidy/actions/workflows/main.yml/badge.svg?branch=main)](https://github.com/jg23497/phototidy/actions/workflows/main.yml)
 
-A command-line tool for organizing and sorting photos based on their metadata and EXIF data. PhotoTidy automatically organizes photos into a structured directory hierarchy by year and month, and can extract date information from various sources including WhatsApp filenames and EXIF metadata. It also provides an extensible pre and post-processors system for plugging in new functionality, like automated Google Photos uploads.
+A command-line tool for organizing and sorting photos based on their metadata and EXIF data. PhotoTidy automatically organizes photos into a structured directory hierarchy by year and month, and can extract date information from various sources including EXIF metadata, and WhatsApp and Android photo filenames. It also provides an extensible pre and post-processor system for plugging in new functionality, like automated Google Photos uploads.
 
 ## Features
 
 - **Automatic photo organization**: Sorts photos into a year/month directory structure.
 - **Multiple date extraction methods**: 
-  - WhatsApp filename parsing (IMG-YYYYMMDD-WA####.jpg)
   - EXIF metadata extraction
+  - WhatsApp photo filename parsing
+  - Android photo filename parsing
 - **Pre-processor and post-processor system**: Extensible framework for plugging in photo additional processing functionality.
 - **Dry-run mode**: Preview changes without actually moving files.
 - **Comprehensive reporting**: HTML report of all operations performed.
@@ -100,15 +101,15 @@ phototidy ~/Pictures/unsorted ~/Pictures/organized --dry-run
 
 You can specify multiple pre and post-processors using commas, like: `"foo,bar"` to use the `foo` and `bar` processors:
 
-**Enable WhatsApp pre-processor:**
+**Enable FilenameTimestampExtract pre-processor:**
 ```bash
-phototidy --preprocessors "whatsapp" ~/Pictures/unsorted ~/Pictures/organized
+phototidy --preprocessors "filename_timestamp_extract" ~/Pictures/unsorted ~/Pictures/organized
 ```
 
 **Enable the Google Photos Upload post-processor:**
 
 ```bash
-phototidy --preprocessors "whatsapp" --postprocessors "google_photos_upload" ~/Pictures/unsorted ~/Pictures/organized
+phototidy --preprocessors "filename_timestamp_extract" --postprocessors "google_photos_upload" ~/Pictures/unsorted ~/Pictures/organized
 ```
 
 ## How It Works
@@ -140,7 +141,7 @@ target_root/
 
 ## Pre-processors
 
-- **WhatsApp Preprocessor**: Extract image timestamp data from WhatsApp images and updates EXIF metadata (`--preprocessors "whatsapp"`)
+- **FilenameTimestampExtract Preprocessor**: Extract image timestamp data from WhatsApp or Android photos and updates EXIF metadata (`--preprocessors "filename_timestamp_extract"`)
 
 ## Post-processors
 
