@@ -1,7 +1,7 @@
 from pathlib import Path
 from datetime import datetime
 import sys
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Tuple
 import logging
 import shutil
 
@@ -24,8 +24,8 @@ class Tidy:
         input_path: Path,
         target_root: Path,
         dry_run: bool = False,
-        enabled_preprocessors: Optional[List[str]] = None,
-        enabled_postprocessors: Optional[List[str]] = None,
+        enabled_preprocessors: Optional[List[Tuple[str, Dict[str, Any]]]] = None,
+        enabled_postprocessors: Optional[List[Tuple[str, Dict[str, Any]]]] = None,
     ):
         self.input_path = input_path
         self.target_root = target_root
