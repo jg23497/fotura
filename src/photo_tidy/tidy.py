@@ -93,7 +93,7 @@ class Tidy:
         return target_path
 
     def _find_photos(self):
-        image_extensions = {".jpg", ".jpeg", ".tiff", ".tif"}
+        image_extensions = {".jpg", ".jpeg", ".tiff", ".tif", ".arw"}
 
         for file_path in self.input_path.rglob("*"):
             if not file_path.is_file():
