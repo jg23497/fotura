@@ -14,13 +14,13 @@ test:
 	uv run pytest
 
 format:
-	uv run ruff format $$(git diff --name-only --cached -- '*.py')
+	uv run ruff format $$(git diff --name-only --cached --diff-filter=AM -- '*.py')
 
 check:
-	uv run ruff check $$(git diff --name-only --cached -- '*.py') --fix
+	uv run ruff check $$(git diff --name-only --cached --diff-filter=AM -- '*.py') --fix
 
 type:
-	uv run ty check $$(git diff --name-only --cached -- '*.py')
+	uv run ty check $$(git diff --name-only --cached --diff-filter=AM -- '*.py')
 
 build:
 	uv build
