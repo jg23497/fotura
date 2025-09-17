@@ -63,11 +63,13 @@ class Tidy:
 
         self.dry_run = dry_run
 
-    def run_preprocessors(self, image_path: Path) -> Optional[Dict[FactType, Any]]:
-        facts = dict()
+    def run_preprocessors(self, image_path: Path) -> Dict[FactType, Any]:
+        facts: Dict[FactType, Any] = {}
         for preprocessor in self.preprocessors:
             if preprocessor.can_handle(image_path):
-                facts.update(preprocessor.process(image_path))
+                result = preprocessor.process(image_path)
+                if result:
+                    facts.update(result)
         return facts
 
     def run_postprocessors(self, target_path: Path):
