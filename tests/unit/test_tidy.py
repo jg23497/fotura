@@ -222,7 +222,10 @@ def test_process_photos_ignores_exif_data_when_processor_sourced_timestamp_is_ob
 
         dest_dir = target_root / "2010" / "2010-01"
         expected_path = dest_dir / image_path.name
-        assert ExifDateExtractor.extract_date(expected_path).year == 2025
+        date = ExifDateExtractor.extract_date(expected_path)
+
+        assert date is not None
+        assert date.year == 2025
         assert expected_path.exists()
         assert not image_path.exists()
 
