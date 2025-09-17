@@ -1,4 +1,4 @@
-from pathlib import Path
+from pathlib import Path, PosixPath
 from datetime import datetime
 import sys
 from typing import Optional, List, Dict, Any, Tuple
@@ -71,23 +71,28 @@ class Tidy:
         )
 
         for file_path in self.__find_photos():
-            facts = self.__run_preprocessors(file_path)
-            date = facts.get(FactType.TAKEN_TIMESTAMP)
+            target_path = PosixPath()
 
-            if not date:
-                date = ExifDateExtractor.extract_date(file_path)
-            if not date:
-                self.report.log(SkippedReportItem(file_path, "No date found"))
-                continue
-
-            target_path = self.__get_target_path(date, file_path)
             try:
+                facts = self.__run_preprocessors(file_path)
+                date = facts.get(FactType.TAKEN_TIMESTAMP)
+
+                if not date:
+                    date = ExifDateExtractor.extract_date(file_path)
+                if not date:
+                    self.report.log(SkippedReportItem(file_path, "No date found"))
+                    continue
+
+                target_path = self.__get_target_path(date, file_path)
+
                 if not self.dry_run:
                     shutil.move(file_path, target_path)
                 self.report.log(MoveReportItem(file_path, target_path))
+
                 self.__run_postprocessors(target_path)
             except Exception as e:
                 self.report.log(FailedReportItem(file_path, target_path, e))
+                break
 
         self.report.create_report(Path("output/report.html"), self.dry_run)
 

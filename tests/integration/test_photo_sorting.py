@@ -1,11 +1,11 @@
 from pathlib import Path
 
 from photo_tidy.tidy import Tidy
-from tests.helpers.helper import get_all_files, temporary_images, verify_exif_dates
+from tests.helpers.helper import get_all_files, all_temporary_images, verify_exif_dates
 
 
 def test_photo_sorting():
-    with temporary_images() as (
+    with all_temporary_images() as (
         input_path,
         target_root,
     ):
