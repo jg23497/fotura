@@ -21,7 +21,7 @@ from photo_tidy.tidy import Tidy
 
 @contextlib.contextmanager
 def image_context(test_image_filename):
-    test_dir = Path(__file__).resolve().parent
+    test_dir = Path(__file__).resolve().parent.parent
     data_dir = test_dir / "data"
 
     with (
