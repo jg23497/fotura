@@ -7,7 +7,7 @@ import piexif
 from photo_tidy.tidy import Tidy
 
 
-TEST_DIR = Path(__file__).resolve().parent
+TEST_DIR = Path(__file__).resolve().parent.parent
 print(TEST_DIR)
 input_directory_path = TEST_DIR / "data"
 
@@ -39,6 +39,7 @@ def test_photo_sorting():
             results.append(str(relative_path).replace("\\", "/"))
 
         assert set(results) == {
+            "2010/2010-01/IMG_20100102_030405.jpg",
             "2008/2008-05/Pentax_K10D.jpg",
             "2008/2008-05/Pentax_K10D_1.jpg",
             "2023/2023-10/sony_alpha_a58.JPG",
