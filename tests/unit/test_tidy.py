@@ -1,7 +1,5 @@
-import contextlib
 import os
 import shutil
-import tempfile
 from datetime import datetime
 from pathlib import Path
 from unittest.mock import Mock, patch
@@ -13,62 +11,12 @@ from photo_tidy.preprocessors.fact_type import FactType
 from photo_tidy.reporting.failed_report_item import FailedReportItem
 from photo_tidy.reporting.report import Report
 from photo_tidy.reporting.skipped_report_item import SkippedReportItem
+from photo_tidy.reporting.move_report_item import MoveReportItem
 from photo_tidy.tidy import Tidy
-
-
-# Test helpers
-
-
-@contextlib.contextmanager
-def image_context(test_image_filename):
-    test_dir = Path(__file__).resolve().parent.parent
-    data_dir = test_dir / "data"
-
-    with (
-        tempfile.TemporaryDirectory() as input_temp_dir,
-        tempfile.TemporaryDirectory() as target_temp_dir,
-    ):
-        input_path = Path(input_temp_dir)
-        target_root = Path(target_temp_dir)
-
-        image_path = data_dir / test_image_filename
-        copied_img = input_path / image_path.name
-        shutil.copy2(image_path, copied_img)
-
-        yield input_path, target_root, copied_img
-
-
-class DummyPreprocessor:
-    def __init__(
-        self,
-        *,
-        dry_run: bool = False,
-        can_handle: bool = True,
-    ) -> None:
-        self.dry_run = dry_run
-        self.can_handle: Mock = Mock(return_value=can_handle)
-        self.process: Mock = Mock(return_value={})
-
-
-class DummyPreprocessorOther:
-    def __init__(
-        self,
-        *,
-        dry_run: bool = False,
-        can_handle: bool = True,
-    ) -> None:
-        self.dry_run = dry_run
-        self.can_handle: Mock = Mock(return_value=can_handle)
-        self.process: Mock = Mock(return_value={})
-
-
-class DummyPostprocessor:
-    def __init__(self, report: Report, *, dry_run: bool = False) -> None:
-        self.report = report
-        self.dry_run = dry_run
-        self.set_up = Mock()
-        self.process: Mock = Mock()
-
+from tests.helpers.processors import DummyPostprocessor, DummyPreprocessor
+from tests.helpers.helper import (
+    temporary_image,
+)
 
 # Fixtures
 
@@ -166,7 +114,7 @@ def test_exits_when_unknown_postprocessor_is_specified(input_dir, target_root):
 
 @patch(
     "photo_tidy.tidy.PREPROCESSOR_MAP",
-    {"foo": DummyPreprocessor, "bar": DummyPreprocessorOther},
+    {"foo": DummyPreprocessor, "bar": DummyPreprocessor},
 )
 def test_last_preprocessor_fact_takes_precedence(input_dir, target_root):
     image_path = input_dir / "img.jpg"
@@ -201,7 +149,7 @@ def test_last_preprocessor_fact_takes_precedence(input_dir, target_root):
     {"processor": DummyPreprocessor},
 )
 def test_process_photos_ignores_exif_data_when_processor_sourced_timestamp_is_obtained():
-    with image_context("IMG_20100102_030405.jpg") as (
+    with temporary_image("IMG_20100102_030405.jpg") as (
         input_path,
         target_root,
         image_path,
@@ -263,8 +211,8 @@ def test_process_photos_skips_unsupported_files(input_dir, target_root, extensio
     assert str(file_path) in str(skipped[0])
 
 
-def test_process_photos_moves_files_and_runs_postprocessors():
-    with image_context("IMG_20240909_103402.jpg") as (
+def test_process_photos_moves_files():
+    with temporary_image("IMG_20240909_103402.jpg") as (
         input_path,
         target_root,
         image_path,
@@ -275,21 +223,63 @@ def test_process_photos_moves_files_and_runs_postprocessors():
             dry_run=False,
             enabled_preprocessors=[("filename_timestamp_extract", {})],
         )
+
         tidy.process_photos()
 
         dest_dir = target_root / "2024" / "2024-09"
         moved = dest_dir / image_path.name
+
         assert moved.exists()
         assert not image_path.exists()
-
-        names = [item.name() for item in tidy.report.get_report()]
-        assert "Moved" in names
-
         assert Path("output/report.html").exists()
 
 
+def test_process_photos_leaves_files_in_place_for_dry_runs():
+    with temporary_image("Canon_40D.jpg") as (
+        input_path,
+        target_root,
+        image_path,
+    ):
+        tidy = Tidy(
+            input_path=input_path,
+            target_root=target_root,
+            dry_run=True,
+        )
+
+        tidy.process_photos()
+
+        dest_dir = target_root / "2024" / "2024-09"
+        moved = dest_dir / image_path.name
+
+        assert image_path.exists()
+        assert not moved.exists()
+        assert Path("output/report.html").exists()
+
+
+@pytest.mark.parametrize("dry_run", [True, False])
+def test_process_photos_logs_file_moves_to_report(dry_run):
+    with temporary_image("Canon_40D.jpg") as (
+        input_path,
+        target_root,
+        _,
+    ):
+        tidy = Tidy(
+            input_path=input_path,
+            target_root=target_root,
+            dry_run=dry_run,
+        )
+        tidy.process_photos()
+
+        moved_item = next(
+            (item for item in tidy.report.get_report() if type(item) is MoveReportItem)
+        )
+
+        assert moved_item
+        assert "Canon_40D.jpg" in moved_item.destination
+
+
 def test_process_photos_skips_when_a_timestamp_cannot_be_obtained():
-    with image_context("no-date.jpg") as (
+    with temporary_image("no-date.jpg") as (
         input_path,
         target_root,
         image_path,
@@ -314,8 +304,8 @@ def test_process_photos_skips_when_a_timestamp_cannot_be_obtained():
 
 
 @patch.object(shutil, "move", side_effect=ValueError)
-def test_process_photos_logs_failed_on_move_exception(mock_move):
-    with image_context("Canon_40D.jpg") as (
+def test_process_photos_logs_failed_on_move_exception(_):
+    with temporary_image("Canon_40D.jpg") as (
         input_path,
         target_root,
         image_path,
@@ -340,7 +330,7 @@ def test_process_photos_logs_failed_on_move_exception(mock_move):
 
 
 def test_process_photos_handles_filename_collisions_using_increment_strategy():
-    with image_context("Canon_40D.jpg") as (
+    with temporary_image("Canon_40D.jpg") as (
         input_path,
         target_root,
         image_path,

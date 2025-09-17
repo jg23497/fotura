@@ -19,6 +19,8 @@ logger = logging.getLogger(__name__)
 
 
 class Tidy:
+    SUPPORTED_EXTENSIONS = {".jpg", ".jpeg", ".tiff", ".tif", ".arw"}
+
     def __init__(
         self,
         input_path: Path,
@@ -63,7 +65,33 @@ class Tidy:
 
         self.dry_run = dry_run
 
-    def run_preprocessors(self, image_path: Path) -> Dict[FactType, Any]:
+    def process_photos(self):
+        self.report.log(
+            InitializeReportItem(self.dry_run, self.input_path, self.target_root)
+        )
+
+        for file_path in self.__find_photos():
+            facts = self.__run_preprocessors(file_path)
+            date = facts.get(FactType.TAKEN_TIMESTAMP)
+
+            if not date:
+                date = ExifDateExtractor.extract_date(file_path)
+            if not date:
+                self.report.log(SkippedReportItem(file_path, "No date found"))
+                continue
+
+            target_path = self.__get_target_path(date, file_path)
+            try:
+                if not self.dry_run:
+                    shutil.move(file_path, target_path)
+                self.report.log(MoveReportItem(file_path, target_path))
+                self.__run_postprocessors(target_path)
+            except Exception as e:
+                self.report.log(FailedReportItem(file_path, target_path, e))
+
+        self.report.create_report(Path("output/report.html"), self.dry_run)
+
+    def __run_preprocessors(self, image_path: Path) -> Dict[FactType, Any]:
         facts: Dict[FactType, Any] = {}
         for preprocessor in self.preprocessors:
             if preprocessor.can_handle(image_path):
@@ -72,37 +100,32 @@ class Tidy:
                     facts.update(result)
         return facts
 
-    def run_postprocessors(self, target_path: Path):
+    def __run_postprocessors(self, target_path: Path):
         for postprocessor in self.postprocessors:
             postprocessor.process(target_path)
 
-    def get_target_path(self, date: datetime, original_path: Path) -> Path:
-        # Create year/month directory structure
+    def __get_target_path(self, date: datetime, original_path: Path) -> Path:
         target_dir = self.target_root / str(date.year) / f"{date.year}-{date.month:02d}"
         target_dir.mkdir(parents=True, exist_ok=True)
 
-        # Start with original filename
         base_name = original_path.stem
         extension = original_path.suffix
         counter = 1
         target_path = target_dir / f"{base_name}{extension}"
 
-        # If file exists, append counter until we find an available name
         while target_path.exists():
             target_path = target_dir / f"{base_name}_{counter}{extension}"
             counter += 1
 
         return target_path
 
-    def _find_photos(self):
-        image_extensions = {".jpg", ".jpeg", ".tiff", ".tif", ".arw"}
-
+    def __find_photos(self):
         for file_path in self.input_path.rglob("*"):
             if not file_path.is_file():
                 continue
 
             file_extension = file_path.suffix.lower()
-            if file_extension not in image_extensions:
+            if file_extension not in self.SUPPORTED_EXTENSIONS:
                 self.report.log(
                     SkippedReportItem(
                         file_path, f"{file_extension} not in supported file extensions"
@@ -111,28 +134,3 @@ class Tidy:
                 continue
 
             yield file_path
-
-    def process_photos(self):
-        self.report.log(
-            InitializeReportItem(self.dry_run, self.input_path, self.target_root)
-        )
-
-        for file_path in self._find_photos():
-            facts = self.run_preprocessors(file_path)
-            date = facts.get(FactType.TAKEN_TIMESTAMP)
-            if not date:
-                date = ExifDateExtractor.extract_date(file_path)
-            if not date:
-                self.report.log(SkippedReportItem(file_path, "No date found"))
-                continue
-
-            target_path = self.get_target_path(date, file_path)
-            try:
-                if not self.dry_run:
-                    shutil.move(file_path, target_path)
-                self.report.log(MoveReportItem(file_path, target_path))
-                self.run_postprocessors(target_path)
-            except Exception as e:
-                self.report.log(FailedReportItem(file_path, target_path, e))
-
-        self.report.create_report(Path("output/report.html"), self.dry_run)
