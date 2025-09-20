@@ -6,7 +6,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from photo_tidy.exif_utils import ExifDateExtractor
+from photo_tidy.exif_data import ExifData
 from photo_tidy.preprocessors.fact_type import FactType
 from photo_tidy.reporting.failed_report_item import FailedReportItem
 from photo_tidy.reporting.report import Report
@@ -170,7 +170,7 @@ def test_process_photos_ignores_exif_data_when_processor_sourced_timestamp_is_ob
 
         dest_dir = target_root / "2010" / "2010-01"
         expected_path = dest_dir / image_paths[0].name
-        date = ExifDateExtractor.extract_date(expected_path)
+        date = ExifData.extract_date(expected_path)
 
         assert date is not None
         assert date.year == 2025
@@ -188,7 +188,7 @@ def test_process_photos_handles_files_with_supported_extensions(
     file_path.write_bytes(b"bar")
 
     with patch.object(
-        ExifDateExtractor, "extract_date", Mock(return_value=datetime(2020, 1, 1))
+        ExifData, "extract_date", Mock(return_value=datetime(2020, 1, 1))
     ):
         tidy.process_photos()
 
@@ -329,7 +329,7 @@ def test_process_photos_logs_failed_on_move_exception(_):
         assert image_paths[0].exists()
 
 
-@patch.object(ExifDateExtractor, "extract_date", side_effect=ValueError)
+@patch.object(ExifData, "extract_date", side_effect=ValueError)
 def test_process_photos_halts_on_exception(_):
     with temporary_images(["Canon_40D.jpg", "sony_alpha_a58.JPG"]) as (
         input_path,

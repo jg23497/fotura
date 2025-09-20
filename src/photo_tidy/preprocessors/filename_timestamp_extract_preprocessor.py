@@ -1,10 +1,10 @@
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, Optional, List, Tuple
-import piexif
 import re
 import logging
 
+from photo_tidy.exif_data import ExifData
 from photo_tidy.preprocessors.fact_type import FactType
 from .preprocessor import Preprocessor
 
@@ -31,25 +31,12 @@ class FilenameTimestampExtractPreprocessor(Preprocessor):
         if not date:
             raise ValueError(f"Unable to extract timestamp from {filename}")
 
-        try:
-            exif_dict = piexif.load(str(image_path))
-            formatted_date: str = date.strftime("%Y:%m:%d %H:%M:%S")
-
-            # Update EXIF fields
-            exif_dict["Exif"][piexif.ExifIFD.DateTimeOriginal] = formatted_date
-            exif_dict["Exif"][piexif.ExifIFD.DateTimeDigitized] = formatted_date
-            exif_dict["0th"][piexif.ImageIFD.DateTime] = formatted_date
-
-            if self.dry_run:
-                logger.info(
-                    f"[DRY RUN] Would update EXIF date fields for {image_path.name} to {formatted_date}"
-                )
-            else:
-                exif_bytes = piexif.dump(exif_dict)
-                piexif.insert(exif_bytes, str(image_path))
-                logger.info(f"Updated EXIF date fields for {image_path.name}")
-        except Exception as e:
-            logger.error(f"Error updating EXIF data for {image_path.name}: {str(e)}")
+        if self.dry_run:
+            logger.info(
+                f"[DRY RUN] Would update EXIF date fields for {image_path.name} to {date.strftime('%Y:%m:%d %H:%M:%S')}"
+            )
+        else:
+            ExifData.write_date(image_path, date)
 
         return {FactType.TAKEN_TIMESTAMP: date}
 

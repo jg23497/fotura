@@ -36,7 +36,7 @@ def get_all_files(path="."):
                 yield from get_all_files(entry.path)
 
 
-def verify_exif_dates(image_path, expected_date_str):
+def assert_exif_dates(image_path, expected_date_str):
     """Verify that an image has the correct EXIF date metadata.
 
     Args:

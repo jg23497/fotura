@@ -12,7 +12,7 @@ from photo_tidy.reporting.report import Report
 from photo_tidy.reporting.move_report_item import MoveReportItem
 from photo_tidy.reporting.skipped_report_item import SkippedReportItem
 from photo_tidy.reporting.failed_report_item import FailedReportItem
-from photo_tidy.exif_utils import ExifDateExtractor
+from photo_tidy.exif_data import ExifData
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -78,7 +78,7 @@ class Tidy:
                 date = facts.get(FactType.TAKEN_TIMESTAMP)
 
                 if not date:
-                    date = ExifDateExtractor.extract_date(file_path)
+                    date = ExifData.extract_date(file_path)
                 if not date:
                     self.report.log(SkippedReportItem(file_path, "No date found"))
                     continue
