@@ -3,13 +3,24 @@
 import inspect
 import click
 from pathlib import Path
+from typing import Any, Dict, Tuple, Type
 from photo_tidy.processors.registry import POSTPROCESSOR_MAP, PREPROCESSOR_MAP
 from photo_tidy.tidy import Tidy
 
 
-def __get_processor_params(cls):
-    sig = inspect.signature(cls.__init__)
-    params = {}
+def __get_processor_params(klass: Type) -> Dict[str, Type]:
+    """
+    Inspect a processor class and return a dictionary of its constructor parameters
+    (excluding internal ones like 'self', 'report', etc.).
+
+    Args:
+        klass (type): Processor class to inspect.
+
+    Returns:
+        dict: Mapping of parameter names to their annotated types.
+    """
+    sig = inspect.signature(klass.__init__)
+    params: Dict[str, Type] = {}
     for name, p in sig.parameters.items():
         if name in ("self", "report", "dry_run", "can_handle"):
             continue
@@ -18,14 +29,23 @@ def __get_processor_params(cls):
     return params
 
 
-def __build_preprocessor_help(map):
+def __build_preprocessor_help(processor_map: Dict[str, Type]) -> str:
+    """
+    Generate a help string listing all available processors and their parameters.
+
+    Args:
+        processor_map (dict): Mapping of processor names to processor classes.
+
+    Returns:
+        str: Formatted help text describing each processor and its parameters.
+    """
     lines = [
         "Add a processor with optional parameters.",
         "Format: name or name:option=value",
         "",
         "Available processors:",
     ]
-    for name, cls in map.items():
+    for name, cls in processor_map.items():
         params = __get_processor_params(cls)
         if params:
             param_str = ", ".join(f"{p}({t.__name__})" for p, t in params.items())
@@ -55,10 +75,22 @@ def main(
     directory: Path,
     target_root: Path,
     dry_run: bool,
-    preprocessors: str,
-    postprocessors: str,
-):
-    """Sort photos from a directory into a target root directory."""
+    preprocessors: Tuple[str, ...],
+    postprocessors: Tuple[str, ...],
+) -> None:
+    """
+    Entry point for the CLI.
+
+    Moves or copies photos from a source directory to a target directory,
+    optionally applying pre and post-processors.
+
+    Args:
+        directory (Path): Source directory containing photos.
+        target_root (Path): Target root directory for organized photos.
+        dry_run (bool): If True, no actual file operations are performed.
+        preprocessors (list[str]): List of preprocessor specifications.
+        postprocessors (list[str]): List of postprocessor specifications.
+    """
     click.echo(f"Processing photos from: {directory}")
     click.echo(f"Target root directory: {target_root}")
     if dry_run:
@@ -88,39 +120,67 @@ def main(
     tidy.process_photos()
 
 
-def __cast_arg(value, cls):
-    if cls is bool:
+def __cast_arg(value: str, klass: Type) -> Any:
+    """
+    Convert a string value to the given type, with special handling for booleans.
+
+    Args:
+        value (str): The value to cast.
+        klass (type): Target type to cast to.
+
+    Returns:
+        Any: Value cast to the requested type.
+
+    Raises:
+        ValueError: If the value cannot be cast to the target type.
+    """
+    if klass is bool:
         val = value.strip().lower()
         if val == "false":
             return False
         elif val == "true":
             return True
-    if isinstance(value, cls):
+    if isinstance(value, klass):
         return value
     try:
-        return cls(value)
+        return klass(value)
     except Exception as e:
-        raise ValueError(f"Cannot cast {value!r} to {cls}: {e}")
+        raise ValueError(f"Cannot cast {value!r} to {klass}: {e}")
 
 
-def __parse_processor_arguments(input, processor_map):
+def __parse_processor_arguments(
+    input: str, processor_map: Dict[str, Type]
+) -> Tuple[str, Dict[str, Any]]:
+    """
+    Parse a processor specification string into a name and argument dictionary.
+
+    Format: "processor_name:param1=value1,param2=value2"
+
+    Args:
+        input (str): Processor specification string.
+        processor_map (dict): Mapping of processor names to processor classes.
+
+    Returns:
+        tuple[str, dict]: Processor name and dictionary of parsed arguments.
+    """
     arguments = dict()
 
     parts = input.split(":")
     processor_name = parts[0]
-    options = parts[1:]
+    options_string = parts[1] if len(parts) > 1 else None
 
     processor_class = processor_map[processor_name]
     allowed_params = __get_processor_params(processor_class)
 
-    for argument in options:
-        param, arg = argument.split("=")
-        param_class = allowed_params[param]
-        casted_arg = __cast_arg(arg, param_class)
-        arguments[param] = casted_arg
+    if options_string:
+        options = [opt.strip() for opt in options_string.split(",")]
+        for argument in options:
+            param, arg = argument.split("=")
+            param_class = allowed_params[param]
+            casted_arg = __cast_arg(arg, param_class)
+            arguments[param] = casted_arg
 
-    result = (processor_name, arguments)
-    return result
+    return processor_name, arguments
 
 
 if __name__ == "__main__":

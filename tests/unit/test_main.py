@@ -1,9 +1,11 @@
 from unittest.mock import patch
 from importlib import reload
 from click.testing import CliRunner
-from photo_tidy import main
+from photo_tidy import main, tidy
+
 from tests.helpers.helper import temporary_images
 from tests.helpers.processors import (
+    ComplexDummyPostprocessor,
     ComplexDummyPreprocessor,
     DummyPostprocessor,
     DummyPreprocessor,
@@ -91,10 +93,49 @@ def test_fails_when_unknown_preprocessor_specified():
 )
 def test_passes_command_line_arguments_to_preprocessors():
     reload(main)
+
     with temporary_images(["Canon_40D.jpg"]) as (
         input_path,
         target_root,
-        input_image_paths,
+        _,
+    ):
+        with (
+            patch.object(tidy.Tidy, "__init__", return_value=None) as mock_init,
+            patch.object(tidy.Tidy, "process_photos", return_value=None),
+        ):
+            result = CliRunner().invoke(
+                main.main,
+                [
+                    str(input_path),
+                    str(target_root),
+                    "--preprocessors",
+                    "complex_preprocessor:max_size=1,should_do_something=true",
+                ],
+            )
+
+            assert result.exit_code == 0
+
+            mock_init.assert_called_once()
+            _, kwargs = mock_init.call_args
+
+            assert kwargs["enabled_preprocessors"] == [
+                ("complex_preprocessor", {"max_size": 1, "should_do_something": True})
+            ]
+
+
+@patch(
+    "photo_tidy.processors.registry.PREPROCESSOR_MAP",
+    {
+        "complex_preprocessor": ComplexDummyPreprocessor,
+    },
+)
+def test_main_invalid_preprocessor_argument_type():
+    reload(main)
+
+    with temporary_images(["Canon_40D.jpg"]) as (
+        input_path,
+        target_root,
+        _,
     ):
         result = CliRunner().invoke(
             main.main,
@@ -102,12 +143,13 @@ def test_passes_command_line_arguments_to_preprocessors():
                 str(input_path),
                 str(target_root),
                 "--preprocessors",
-                "complex_preprocessor:max_size=1",
+                "complex_preprocessor:max_size=foo",
             ],
         )
 
-        # TODO: Assert that the correct arguments are passed
-        assert result
+        assert result.exit_code == 1
+        assert isinstance(result.exception, ValueError)
+        assert "Cannot cast 'foo' to <class 'int'>:" in str(result.exception)
 
 
 @patch(
@@ -159,3 +201,70 @@ def test_fails_when_unknown_postprocessor_specified():
         )
 
         assert result.exit_code == 1
+
+
+@patch(
+    "photo_tidy.processors.registry.POSTPROCESSOR_MAP",
+    {
+        "complex_postprocessor": ComplexDummyPostprocessor,
+    },
+)
+def test_passes_command_line_arguments_to_postprocessors():
+    reload(main)
+
+    with temporary_images(["Canon_40D.jpg"]) as (
+        input_path,
+        target_root,
+        _,
+    ):
+        with (
+            patch.object(tidy.Tidy, "__init__", return_value=None) as mock_init,
+            patch.object(tidy.Tidy, "process_photos", return_value=None),
+        ):
+            result = CliRunner().invoke(
+                main.main,
+                [
+                    str(input_path),
+                    str(target_root),
+                    "--postprocessors",
+                    "complex_postprocessor:max_size=1,should_do_something=true",
+                ],
+            )
+
+            assert result.exit_code == 0
+
+            mock_init.assert_called_once()
+            _, kwargs = mock_init.call_args
+
+            assert kwargs["enabled_postprocessors"] == [
+                ("complex_postprocessor", {"max_size": 1, "should_do_something": True})
+            ]
+
+
+@patch(
+    "photo_tidy.processors.registry.POSTPROCESSOR_MAP",
+    {
+        "complex_postprocessor": ComplexDummyPostprocessor,
+    },
+)
+def test_main_invalid_postprocessor_argument_type():
+    reload(main)
+
+    with temporary_images(["Canon_40D.jpg"]) as (
+        input_path,
+        target_root,
+        _,
+    ):
+        result = CliRunner().invoke(
+            main.main,
+            [
+                str(input_path),
+                str(target_root),
+                "--postprocessors",
+                "complex_postprocessor:max_size=foo",
+            ],
+        )
+
+        assert result.exit_code == 1
+        assert isinstance(result.exception, ValueError)
+        assert "Cannot cast 'foo' to <class 'int'>:" in str(result.exception)
