@@ -4,7 +4,7 @@ import responses
 import json
 import contextlib
 
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 from pathlib import Path
 from datetime import datetime, timedelta
 
@@ -112,6 +112,19 @@ def mock_failed_upload_response():
 
 
 # Fixtures
+
+
+@pytest.fixture(autouse=True)
+def mock_photoslibrary_service():
+    with patch(
+        "photo_tidy.postprocessors.google_photos_upload_postprocessor.build"
+    ) as mock_build:
+        mock_service = MagicMock()
+        mock_service._http = MagicMock(
+            credentials=MagicMock(token="ya29.default-token")
+        )
+        mock_build.return_value = mock_service
+        yield mock_build
 
 
 @pytest.fixture
@@ -292,7 +305,9 @@ def test_process_uploads_image_bytes_to_google_photos_uploads_api(
             upload_call.request.url == "https://photoslibrary.googleapis.com/v1/uploads"
         )
         assert upload_call.request.headers is not None
-        assert upload_call.request.headers["Authorization"] == "Bearer ya29.valid-token"
+        assert (
+            upload_call.request.headers["Authorization"] == "Bearer ya29.default-token"
+        )
         assert upload_call.request.headers["Content-type"] == "application/octet-stream"
         assert upload_call.request.headers["X-Goog-Upload-Content-Type"] == "image/jpeg"
         assert upload_call.request.headers["X-Goog-Upload-Protocol"] == "raw"
