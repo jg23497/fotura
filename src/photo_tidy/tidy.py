@@ -4,6 +4,7 @@ import sys
 from typing import Optional, List, Dict, Any, Tuple
 import logging
 import shutil
+from platformdirs import user_config_dir, user_data_dir
 
 from photo_tidy.preprocessors.fact_type import FactType
 from photo_tidy.processors.registry import POSTPROCESSOR_MAP, PREPROCESSOR_MAP
@@ -28,12 +29,16 @@ class Tidy:
         dry_run: bool = False,
         enabled_preprocessors: Optional[List[Tuple[str, Dict[str, Any]]]] = None,
         enabled_postprocessors: Optional[List[Tuple[str, Dict[str, Any]]]] = None,
+        open_report: bool = False,
     ):
         self.input_path = input_path
         self.target_root = target_root
         self.preprocessors = []
         self.postprocessors = []
         self.report = Report()
+        self.user_config_path = Path(user_config_dir("phototidy"))
+        self.user_data_path = Path(user_data_dir("phototidy"))
+        self.open_report = open_report
 
         if enabled_preprocessors:
             for preprocessor_name in enabled_preprocessors:
@@ -94,7 +99,12 @@ class Tidy:
                 self.report.log(FailedReportItem(file_path, target_path, e))
                 break
 
-        self.report.create_report(Path("output/report.html"), self.dry_run)
+        report_name = datetime.now().strftime("%Y%m%d_%H%M%S")
+        report_path = self.user_data_path / "reports" / f"{report_name}.html"
+        self.report.create_report(report_path, self.dry_run)
+
+        if self.open_report:
+            self.report.open()
 
     def __run_preprocessors(self, image_path: Path) -> Dict[FactType, Any]:
         facts: Dict[FactType, Any] = {}

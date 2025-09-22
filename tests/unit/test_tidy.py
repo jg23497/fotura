@@ -37,8 +37,22 @@ def target_root(fs) -> Path:
 
 @pytest.fixture(autouse=True)
 def stub_report_template():
-    with patch.object(Report, "create_report", return_value="<html></html>"):
+    with patch.object(Report, "_generate_html", return_value="<html></html>"):
         yield
+
+
+@pytest.fixture(autouse=True)
+def stub_user_dirs(tmp_path):
+    user_data_path = tmp_path / "user_data"
+    user_config_path = tmp_path / "user_config"
+    user_data_path.mkdir()
+    user_config_path.mkdir()
+
+    with (
+        patch("photo_tidy.tidy.user_data_dir", return_value=user_data_path),
+        patch("photo_tidy.tidy.user_config_dir", return_value=user_config_path),
+    ):
+        yield user_data_path, user_config_path
 
 
 # Tests
@@ -211,7 +225,8 @@ def test_process_photos_skips_unsupported_files(input_dir, target_root, extensio
     assert str(file_path) in str(skipped[0])
 
 
-def test_process_photos_moves_files():
+def test_process_photos_moves_files(stub_user_dirs):
+    user_data_path, _ = stub_user_dirs
     with temporary_images(["IMG_20240909_103402.jpg"]) as (
         input_path,
         target_root,
@@ -231,10 +246,11 @@ def test_process_photos_moves_files():
 
         assert moved.exists()
         assert not image_paths[0].exists()
-        assert Path("output/report.html").exists()
+        assert any(user_data_path.glob("reports/*.html"))
 
 
-def test_process_photos_leaves_files_in_place_for_dry_runs():
+def test_process_photos_leaves_files_in_place_for_dry_runs(stub_user_dirs):
+    user_data_path, _ = stub_user_dirs
     with temporary_images(["Canon_40D.jpg"]) as (
         input_path,
         target_root,
@@ -253,7 +269,7 @@ def test_process_photos_leaves_files_in_place_for_dry_runs():
 
         assert image_paths[0].exists()
         assert not moved.exists()
-        assert Path("output/report.html").exists()
+        assert any(user_data_path.glob("reports/*.html"))
 
 
 @pytest.mark.parametrize("dry_run", [True, False])

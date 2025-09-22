@@ -10,5 +10,4 @@ wheels/
 .venv
 
 # Files we generate
-output/report.html
 .secrets/

@@ -62,6 +62,11 @@ def __build_preprocessor_help(processor_map: Dict[str, Type]) -> str:
     "--dry-run", is_flag=True, help="Show what would be done without making changes"
 )
 @click.option(
+    "--open-report",
+    is_flag=True,
+    help="Open the report in your web browser after completion",
+)
+@click.option(
     "--preprocessors",
     multiple=True,
     help=__build_preprocessor_help(PREPROCESSOR_MAP),
@@ -75,6 +80,7 @@ def main(
     directory: Path,
     target_root: Path,
     dry_run: bool,
+    open_report: bool,
     preprocessors: Tuple[str, ...],
     postprocessors: Tuple[str, ...],
 ) -> None:
@@ -114,6 +120,7 @@ def main(
         directory,
         target_root,
         dry_run=dry_run,
+        open_report=open_report,
         enabled_preprocessors=enabled_preprocessors,
         enabled_postprocessors=enabled_postprocessors,
     )

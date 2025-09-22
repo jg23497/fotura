@@ -3,6 +3,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 from typing import List
+import webbrowser
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from .report_item import ReportItem
 
@@ -13,6 +14,7 @@ class Report:
     def __init__(self):
         self.report_items: List[ReportItem] = []
         self._template_env = None
+        self.report_path = None
 
     def log(self, item: ReportItem):
         self.report_items.append(item)
@@ -75,7 +77,14 @@ class Report:
         return template.render(context)
 
     def create_report(self, output_path: Path, dry_run: bool = False) -> None:
+        logger.info(f"Creating report at: {output_path}")
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
         html_report = self._generate_html(dry_run)
         output_path.write_text(html_report, encoding="utf-8")
+        self.report_path = output_path
+
+    def open(self):
+        if self.report_path is not None:
+            logger.info("Opening report in browser")
+            webbrowser.open(self.report_path.as_uri())
