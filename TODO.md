@@ -1,6 +1,5 @@
 # For v1.0
 
-* Allow auto-deletion of token.json if it has expired and cannot be refreshed.
 * Let the report's filename include the run's timestamp.
 * Update README (command line syntax, supported file formats).
 * Improve unit test coverage in general:

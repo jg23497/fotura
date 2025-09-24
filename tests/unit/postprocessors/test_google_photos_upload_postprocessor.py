@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, Mock, patch
 from pathlib import Path
 from datetime import datetime, timedelta
 
+from google.auth.exceptions import RefreshError
 from google.oauth2.credentials import Credentials
 
 from photo_tidy.processors.processor_setup_error import ProcessorSetupError
@@ -266,7 +267,7 @@ def test_uses_oauth_flow_if_token_has_expired_and_no_refresh_token_is_present(
 ):
     expired_credentials = create_credentials(
         expiry=(datetime.now() - timedelta(days=1)),
-        refresh_token=None,
+        refresh_token="",
     )
     write_token(secrets_dir, expired_credentials)
     assert os.path.exists(TOKEN_FILE)
@@ -284,6 +285,36 @@ def test_uses_oauth_flow_if_token_has_expired_and_no_refresh_token_is_present(
         assert "ya29.valid-token" in credentials.token
         assert "refresh-token" in credentials.refresh_token
         assert processor.service is not None, "Processor service should be initialized"
+
+
+def test_uses_oauth_flow_if_token_has_expired_and_refresh_token_is_present_but_expired(
+    secrets_dir, processor
+):
+    expired_credentials = create_credentials(
+        expiry=(datetime.now() - timedelta(days=1)),
+        refresh_token="123",
+    )
+    write_token(secrets_dir, expired_credentials)
+    assert os.path.exists(TOKEN_FILE)
+
+    flow = Mock()
+    flow.run_local_server.return_value = create_credentials(
+        expiry=(datetime.now() + timedelta(days=1)),
+        refresh_token="refresh-token",
+    )
+
+    with patch(
+        "google.oauth2.credentials.Credentials.refresh", side_effect=RefreshError()
+    ):
+        with mock_installed_app_flow(flow):
+            processor.set_up()
+
+            credentials = read_token()
+            assert "ya29.valid-token" in credentials.token
+            assert "refresh-token" in credentials.refresh_token
+            assert processor.service is not None, (
+                "Processor service should be initialized"
+            )
 
 
 ## process method
