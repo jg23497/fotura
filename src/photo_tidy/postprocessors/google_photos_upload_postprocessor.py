@@ -12,8 +12,8 @@ from googleapiclient.discovery import build
 from google.auth.exceptions import RefreshError
 
 from photo_tidy.postprocessors.postprocessor import Postprocessor
+from photo_tidy.processors.context import Context
 from photo_tidy.reporting.failed_upload_report_item import FailedUploadReportItem
-from photo_tidy.reporting.report import Report
 from photo_tidy.processors.processor_setup_error import ProcessorSetupError
 from photo_tidy.reporting.uploaded_report_item import UploadedReportItem
 
@@ -25,9 +25,9 @@ TOKEN_FILE = os.getenv("GOOGLE_TOKEN_FILE", ".secrets/token.json")
 
 
 class GooglePhotosUploadPostprocessor(Postprocessor):
-    def __init__(self, report: Report, dry_run: bool = False) -> None:
-        self.dry_run = dry_run
-        self.report = report
+    def __init__(self, context: Context) -> None:
+        self.dry_run = context.dry_run
+        self.report = context.report
         self.service = None
 
     def set_up(self) -> None:

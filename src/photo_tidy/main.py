@@ -22,7 +22,7 @@ def __get_processor_params(klass: Type) -> Dict[str, Type]:
     sig = inspect.signature(klass.__init__)
     params: Dict[str, Type] = {}
     for name, p in sig.parameters.items():
-        if name in ("self", "report", "dry_run", "can_handle"):
+        if name in ("self", "context", "report", "dry_run"):
             continue
         annotation = p.annotation if p.annotation != inspect._empty else str
         params[name] = annotation

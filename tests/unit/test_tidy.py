@@ -71,7 +71,7 @@ def test_initializes_preprocessors(input_dir, target_root, dry_run):
 
     assert len(tidy.preprocessors) == 1
     assert isinstance(tidy.preprocessors[0], DummyPreprocessor)
-    assert tidy.preprocessors[0].dry_run is dry_run
+    assert tidy.preprocessors[0].context.dry_run is dry_run
 
 
 @patch("photo_tidy.tidy.POSTPROCESSOR_MAP", {"dummy_postprocessor": DummyPostprocessor})
@@ -86,7 +86,7 @@ def test_initializes_postprocessors(input_dir, target_root, dry_run):
 
     assert len(tidy.postprocessors) == 1
     assert isinstance(tidy.postprocessors[0], DummyPostprocessor)
-    assert tidy.postprocessors[0].dry_run is dry_run
+    assert tidy.postprocessors[0].context.dry_run is dry_run
 
 
 @patch("photo_tidy.tidy.POSTPROCESSOR_MAP", {"dummy_postprocessor": DummyPostprocessor})

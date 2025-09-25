@@ -7,6 +7,7 @@ import shutil
 from platformdirs import user_config_dir, user_data_dir
 
 from photo_tidy.preprocessors.fact_type import FactType
+from photo_tidy.processors.context import Context
 from photo_tidy.processors.registry import POSTPROCESSOR_MAP, PREPROCESSOR_MAP
 from photo_tidy.reporting.initialize_report_item import InitializeReportItem
 from photo_tidy.reporting.report import Report
@@ -39,34 +40,16 @@ class Tidy:
         self.user_config_path = Path(user_config_dir("phototidy"))
         self.user_data_path = Path(user_data_dir("phototidy"))
         self.open_report = open_report
+        self.processor_context = Context(report=self.report, dry_run=dry_run)
 
         if enabled_preprocessors:
-            for preprocessor_name in enabled_preprocessors:
-                processor_name = preprocessor_name[0]
-                processor_args = preprocessor_name[1]
-                if processor_name in PREPROCESSOR_MAP:
-                    self.preprocessors.append(
-                        PREPROCESSOR_MAP[processor_name](
-                            dry_run=dry_run, **processor_args
-                        )
-                    )
-                else:
-                    logger.error(f"Unknown preprocessor: {processor_name}")
-                    sys.exit(1)
-
+            self.__configure_processors(
+                PREPROCESSOR_MAP, enabled_preprocessors, self.preprocessors
+            )
         if enabled_postprocessors:
-            for postprocessor_name in enabled_postprocessors:
-                processor_name = postprocessor_name[0]
-                processor_args = postprocessor_name[1]
-                if processor_name in POSTPROCESSOR_MAP:
-                    postprocessor_instance = POSTPROCESSOR_MAP[processor_name](
-                        self.report, dry_run=dry_run, **processor_args
-                    )
-                    postprocessor_instance.set_up()
-                    self.postprocessors.append(postprocessor_instance)
-                else:
-                    logger.error(f"Unknown postprocessor: {processor_name}")
-                    sys.exit(1)
+            self.__configure_processors(
+                POSTPROCESSOR_MAP, enabled_postprocessors, self.postprocessors
+            )
 
         self.dry_run = dry_run
 
@@ -105,6 +88,20 @@ class Tidy:
 
         if self.open_report:
             self.report.open()
+
+    def __configure_processors(
+        self, processor_map, enabled_processors, processor_instances
+    ) -> None:
+        for processor_name, processor_args in enabled_processors:
+            if processor_name in processor_map:
+                instance = processor_map[processor_name](
+                    context=self.processor_context, **processor_args
+                )
+                instance.set_up()
+                processor_instances.append(instance)
+            else:
+                logger.error(f"Unknown processor: {processor_name}")
+                sys.exit(1)
 
     def __run_preprocessors(self, image_path: Path) -> Dict[FactType, Any]:
         facts: Dict[FactType, Any] = {}

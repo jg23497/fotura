@@ -1,17 +1,16 @@
 from unittest.mock import Mock
 
-from photo_tidy.reporting.report import Report
+from photo_tidy.processors.context import Context
 
 
 class DummyPreprocessor:
     def __init__(
         self,
-        *,
-        dry_run: bool = False,
-        can_handle: bool = True,
+        context: Context,
     ) -> None:
-        self.dry_run = dry_run
-        self.can_handle: Mock = Mock(return_value=can_handle)
+        self.context = context
+        self.set_up = Mock()
+        self.can_handle: Mock = Mock(return_value=True)
         self.process: Mock = Mock(return_value={})
 
 
@@ -19,13 +18,13 @@ class ComplexDummyPreprocessor:
     def __init__(
         self,
         *,
-        dry_run: bool = False,
-        can_handle: bool = True,
+        context: Context,
         max_size: int,
         should_do_something: bool = True,
     ) -> None:
-        self.dry_run = dry_run
-        self.can_handle: Mock = Mock(return_value=can_handle)
+        self.context = context
+        self.set_up = Mock()
+        self.can_handle: Mock = Mock(return_value=True)
         self.process: Mock = Mock(return_value={})
         self.max_size = max_size
         self.should_do_something = should_do_something
@@ -34,12 +33,9 @@ class ComplexDummyPreprocessor:
 class DummyPostprocessor:
     def __init__(
         self,
-        report: Report,
-        *,
-        dry_run: bool = False,
+        context: Context,
     ) -> None:
-        self.report = report
-        self.dry_run = dry_run
+        self.context = context
         self.set_up = Mock()
         self.process: Mock = Mock()
 
@@ -47,14 +43,11 @@ class DummyPostprocessor:
 class ComplexDummyPostprocessor:
     def __init__(
         self,
-        report: Report,
-        *,
-        dry_run: bool = False,
+        context: Context,
         max_size: int,
         should_do_something: bool = True,
     ) -> None:
-        self.report = report
-        self.dry_run = dry_run
+        self.context = context
         self.set_up = Mock()
         self.process: Mock = Mock()
         self.max_size = max_size

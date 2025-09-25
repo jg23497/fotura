@@ -6,6 +6,7 @@ import logging
 
 from photo_tidy.exif_data import ExifData
 from photo_tidy.preprocessors.fact_type import FactType
+from photo_tidy.processors.context import Context
 from .preprocessor import Preprocessor
 
 logger = logging.getLogger(__name__)
@@ -15,8 +16,8 @@ class FilenameTimestampExtractPreprocessor(Preprocessor):
     _WHATSAPP_REGEX = re.compile(r"^IMG-(\d{4})(\d{2})(\d{2})-WA\d{4}.*")
     _ANDROID_REGEX = re.compile(r"^IMG_(\d{8})_(\d{6})")
 
-    def __init__(self, dry_run: bool = False) -> None:
-        self.dry_run = dry_run
+    def __init__(self, context: Context) -> None:
+        self.dry_run = context.dry_run
 
     def can_handle(self, image_path: Path) -> bool:
         return self.__get_handler(image_path.name) is not None

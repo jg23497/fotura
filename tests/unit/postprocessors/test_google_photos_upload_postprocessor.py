@@ -11,6 +11,7 @@ from datetime import datetime, timedelta
 from google.auth.exceptions import RefreshError
 from google.oauth2.credentials import Credentials
 
+from photo_tidy.processors.context import Context
 from photo_tidy.processors.processor_setup_error import ProcessorSetupError
 from photo_tidy.reporting.report import Report
 from photo_tidy.postprocessors.google_photos_upload_postprocessor import (
@@ -153,13 +154,15 @@ def secrets_dir(fs):
 @pytest.fixture
 def processor():
     report = Report()
-    return GooglePhotosUploadPostprocessor(report)
+    context = Context(report=report, dry_run=False)
+    return GooglePhotosUploadPostprocessor(context)
 
 
 @pytest.fixture
 def processor_dry_run():
     report = Report()
-    return GooglePhotosUploadPostprocessor(report, dry_run=True)
+    context = Context(report=report, dry_run=True)
+    return GooglePhotosUploadPostprocessor(context)
 
 
 @pytest.fixture
