@@ -16,8 +16,6 @@ from photo_tidy.processors.processor_setup_error import ProcessorSetupError
 from photo_tidy.reporting.report import Report
 from photo_tidy.postprocessors.google_photos_upload_postprocessor import (
     GooglePhotosUploadPostprocessor,
-    CREDENTIALS_FILE,
-    TOKEN_FILE,
 )
 
 # Test helper methods
@@ -50,20 +48,24 @@ def create_credentials(expiry, refresh_token="refresh-token"):
 
 
 def write_secret(secrets_dir, client_secret):
-    secret_path = secrets_dir / "client_secret.json"
+    secrets_subdir = secrets_dir / "integrations" / "google_photos"
+    os.makedirs(secrets_subdir, exist_ok=True)
+    secret_path = secrets_subdir / "client_secret.json"
     with open(secret_path, "w") as f:
         json.dump(client_secret, f)
 
 
 def write_token(secrets_dir, creds):
-    creds_path = secrets_dir / "token.json"
+    secrets_subdir = secrets_dir / "integrations" / "google_photos"
+    os.makedirs(secrets_subdir, exist_ok=True)
+    creds_path = secrets_subdir / "token.json"
     with open(creds_path, "w") as f:
         f.write(creds.to_json())
     return creds_path
 
 
 def read_token():
-    creds_path = Path(".secrets/token.json")
+    creds_path = Path(".secrets/integrations/google_photos/token.json")
     with open(creds_path, "r") as f:
         return Credentials.from_authorized_user_info(json.load(f))
 
@@ -152,16 +154,16 @@ def secrets_dir(fs):
 
 
 @pytest.fixture
-def processor():
+def processor(secrets_dir):
     report = Report()
-    context = Context(report=report, dry_run=False)
+    context = Context(report=report, user_config_path=secrets_dir, dry_run=False)
     return GooglePhotosUploadPostprocessor(context)
 
 
 @pytest.fixture
-def processor_dry_run():
+def processor_dry_run(secrets_dir):
     report = Report()
-    context = Context(report=report, dry_run=True)
+    context = Context(report=report, user_config_path=secrets_dir, dry_run=True)
     return GooglePhotosUploadPostprocessor(context)
 
 
@@ -207,7 +209,9 @@ def test_rejects_unsupported_extensions(ext, processor):
 def test_uses_oauth_flow_and_caches_credentials_if_no_cached_credentials_exist(
     secrets_dir, cached_credentials_valid, processor
 ):
-    assert not os.path.exists(TOKEN_FILE)
+    assert not os.path.exists(
+        secrets_dir / "integrations" / "google_photos" / "token.json"
+    )
 
     flow = Mock()
     flow.run_local_server.return_value = cached_credentials_valid
@@ -223,8 +227,12 @@ def test_uses_oauth_flow_and_caches_credentials_if_no_cached_credentials_exist(
 def test_raises_error_if_no_cached_credentials_exist_and_client_secret_is_not_found(
     secrets_dir, processor
 ):
-    assert not os.path.exists(CREDENTIALS_FILE)
-    assert not os.path.exists(TOKEN_FILE)
+    assert not os.path.exists(
+        secrets_dir / "integrations" / "google_photos" / "client_secret.json"
+    )
+    assert not os.path.exists(
+        secrets_dir / "integrations" / "google_photos" / "token.json"
+    )
 
     with pytest.raises(
         ProcessorSetupError, match=r"Google credentials file not found at.*"
@@ -273,7 +281,7 @@ def test_uses_oauth_flow_if_token_has_expired_and_no_refresh_token_is_present(
         refresh_token="",
     )
     write_token(secrets_dir, expired_credentials)
-    assert os.path.exists(TOKEN_FILE)
+    assert os.path.exists(secrets_dir / "integrations" / "google_photos" / "token.json")
 
     flow = Mock()
     flow.run_local_server.return_value = create_credentials(
@@ -298,7 +306,7 @@ def test_uses_oauth_flow_if_token_has_expired_and_refresh_token_is_present_but_e
         refresh_token="123",
     )
     write_token(secrets_dir, expired_credentials)
-    assert os.path.exists(TOKEN_FILE)
+    assert os.path.exists(secrets_dir / "integrations" / "google_photos" / "token.json")
 
     flow = Mock()
     flow.run_local_server.return_value = create_credentials(

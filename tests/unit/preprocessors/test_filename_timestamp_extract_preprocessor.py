@@ -1,5 +1,6 @@
 import datetime
 from pathlib import Path
+import tempfile
 from unittest.mock import patch
 
 import pytest
@@ -18,14 +19,18 @@ from photo_tidy.reporting.report import Report
 @pytest.fixture
 def processor():
     report = Report()
-    context = Context(report=report, dry_run=False)
+    context = Context(
+        report=report, user_config_path=Path(tempfile.mkdtemp()), dry_run=False
+    )
     return FilenameTimestampExtractPreprocessor(context)
 
 
 @pytest.fixture
 def processor_dry_run():
     report = Report()
-    context = Context(report=report, dry_run=True)
+    context = Context(
+        report=report, user_config_path=Path(tempfile.mkdtemp()), dry_run=True
+    )
     return FilenameTimestampExtractPreprocessor(context)
 
 

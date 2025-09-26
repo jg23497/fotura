@@ -1,6 +1,5 @@
 # For v1.0
 
-* Let GooglePhotosUploadPostprocessor read secrets from the user directory.
 * Update README (command line syntax, supported file formats).
 * Improve unit test coverage in general:
   * Report creation

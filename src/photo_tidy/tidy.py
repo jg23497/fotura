@@ -40,7 +40,9 @@ class Tidy:
         self.user_config_path = Path(user_config_dir("phototidy"))
         self.user_data_path = Path(user_data_dir("phototidy"))
         self.open_report = open_report
-        self.processor_context = Context(report=self.report, dry_run=dry_run)
+        self.processor_context = Context(
+            report=self.report, user_config_path=self.user_config_path, dry_run=dry_run
+        )
 
         if enabled_preprocessors:
             self.__configure_processors(

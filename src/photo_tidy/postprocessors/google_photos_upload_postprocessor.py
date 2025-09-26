@@ -20,12 +20,11 @@ from photo_tidy.reporting.uploaded_report_item import UploadedReportItem
 logger = logging.getLogger(__name__)
 
 SCOPES = ["https://www.googleapis.com/auth/photoslibrary.appendonly"]
-CREDENTIALS_FILE = os.getenv("GOOGLE_CREDENTIALS_FILE", ".secrets/client_secret.json")
-TOKEN_FILE = os.getenv("GOOGLE_TOKEN_FILE", ".secrets/token.json")
 
 
 class GooglePhotosUploadPostprocessor(Postprocessor):
     def __init__(self, context: Context) -> None:
+        self.context = context
         self.dry_run = context.dry_run
         self.report = context.report
         self.service = None
@@ -56,6 +55,19 @@ class GooglePhotosUploadPostprocessor(Postprocessor):
         except Exception as e:
             self.report.log(FailedUploadReportItem(image_path, e))
             raise
+
+    def __get_credentials_directory_path(self) -> Path:
+        path = self.context.user_config_path / "integrations" / "google_photos"
+        path.mkdir(parents=True, exist_ok=True)
+        return path
+
+    def __get_credentials_file_path(self) -> Path:
+        path = self.__get_credentials_directory_path() / "client_secret.json"
+        return path
+
+    def __get_token_file_path(self) -> Path:
+        path = self.__get_credentials_directory_path() / "token.json"
+        return path
 
     def __upload_bytes(self, file_path: str) -> Optional[str]:
         headers = self.__get_file_upload_headers(file_path)
@@ -95,8 +107,9 @@ class GooglePhotosUploadPostprocessor(Postprocessor):
         }
         return self.service.mediaItems().batchCreate(body=body).execute()
 
-    def __load_cached_credentials(self, token_file_path: str) -> Optional[Credentials]:
-        if not os.path.exists(TOKEN_FILE):
+    def __load_cached_credentials(self) -> Optional[Credentials]:
+        token_file_path = self.__get_token_file_path()
+        if not os.path.exists(token_file_path):
             return None
         try:
             return Credentials.from_authorized_user_file(token_file_path, SCOPES)
@@ -104,10 +117,11 @@ class GooglePhotosUploadPostprocessor(Postprocessor):
             return None
 
     def __save_credentials(self, credentials: Credentials) -> None:
-        with open(TOKEN_FILE, "w") as token:
+        with open(self.__get_token_file_path(), "w") as token:
             token.write(credentials.to_json())
 
-    def __initiate_oauth_flow(self, credentials_file_path: str) -> Credentials:
+    def __initiate_oauth_flow(self) -> Credentials:
+        credentials_file_path = self.__get_credentials_file_path()
         try:
             flow = InstalledAppFlow.from_client_secrets_file(
                 credentials_file_path, SCOPES
@@ -128,7 +142,7 @@ class GooglePhotosUploadPostprocessor(Postprocessor):
             except RefreshError:
                 # The refresh token has expired
                 pass
-        return self.__initiate_oauth_flow(CREDENTIALS_FILE)
+        return self.__initiate_oauth_flow()
 
     def __obtain_credentials(self) -> Optional[Credentials]:
         """
@@ -147,7 +161,7 @@ class GooglePhotosUploadPostprocessor(Postprocessor):
             ProcessorSetupError: If the credentials file is not found during
                                OAuth flow initiation
         """
-        credentials = self.__load_cached_credentials(TOKEN_FILE)
+        credentials = self.__load_cached_credentials()
 
         if not credentials or not credentials.valid:
             credentials = self.__refresh_credentials_or_initiate_oauth(credentials)
