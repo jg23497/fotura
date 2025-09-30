@@ -1,7 +1,7 @@
 from pathlib import Path, PosixPath
 from datetime import datetime
 import sys
-from typing import Optional, List, Dict, Any, Tuple
+from typing import Optional, List, Dict, Any, Set, Tuple
 import logging
 import shutil
 from platformdirs import user_config_dir, user_data_dir
@@ -60,6 +60,8 @@ class Tidy:
             InitializeReportItem(self.dry_run, self.input_path, self.target_root)
         )
 
+        claimed_paths = set()
+
         for file_path in self.__find_photos():
             target_path = PosixPath()
 
@@ -73,7 +75,7 @@ class Tidy:
                     self.report.log(SkippedReportItem(file_path, "No date found"))
                     continue
 
-                target_path = self.__get_target_path(date, file_path)
+                target_path = self.__get_target_path(date, file_path, claimed_paths)
 
                 if not self.dry_run:
                     shutil.move(file_path, target_path)
@@ -118,19 +120,23 @@ class Tidy:
         for postprocessor in self.postprocessors:
             postprocessor.process(target_path)
 
-    def __get_target_path(self, date: datetime, original_path: Path) -> Path:
+    def __get_target_path(
+        self, date: datetime, original_path: Path, claimed_paths: Set
+    ) -> Path:
         target_dir = self.target_root / str(date.year) / f"{date.year}-{date.month:02d}"
-        target_dir.mkdir(parents=True, exist_ok=True)
+        if not self.dry_run:
+            target_dir.mkdir(parents=True, exist_ok=True)
 
         base_name = original_path.stem
         extension = original_path.suffix
         counter = 1
         target_path = target_dir / f"{base_name}{extension}"
 
-        while target_path.exists():
+        while target_path in claimed_paths or target_path.exists():
             target_path = target_dir / f"{base_name}_{counter}{extension}"
             counter += 1
 
+        claimed_paths.add(target_path)
         return target_path
 
     def __find_photos(self):

@@ -10,12 +10,15 @@ import piexif
 @contextlib.contextmanager
 def temporary_images(test_image_filenames):
     with __temporary_image_directory() as (input_temp_dir, target_root):
+        test_data_dir = __get_test_data_directory()
         copied_image_paths = []
+
         for test_filename in test_image_filenames:
-            image_path = __get_test_data_directory() / test_filename
-            copied_image_path = input_temp_dir / image_path.name
-            shutil.copy2(image_path, copied_image_path)
-            copied_image_paths.append(copied_image_path)
+            source_path = test_data_dir / test_filename
+            dest_path = input_temp_dir / test_filename
+            dest_path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source_path, dest_path)
+            copied_image_paths.append(dest_path)
 
         yield input_temp_dir, target_root, copied_image_paths
 

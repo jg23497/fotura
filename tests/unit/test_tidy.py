@@ -369,7 +369,21 @@ def test_process_photos_halts_on_exception(_):
         assert len(failed_items) == 1
 
 
-def test_process_photos_handles_filename_collisions_using_increment_strategy():
+def test_process_skips_destination_directory_creation_for_dry_runs():
+    with temporary_images(["Canon_40D.jpg"]) as (
+        input_path,
+        target_root,
+        image_paths,
+    ):
+        target_dir = target_root / "2008" / "2008-05"
+        tidy = Tidy(input_path=input_path, target_root=target_root, dry_run=True)
+
+        tidy.process_photos()
+
+        assert not target_dir.exists()
+
+
+def test_filename_collision_increment_when_target_exists():
     with temporary_images(["Canon_40D.jpg"]) as (
         input_path,
         target_root,
@@ -389,3 +403,37 @@ def test_process_photos_handles_filename_collisions_using_increment_strategy():
         assert not image_paths[0].exists()
         assert (target_dir / "Canon_40D.jpg").exists()
         assert (target_dir / "Canon_40D_1.jpg").exists()
+
+
+def test_filename_collision_increment_strategy_when_inputs_resolve_to_same_path():
+    with temporary_images(
+        [Path("directory") / "Pentax_K10D.jpg", Path("directory2") / "Pentax_K10D.jpg"]
+    ) as (input_path, target_root, image_paths):
+        tidy = Tidy(input_path=input_path, target_root=target_root)
+
+        tidy.process_photos()
+
+        assert not image_paths[0].exists()
+        target_dir = target_root / "2008" / "2008-05"
+        assert (target_dir / "Pentax_K10D.jpg").exists()
+        assert (target_dir / "Pentax_K10D_1.jpg").exists()
+
+
+def test_filename_collisions_are_handled_when_logged_in_dry_run_mode():
+    with temporary_images(
+        [Path("directory") / "Pentax_K10D.jpg", Path("directory2") / "Pentax_K10D.jpg"]
+    ) as (input_path, target_root, _):
+        tidy = Tidy(input_path=input_path, target_root=target_root, dry_run=True)
+
+        tidy.process_photos()
+
+        moved_items = list(
+            item for item in tidy.report.get_report() if type(item) is MoveReportItem
+        )
+
+        destinations = [item.destination for item in moved_items]
+        assert len(destinations) == 2
+        assert str(target_root / "2008" / "2008-05" / "Pentax_K10D.jpg") in destinations
+        assert (
+            str(target_root / "2008" / "2008-05" / "Pentax_K10D_1.jpg") in destinations
+        )
