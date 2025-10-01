@@ -14,10 +14,10 @@ def __get_processor_params(klass: Type) -> Dict[str, Type]:
     (excluding internal ones like 'self', 'report', etc.).
 
     Args:
-        klass (type): Processor class to inspect.
+        klass: Processor class to inspect.
 
     Returns:
-        dict: Mapping of parameter names to their annotated types.
+        Mapping of parameter names to their annotated types.
     """
     sig = inspect.signature(klass.__init__)
     params: Dict[str, Type] = {}
@@ -29,18 +29,19 @@ def __get_processor_params(klass: Type) -> Dict[str, Type]:
     return params
 
 
-def __build_preprocessor_help(processor_map: Dict[str, Type]) -> str:
+def __build_processor_help(processor_map: Dict[str, Type]) -> str:
     """
     Generate a help string listing all available processors and their parameters.
 
     Args:
-        processor_map (dict): Mapping of processor names to processor classes.
+        processor_map: Mapping of processor names to processor classes.
 
     Returns:
-        str: Formatted help text describing each processor and its parameters.
+        Formatted help text describing each processor and its parameters.
     """
     lines = [
-        "Add a processor with optional parameters.",
+        "Add a processor with optional parameters. Pre-processors execute before file moves",
+        "and post-processors execute afterwards.",
         "Format: name or name:option=value",
         "",
         "Available processors:",
@@ -69,12 +70,19 @@ def __build_preprocessor_help(processor_map: Dict[str, Type]) -> str:
 @click.option(
     "--preprocessors",
     multiple=True,
-    help=__build_preprocessor_help(PREPROCESSOR_MAP),
+    help=__build_processor_help(PREPROCESSOR_MAP),
 )
 @click.option(
     "--postprocessors",
     multiple=True,
-    help=__build_preprocessor_help(POSTPROCESSOR_MAP),
+    help=__build_processor_help(POSTPROCESSOR_MAP),
+)
+@click.option(
+    "--conflict-strategy",
+    type=click.Choice(["keep_both"], case_sensitive=False),
+    default="keep_both",
+    show_default=True,
+    help="How to resolve filename conflicts in the target directory",
 )
 def main(
     directory: Path,
@@ -83,19 +91,27 @@ def main(
     open_report: bool,
     preprocessors: Tuple[str, ...],
     postprocessors: Tuple[str, ...],
+    conflict_strategy: str,
 ) -> None:
     """
     Entry point for the CLI.
 
-    Moves or copies photos from a source directory to a target directory,
-    optionally applying pre and post-processors.
+    Organizes photos from a source directory into a target directory,
+    optionally applying pre and post-processors, controlling side effects
+    with dry-run, opening a report on completion, and selecting a
+    conflict-resolution strategy for target filename collisions.
 
     Args:
-        directory (Path): Source directory containing photos.
-        target_root (Path): Target root directory for organized photos.
-        dry_run (bool): If True, no actual file operations are performed.
-        preprocessors (list[str]): List of preprocessor specifications.
-        postprocessors (list[str]): List of postprocessor specifications.
+        directory: Source directory containing photos.
+        target_root: Target root directory for organized photos.
+        dry_run: If True, no actual file operations are performed.
+        open_report: If True, opens the generated HTML report.
+        preprocessors: Preprocessor specifications in the form
+            "name" or "name:param=value,...".
+        postprocessors: Postprocessor specifications in the form
+            "name" or "name:param=value,...".
+        conflict_strategy: Strategy for resolving filename conflicts in the
+            target directory.
     """
     click.echo(f"Processing photos from: {directory}")
     click.echo(f"Target root directory: {target_root}")
@@ -123,6 +139,7 @@ def main(
         open_report=open_report,
         enabled_preprocessors=enabled_preprocessors,
         enabled_postprocessors=enabled_postprocessors,
+        conflict_resolution_strategy=conflict_strategy,
     )
     tidy.process_photos()
 
@@ -132,11 +149,11 @@ def __cast_arg(value: str, klass: Type) -> Any:
     Convert a string value to the given type, with special handling for booleans.
 
     Args:
-        value (str): The value to cast.
-        klass (type): Target type to cast to.
+        value: The value to cast.
+        klass: Target type to cast to.
 
     Returns:
-        Any: Value cast to the requested type.
+        Value cast to the requested type.
 
     Raises:
         ValueError: If the value cannot be cast to the target type.
@@ -164,11 +181,11 @@ def __parse_processor_arguments(
     Format: "processor_name:param1=value1,param2=value2"
 
     Args:
-        input (str): Processor specification string.
-        processor_map (dict): Mapping of processor names to processor classes.
+        input: Processor specification string.
+        processor_map: Mapping of processor names to processor classes.
 
     Returns:
-        tuple[str, dict]: Processor name and dictionary of parsed arguments.
+        Processor name and dictionary of parsed arguments.
     """
     arguments = dict()
 

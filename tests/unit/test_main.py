@@ -53,7 +53,7 @@ def test_help_lists_available_preprocessors():
 
     assert "- other_preprocessor: no parameters" in stdout
     assert (
-        "- complex_preprocessor: max_size(int),\n should_do_something(bool)\n \n"
+        "- complex_preprocessor: max_size(int),\nshould_do_something(bool)\n\n"
         in stdout
     )
 
@@ -171,7 +171,7 @@ def test_help_lists_available_postprocessors():
 
     assert "- other_postprocessor: no parameters" in stdout
     assert (
-        "- complex_postprocessor: max_size(int),\n should_do_something(bool)\n \n"
+        "- complex_postprocessor: max_size(int),\nshould_do_something(bool)\n\n"
         in stdout
     )
 

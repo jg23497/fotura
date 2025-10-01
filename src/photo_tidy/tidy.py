@@ -6,6 +6,7 @@ import logging
 import shutil
 from platformdirs import user_config_dir, user_data_dir
 
+from photo_tidy.conflict_resolution.keep_both_strategy import KeepBothStrategy
 from photo_tidy.preprocessors.fact_type import FactType
 from photo_tidy.processors.context import Context
 from photo_tidy.processors.registry import POSTPROCESSOR_MAP, PREPROCESSOR_MAP
@@ -31,6 +32,7 @@ class Tidy:
         enabled_preprocessors: Optional[List[Tuple[str, Dict[str, Any]]]] = None,
         enabled_postprocessors: Optional[List[Tuple[str, Dict[str, Any]]]] = None,
         open_report: bool = False,
+        conflict_resolution_strategy: str = "keep_both",
     ):
         self.input_path = input_path
         self.target_root = target_root
@@ -40,8 +42,13 @@ class Tidy:
         self.user_config_path = Path(user_config_dir("phototidy"))
         self.user_data_path = Path(user_data_dir("phototidy"))
         self.open_report = open_report
+
         self.processor_context = Context(
             report=self.report, user_config_path=self.user_config_path, dry_run=dry_run
+        )
+
+        self.conflict_resolver = self.__get_conflict_resolver(
+            conflict_resolution_strategy
         )
 
         if enabled_preprocessors:
@@ -127,14 +134,13 @@ class Tidy:
         if not self.dry_run:
             target_dir.mkdir(parents=True, exist_ok=True)
 
-        base_name = original_path.stem
-        extension = original_path.suffix
-        counter = 1
-        target_path = target_dir / f"{base_name}{extension}"
+        target_path = target_dir / f"{original_path.stem}{original_path.suffix}"
 
-        while target_path in claimed_paths or target_path.exists():
-            target_path = target_dir / f"{base_name}_{counter}{extension}"
-            counter += 1
+        if target_path in claimed_paths or target_path.exists():
+            target_path = self.conflict_resolver.resolve(
+                target_path=target_path,
+                claimed_paths=claimed_paths,
+            )
 
         claimed_paths.add(target_path)
         return target_path
@@ -154,3 +160,11 @@ class Tidy:
                 continue
 
             yield file_path
+
+    def __get_conflict_resolver(self, conflict_resolution_strategy: str):
+        if conflict_resolution_strategy == "keep_both":
+            return KeepBothStrategy()
+        else:
+            raise ValueError(
+                f"Unsupported conflict resolution strategy: {conflict_resolution_strategy}"
+            )
