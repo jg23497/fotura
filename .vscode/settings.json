@@ -1,0 +1,7 @@
+{
+  "editor.formatOnSave": true,
+  "[python]": {
+    "files.trimTrailingWhitespace": true,
+    "editor.defaultFormatter": "ms-python.black-formatter"
+  }
+}
