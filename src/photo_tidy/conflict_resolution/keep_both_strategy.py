@@ -1,15 +1,15 @@
 from pathlib import Path
-from typing import Set
+from typing import Optional, Set
 
-from photo_tidy.conflict_resolution.strategy_base import ConflictResolutionStrategy
+from photo_tidy.conflict_resolution.strategy_base import StrategyBase
 
 
-class KeepBothStrategy(ConflictResolutionStrategy):
+class KeepBothStrategy(StrategyBase):
     def resolve(
         self,
         target_path: Path,
         claimed_paths: Set[Path],
-    ) -> Path:
+    ) -> Optional[Path]:
         target_dir = target_path.parent
         base_name = target_path.stem
         extension = target_path.suffix

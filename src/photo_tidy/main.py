@@ -4,6 +4,7 @@ import inspect
 import click
 from pathlib import Path
 from typing import Any, Dict, Tuple, Type
+from photo_tidy.conflict_resolution.registry import STRATEGIES
 from photo_tidy.processors.registry import POSTPROCESSOR_MAP, PREPROCESSOR_MAP
 from photo_tidy.tidy import Tidy
 
@@ -79,7 +80,7 @@ def __build_processor_help(processor_map: Dict[str, Type]) -> str:
 )
 @click.option(
     "--conflict-strategy",
-    type=click.Choice(["keep_both"], case_sensitive=False),
+    type=click.Choice(STRATEGIES.keys(), case_sensitive=False),
     default="keep_both",
     show_default=True,
     help="How to resolve filename conflicts in the target directory",

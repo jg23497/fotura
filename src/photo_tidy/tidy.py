@@ -6,7 +6,7 @@ import logging
 import shutil
 from platformdirs import user_config_dir, user_data_dir
 
-from photo_tidy.conflict_resolution.keep_both_strategy import KeepBothStrategy
+from photo_tidy.conflict_resolution.registry import STRATEGIES
 from photo_tidy.preprocessors.fact_type import FactType
 from photo_tidy.processors.context import Context
 from photo_tidy.processors.registry import POSTPROCESSOR_MAP, PREPROCESSOR_MAP
@@ -83,6 +83,11 @@ class Tidy:
                     continue
 
                 target_path = self.__get_target_path(date, file_path, claimed_paths)
+                if target_path is None:
+                    self.report.log(
+                        SkippedReportItem(file_path, "Conflict resolution strategy")
+                    )
+                    continue
 
                 if not self.dry_run:
                     shutil.move(file_path, target_path)
@@ -161,10 +166,8 @@ class Tidy:
 
             yield file_path
 
-    def __get_conflict_resolver(self, conflict_resolution_strategy: str):
-        if conflict_resolution_strategy == "keep_both":
-            return KeepBothStrategy()
+    def __get_conflict_resolver(self, strategy: str):
+        if strategy in STRATEGIES:
+            return STRATEGIES[strategy]()
         else:
-            raise ValueError(
-                f"Unsupported conflict resolution strategy: {conflict_resolution_strategy}"
-            )
+            raise ValueError(f"Unsupported conflict resolution strategy: {strategy}")
