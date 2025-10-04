@@ -13,6 +13,7 @@ from photo_tidy.reporting.report import Report
 from photo_tidy.reporting.skipped_report_item import SkippedReportItem
 from photo_tidy.reporting.move_report_item import MoveReportItem
 from photo_tidy.tidy import Tidy
+from tests.helpers import helper
 from tests.helpers.processors import DummyPostprocessor, DummyPreprocessor
 from tests.helpers.helper import (
     temporary_images,
@@ -405,11 +406,15 @@ def test_filename_collision_increment_when_target_exists():
         assert (target_dir / "Canon_40D_1.jpg").exists()
 
 
-def test_filename_collision_increment_strategy_when_inputs_resolve_to_same_path():
+def test_filename_collision_keep_both_strategy_when_inputs_resolve_to_same_path():
     with temporary_images(
         [Path("directory") / "Pentax_K10D.jpg", Path("directory2") / "Pentax_K10D.jpg"]
     ) as (input_path, target_root, image_paths):
-        tidy = Tidy(input_path=input_path, target_root=target_root)
+        tidy = Tidy(
+            input_path=input_path,
+            target_root=target_root,
+            conflict_resolution_strategy="keep_both",
+        )
 
         tidy.process_photos()
 
@@ -417,6 +422,27 @@ def test_filename_collision_increment_strategy_when_inputs_resolve_to_same_path(
         target_dir = target_root / "2008" / "2008-05"
         assert (target_dir / "Pentax_K10D.jpg").exists()
         assert (target_dir / "Pentax_K10D_1.jpg").exists()
+
+
+def test_filename_collision_skip_strategy_when_inputs_resolve_to_same_path():
+    with temporary_images(
+        [Path("directory") / "Pentax_K10D.jpg", Path("directory2") / "Pentax_K10D.jpg"]
+    ) as (input_path, target_root, image_paths):
+        tidy = Tidy(
+            input_path=input_path,
+            target_root=target_root,
+            conflict_resolution_strategy="skip",
+        )
+
+        tidy.process_photos()
+
+        assert not image_paths[0].exists()
+        assert image_paths[1].exists()
+
+        target_dir = target_root / "2008" / "2008-05"
+        assert (target_dir / "Pentax_K10D.jpg").exists()
+        files_in_directory = list(helper.get_all_files(target_dir))
+        assert len(files_in_directory) == 1
 
 
 def test_filename_collisions_are_handled_when_logged_in_dry_run_mode():
