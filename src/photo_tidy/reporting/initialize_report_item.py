@@ -1,9 +1,9 @@
-from pathlib import PosixPath
+from pathlib import Path
 from .report_item import ReportItem
 
 
 class InitializeReportItem(ReportItem):
-    def __init__(self, dry_run: bool, input_path: PosixPath, target_path: PosixPath):
+    def __init__(self, dry_run: bool, input_path: Path, target_path: Path):
         super().__init__()
         self.dry_run = dry_run
         self.input_path = str(input_path)

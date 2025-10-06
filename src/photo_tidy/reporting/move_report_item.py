@@ -1,9 +1,9 @@
-from pathlib import PosixPath
+from pathlib import Path
 from .report_item import ReportItem
 
 
 class MoveReportItem(ReportItem):
-    def __init__(self, source: PosixPath, destination: PosixPath):
+    def __init__(self, source: Path, destination: Path):
         super().__init__()
         self.source = str(source)
         self.destination = str(destination)

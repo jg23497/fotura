@@ -9,7 +9,7 @@ A command-line tool for organizing and sorting photos based on their metadata an
 ## Features
 
 - **Automatic photo organization**: Sorts photos into a year/month directory structure.
-- **Multiple date extraction methods**: 
+- **Multiple date extraction methods**:
   - EXIF metadata extraction
   - WhatsApp photo filename parsing
   - Android photo filename parsing
@@ -21,6 +21,7 @@ A command-line tool for organizing and sorting photos based on their metadata an
 ## Supported File Formats
 
 PhotoTidy supports the following image formats:
+
 - JPEG (.jpg, .jpeg)
 - TIFF (.tiff, .tif)
 
@@ -31,25 +32,31 @@ This project uses `uv` for dependency management. To set up the project:
 ### Installing uv
 
 #### MacOS and Linux (Unix-like systems)
+
 Install uv using the standalone installer:
+
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
 #### Windows
+
 Install uv using one of these methods:
 
 **Option 1: Using PowerShell (recommended)**
+
 ```powershell
 powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
 ```
 
 **Option 2: Using pip**
+
 ```cmd
 pip install uv
 ```
 
 **Option 3: Using winget**
+
 ```cmd
 winget install astral-sh.uv
 ```
@@ -77,10 +84,12 @@ phototidy [OPTIONS] DIRECTORY TARGET_ROOT
 ```
 
 **Arguments:**
+
 - `DIRECTORY`: Source directory containing photos to organize
 - `TARGET_ROOT`: Target directory where organized photos will be stored
 
 **Options:**
+
 - `--dry-run`: Show what would be done without making changes
 - `--preprocessors TEXT`: Comma-separated list of preprocessors to enable
 - `--postprocessors TEXT`: Comma-separated list of postprocessors to enable
@@ -88,11 +97,13 @@ phototidy [OPTIONS] DIRECTORY TARGET_ROOT
 ### Examples
 
 **Basic photo organization:**
+
 ```bash
 phototidy ~/Pictures/unsorted ~/Pictures/organized
 ```
 
 **Dry-run to preview changes:**
+
 ```bash
 phototidy ~/Pictures/unsorted ~/Pictures/organized --dry-run
 ```
@@ -102,6 +113,7 @@ phototidy ~/Pictures/unsorted ~/Pictures/organized --dry-run
 You can specify multiple pre and post-processors like: `--preprocessors "foo" --preprocessors "bar"` to use the `foo` and `bar` processors:
 
 **Enable FilenameTimestampExtract pre-processor:**
+
 ```bash
 phototidy --preprocessors "filename_timestamp_extract" ~/Pictures/unsorted ~/Pictures/organized
 ```
@@ -149,28 +161,4 @@ target_root/
 
 ## Development
 
-### Running PhotoTidy in development
-
-In development, access the main entrypoint like so:
-
-```bash
-uv run src/photo_tidy/main.py
-```
-
-Alternatively, install the package in editable mode:
-
-```bash
-uv pip install -e .
-```
-
-This will make the `phototidy` command available for testing during development.
-
-For unix-like systems, use the Makefile (e.g. `make test`, `make ci`).
-
-### Running Tests
-
-To run the test suite:
-
-```bash
-uv run pytest
-```
+See [Development](docs/development.md).
