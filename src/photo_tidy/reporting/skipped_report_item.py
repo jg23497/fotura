@@ -1,9 +1,9 @@
-from pathlib import PosixPath
+from pathlib import Path
 from .report_item import ReportItem
 
 
 class SkippedReportItem(ReportItem):
-    def __init__(self, source: PosixPath, reason):
+    def __init__(self, source: Path, reason):
         super().__init__()
         self.source = str(source)
         self.reason = reason

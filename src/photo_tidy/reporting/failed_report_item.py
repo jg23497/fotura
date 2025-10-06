@@ -1,9 +1,9 @@
-from pathlib import PosixPath
+from pathlib import Path
 from .report_item import ReportItem
 
 
 class FailedReportItem(ReportItem):
-    def __init__(self, source: PosixPath, destination: PosixPath, exception: Exception):
+    def __init__(self, source: Path, destination: Path, exception: Exception):
         super().__init__()
         self.source = str(source)
         self.destination = str(destination)

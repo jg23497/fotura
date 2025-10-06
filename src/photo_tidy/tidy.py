@@ -1,4 +1,4 @@
-from pathlib import Path, PosixPath
+from pathlib import Path
 from datetime import datetime
 import sys
 from typing import Optional, List, Dict, Any, Set, Tuple
@@ -70,7 +70,7 @@ class Tidy:
         claimed_paths = set()
 
         for file_path in self.__find_photos():
-            target_path = PosixPath()
+            target_path = Path()
 
             try:
                 facts = self.__run_preprocessors(file_path)
