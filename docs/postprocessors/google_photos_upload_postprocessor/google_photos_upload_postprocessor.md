@@ -29,12 +29,12 @@ Note: Using the [Google Auth Platform - Audience](https://console.cloud.google.c
 
     * Linux: ~/.config/phototidy/integrations/google_photos
     * MacOS: ~/Library/Application Support/phototidy/integrations/google_photos
-    * Windows: %LocalAppData%\phototidy\integrations\google_photos
+    * Windows: %LocalAppData%\phototidy\phototidy\integrations\google_photos
 
-    Environment variables or other configuration differences may override these paths, so use the following command to confirm:
+    Environment variables or other configuration differences may override these paths, so run the following command in the PhotoTidy directory to confirm:
 
     ```python
-    uv run python -c "from platformdirs import user_config_dir; from pathlib import Path; print(Path(user_config_dir()) / 'phototidy' / 'integrations' / 'google_photos')"
+    uv run python -c "from platformdirs import user_config_dir; from pathlib import Path; print(Path(user_config_dir('phototidy')) / 'phototidy' / 'integrations' / 'google_photos')"
     ```
 
     Or attempt to use the processor without providing the file and check the path it provides in its error message.
