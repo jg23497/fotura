@@ -50,3 +50,9 @@ Otherwise:
 ```bash
 uv run pytest
 ```
+
+### Add development dependencies
+
+```
+uv add --dev <name>
+```

@@ -31,7 +31,8 @@ dev = [
     "ruff>=0.12.1",
     "ty>=0.0.1a12",
     "pyfakefs>=5.9.1",
-    "responses>=0.25.7"
+    "responses>=0.25.7",
+    "beautifulsoup4>=4.14.2",
 ]
 
 [tool.pytest.ini_options]

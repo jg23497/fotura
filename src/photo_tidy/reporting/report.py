@@ -5,6 +5,11 @@ from pathlib import Path
 from typing import List
 import webbrowser
 from jinja2 import Environment, FileSystemLoader, select_autoescape
+
+from photo_tidy.reporting.failed_report_item import FailedReportItem
+from photo_tidy.reporting.initialize_report_item import InitializeReportItem
+from photo_tidy.reporting.move_report_item import MoveReportItem
+from photo_tidy.reporting.skipped_report_item import SkippedReportItem
 from .report_item import ReportItem
 
 logger = logging.getLogger(__name__)
@@ -36,12 +41,31 @@ class Report:
     def get_report(self) -> List[ReportItem]:
         return self.report_items
 
+    def create_report(self, output_path: Path, dry_run: bool = False) -> None:
+        logger.info(f"Creating report at: {output_path}")
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        html_report = self._generate_html(dry_run)
+        output_path.write_text(html_report, encoding="utf-8")
+        self.report_path = output_path
+
+    def open(self):
+        if self.report_path is not None:
+            logger.info("Opening report in browser")
+            webbrowser.open(self.report_path.as_uri())
+
     def _get_summary_stats(self) -> dict:
-        moved_count = sum(1 for item in self.report_items if item.name() == "Moved")
-        skipped_count = sum(1 for item in self.report_items if item.name() == "Skipped")
-        failed_count = sum(1 for item in self.report_items if item.name() == "Failed")
+        moved_count = sum(
+            1 for item in self.report_items if type(item) is MoveReportItem
+        )
+        skipped_count = sum(
+            1 for item in self.report_items if type(item) is SkippedReportItem
+        )
+        failed_count = sum(
+            1 for item in self.report_items if type(item) is FailedReportItem
+        )
         initialize_events = [
-            item for item in self.report_items if item.name() == "Initialize"
+            item for item in self.report_items if type(item) is InitializeReportItem
         ]
         initialize_event = initialize_events[0] if initialize_events else None
 
@@ -75,16 +99,3 @@ class Report:
         }
 
         return template.render(context)
-
-    def create_report(self, output_path: Path, dry_run: bool = False) -> None:
-        logger.info(f"Creating report at: {output_path}")
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-
-        html_report = self._generate_html(dry_run)
-        output_path.write_text(html_report, encoding="utf-8")
-        self.report_path = output_path
-
-    def open(self):
-        if self.report_path is not None:
-            logger.info("Opening report in browser")
-            webbrowser.open(self.report_path.as_uri())

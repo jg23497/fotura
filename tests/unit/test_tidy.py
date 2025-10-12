@@ -29,31 +29,10 @@ def input_dir(fs) -> Path:
     return directory
 
 
-@pytest.fixture
-def target_root(fs) -> Path:
-    directory = Path("~/target")
-    fs.create_dir(directory)
-    return directory
-
-
 @pytest.fixture(autouse=True)
 def stub_report_template():
     with patch.object(Report, "_generate_html", return_value="<html></html>"):
         yield
-
-
-@pytest.fixture(autouse=True)
-def stub_user_dirs(tmp_path):
-    user_data_path = tmp_path / "user_data"
-    user_config_path = tmp_path / "user_config"
-    user_data_path.mkdir()
-    user_config_path.mkdir()
-
-    with (
-        patch("photo_tidy.tidy.user_data_dir", return_value=user_data_path),
-        patch("photo_tidy.tidy.user_config_dir", return_value=user_config_path),
-    ):
-        yield user_data_path, user_config_path
 
 
 # Tests

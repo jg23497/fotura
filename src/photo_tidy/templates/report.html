@@ -461,7 +461,7 @@
       </header>
 
       <section class="summary" aria-hidden="false">
-        <div class="card large">
+        <div class="card main">
           <h3>Total</h3>
           <div class="num">
             {{ moved_count + skipped_count + failed_count }}
@@ -478,7 +478,13 @@
           <div class="small-muted">Successfully moved files</div>
         </div>
 
-        <div class="card">
+        <div class="card failed">
+          <h3>Failed</h3>
+          <div class="num">{{ failed_count }}</div>
+          <div class="small-muted">Failed</div>
+        </div>
+
+        <div class="card ignored">
           <h3>Skipped</h3>
           <div class="num">{{ skipped_count }}</div>
           <div class="small-muted">Skipped or ignored</div>

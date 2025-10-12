@@ -1,15 +1,6 @@
-from pathlib import Path
-
 import pytest
 
 from photo_tidy.conflict_resolution.keep_both_strategy import KeepBothStrategy
-
-
-@pytest.fixture
-def target_root(fs) -> Path:
-    directory = Path("~/target")
-    fs.create_dir(directory)
-    return directory
 
 
 @pytest.fixture
