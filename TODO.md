@@ -1,6 +1,6 @@
 # For v1.0
 
-- Improve unit test coverage in general:
-  - Report creation
+- Merge the abstract processor class.
+- Ensure postprocessors' can_handle method is checked before running.
 - Check we have read/write permissions on the source and destination directories.
 - Update README (command line syntax, supported file formats).
