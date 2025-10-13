@@ -7,6 +7,7 @@ import logging
 from photo_tidy.exif_data import ExifData
 from photo_tidy.preprocessors.fact_type import FactType
 from photo_tidy.processors.context import Context
+from photo_tidy.reporting.modified_report_item import ModifiedReportItem
 from .preprocessor import Preprocessor
 
 logger = logging.getLogger(__name__)
@@ -17,7 +18,7 @@ class FilenameTimestampExtractPreprocessor(Preprocessor):
     _ANDROID_REGEX = re.compile(r"^IMG_(\d{8})_(\d{6})")
 
     def __init__(self, context: Context) -> None:
-        self.dry_run = context.dry_run
+        self.context = context
 
     def can_handle(self, image_path: Path) -> bool:
         return self.__get_handler(image_path.name) is not None
@@ -32,11 +33,14 @@ class FilenameTimestampExtractPreprocessor(Preprocessor):
         if not date:
             raise ValueError(f"Unable to extract timestamp from {filename}")
 
-        if self.dry_run:
-            logger.info(
-                f"[DRY RUN] Would update EXIF date fields for {image_path.name} to {date.strftime('%Y:%m:%d %H:%M:%S')}"
+        self.context.report.log(
+            ModifiedReportItem(
+                image_path,
+                f"Update EXIF date fields to {date.strftime('%Y/%m/%d %H:%M:%S')}",
             )
-        else:
+        )
+
+        if not self.context.dry_run:
             ExifData.write_date(image_path, date)
 
         return {FactType.TAKEN_TIMESTAMP: date}
