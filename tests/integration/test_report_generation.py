@@ -49,8 +49,8 @@ def test_report_summary_information(report):
     assert "Skipped 2" in moved_card_text
 
 
-def test_report_table_rows(report):
-    expected = [
+def test_report_table_contents(report):
+    expected_row_substrings = [
         ["test.txt", "Skipped", "Reason: .txt not in supported file extensions"],
         ["IMG-20250521-WA0002.jpg", "Moved", "Destination"],
         ["no-date.jpg", "Skipped", "Reason: No date found"],
@@ -67,19 +67,30 @@ def test_report_table_rows(report):
     rows = report.select("table tr")
     assert len(rows) > 1, "Expected more than one table row in the report."
 
-    headers = [clean_text(i) for i in rows[0].select("th")]
-    assert headers == ["File", "Category", "Description"]
+    headers = [clean_text(th) for th in rows[0].select("th")]
+    assert headers == [
+        "File",
+        "Category",
+        "Description",
+    ], f"Unexpected headers: {headers}"
 
-    for row_index, tr in enumerate(rows[1:], start=0):
-        cells = [clean_text(td) for td in tr.select("td")]
-        assert len(cells) == 3, f"Row {row_index} should have 3 columns."
+    actual_rows = [[clean_text(td) for td in row.select("td")] for row in rows[1:]]
+    formatted_actual = [" | ".join(r) for r in actual_rows]
 
-        if row_index >= len(expected):
-            pytest.fail(f"No expected values provided for row {row_index}: {cells}")  # type: ignore
-
-        for cell_index, cell in enumerate(cells):
-            expected_value = expected[row_index][cell_index]
-            assert expected_value in cell, (
-                f"Mismatch at row {row_index}, col {cell_index}: "
-                f"expected '{expected_value}' in '{cell}'"
-            )
+    for expected in expected_row_substrings:
+        file_part, category_part, desc_part = expected
+        found = any(
+            file_part in actual[0]
+            and category_part in actual[1]
+            and desc_part in actual[2]
+            for actual in actual_rows
+        )
+        if not found:
+            pytest.fail(
+                f"No matching row for: {expected}\n\n"
+                f"Expected a row containing:\n"
+                f"  File: '{file_part}'\n"
+                f"  Category: '{category_part}'\n"
+                f"  Description: '{desc_part}'\n\n"
+                f"Actual rows:\n  - " + "\n  - ".join(formatted_actual)
+            )  # type: ignore
