@@ -70,7 +70,7 @@ def test_initializes_postprocessors(input_dir, target_root, dry_run):
 
 
 @patch("photo_tidy.tidy.POSTPROCESSOR_MAP", {"dummy_postprocessor": DummyPostprocessor})
-def test_calls_setup_on_postprocessors(input_dir, target_root):
+def test_calls_configure_on_postprocessors(input_dir, target_root):
     tidy = Tidy(
         input_path=input_dir,
         target_root=target_root,
@@ -272,6 +272,44 @@ def test_process_photos_logs_file_moves_to_report(dry_run):
 
         assert moved_item
         assert "Canon_40D.jpg" in moved_item.destination
+
+
+@patch("photo_tidy.tidy.POSTPROCESSOR_MAP", {"dummy_postprocessor": DummyPostprocessor})
+def test_process_executes_postprocessors_for_files_that_can_be_handled():
+    with temporary_images(["Canon_40D.jpg"]) as (
+        input_path,
+        target_root,
+        _,
+    ):
+        tidy = Tidy(
+            input_path=input_path,
+            target_root=target_root,
+            dry_run=False,
+            enabled_postprocessors=[("dummy_postprocessor", {})],
+        )
+        tidy.process_photos()
+
+        tidy.postprocessors[0].process.assert_called()
+
+
+@patch("photo_tidy.tidy.POSTPROCESSOR_MAP", {"dummy_postprocessor": DummyPostprocessor})
+def test_process_skips_postprocessor_execution_for_files_that_cannot_be_handled():
+    with temporary_images(["Canon_40D.jpg"]) as (
+        input_path,
+        target_root,
+        _,
+    ):
+        tidy = Tidy(
+            input_path=input_path,
+            target_root=target_root,
+            dry_run=False,
+            enabled_postprocessors=[("dummy_postprocessor", {})],
+        )
+
+        tidy.postprocessors[0].can_handle.return_value = False
+        tidy.process_photos()
+
+        tidy.postprocessors[0].process.assert_not_called()
 
 
 def test_process_photos_skips_when_a_timestamp_cannot_be_obtained():

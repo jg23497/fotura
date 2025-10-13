@@ -130,6 +130,11 @@ class Tidy:
 
     def __run_postprocessors(self, target_path: Path):
         for postprocessor in self.postprocessors:
+            if not postprocessor.can_handle(target_path):
+                logger.warning(
+                    f"{postprocessor.__class__.__name__}: Skipping {target_path}"
+                )
+                continue
             postprocessor.process(target_path)
 
     def __get_target_path(
