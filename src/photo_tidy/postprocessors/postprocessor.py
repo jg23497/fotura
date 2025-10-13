@@ -11,6 +11,5 @@ class Postprocessor(ABC):
     def process(self, image_path: Path) -> None:
         pass
 
-    @abstractmethod
     def configure(self) -> None:
         pass
