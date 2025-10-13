@@ -29,7 +29,7 @@ class GooglePhotosUploadPostprocessor(Postprocessor):
         self.report = context.report
         self.service = None
 
-    def set_up(self) -> None:
+    def configure(self) -> None:
         credentials = self.__obtain_credentials()
         self.service = build(
             "photoslibrary", "v1", credentials=credentials, static_discovery=False

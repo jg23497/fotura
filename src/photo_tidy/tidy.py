@@ -113,7 +113,7 @@ class Tidy:
                 instance = processor_map[processor_name](
                     context=self.processor_context, **processor_args
                 )
-                instance.set_up()
+                instance.configure()
                 processor_instances.append(instance)
             else:
                 logger.error(f"Unknown processor: {processor_name}")

@@ -12,5 +12,5 @@ class Postprocessor(ABC):
         pass
 
     @abstractmethod
-    def set_up(self) -> None:
+    def configure(self) -> None:
         pass

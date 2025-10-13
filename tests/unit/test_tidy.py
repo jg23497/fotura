@@ -78,7 +78,7 @@ def test_calls_setup_on_postprocessors(input_dir, target_root):
         enabled_postprocessors=[("dummy_postprocessor", {})],
     )
 
-    assert tidy.postprocessors[0].set_up.called
+    assert tidy.postprocessors[0].configure.called
 
 
 @patch("photo_tidy.tidy.PREPROCESSOR_MAP", {})

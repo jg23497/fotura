@@ -14,5 +14,5 @@ class Preprocessor(ABC):
     def process(self, image_path: Path) -> Optional[Dict[FactType, Any]]:
         pass
 
-    def set_up(self) -> None:
+    def configure(self) -> None:
         pass

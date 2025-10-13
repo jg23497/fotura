@@ -170,7 +170,7 @@ def processor_dry_run(secrets_dir):
 @pytest.fixture
 def processor_with_valid_credentials(secrets_dir, cached_credentials_valid, processor):
     write_token(secrets_dir, cached_credentials_valid)
-    processor.set_up()
+    processor.configure()
     return processor
 
 
@@ -203,7 +203,7 @@ def test_rejects_unsupported_extensions(ext, processor):
     assert not processor.can_handle(Path(f"foo{ext}"))
 
 
-## set_up method
+## configure method
 
 
 def test_uses_oauth_flow_and_caches_credentials_if_no_cached_credentials_exist(
@@ -217,7 +217,7 @@ def test_uses_oauth_flow_and_caches_credentials_if_no_cached_credentials_exist(
     flow.run_local_server.return_value = cached_credentials_valid
 
     with mock_installed_app_flow(flow):
-        processor.set_up()
+        processor.configure()
 
         assert processor.service is not None, "Processor service should be initialized"
         credentials = read_token()
@@ -237,13 +237,13 @@ def test_raises_error_if_no_cached_credentials_exist_and_client_secret_is_not_fo
     with pytest.raises(
         ProcessorSetupError, match=r"Google credentials file not found at.*"
     ):
-        processor.set_up()
+        processor.configure()
 
 
 def test_reuses_valid_cached_token(secrets_dir, cached_credentials_valid, processor):
     write_token(secrets_dir, cached_credentials_valid)
 
-    processor.set_up()
+    processor.configure()
 
     service = processor.service
     assert service is not None
@@ -264,7 +264,7 @@ def test_refreshes_cached_credentials_if_token_has_expired_and_refresh_token_is_
         status=200,
     )
 
-    processor.set_up()
+    processor.configure()
 
     service = processor.service
     assert service is not None
@@ -290,7 +290,7 @@ def test_uses_oauth_flow_if_token_has_expired_and_no_refresh_token_is_present(
     )
 
     with mock_installed_app_flow(flow):
-        processor.set_up()
+        processor.configure()
 
         credentials = read_token()
         assert "ya29.valid-token" in credentials.token
@@ -318,7 +318,7 @@ def test_uses_oauth_flow_if_token_has_expired_and_refresh_token_is_present_but_e
         "google.oauth2.credentials.Credentials.refresh", side_effect=RefreshError()
     ):
         with mock_installed_app_flow(flow):
-            processor.set_up()
+            processor.configure()
 
             credentials = read_token()
             assert "ya29.valid-token" in credentials.token
@@ -497,7 +497,7 @@ def test_process_logs_failed_upload_exception_if_exception_occurs(
     processor, secrets_dir, cached_credentials_valid, test_image_file
 ):
     write_token(secrets_dir, cached_credentials_valid)
-    processor.set_up()
+    processor.configure()
 
     mock_http = Mock()
     mock_http.credentials = cached_credentials_valid
