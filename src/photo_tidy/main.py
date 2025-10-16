@@ -4,7 +4,9 @@ import inspect
 import click
 from pathlib import Path
 from typing import Any, Dict, Tuple, Type
+from datetime import datetime
 from photo_tidy.conflict_resolution.registry import STRATEGIES
+from photo_tidy.path_format import PathFormat
 from photo_tidy.processors.registry import POSTPROCESSOR_MAP, PREPROCESSOR_MAP
 from photo_tidy.tidy import Tidy
 
@@ -85,6 +87,12 @@ def __build_processor_help(processor_map: Dict[str, Type]) -> str:
     show_default=True,
     help="How to resolve filename conflicts in the target directory",
 )
+@click.option(
+    "--target-path-format",
+    default="%Y/%Y-%m",
+    show_default=True,
+    help="Path format using date format codes (see https://docs.python.org/3/library/datetime.html#format-codes)",
+)
 def main(
     directory: Path,
     target_root: Path,
@@ -93,6 +101,7 @@ def main(
     preprocessors: Tuple[str, ...],
     postprocessors: Tuple[str, ...],
     conflict_strategy: str,
+    target_path_format: str,
 ) -> None:
     """
     Entry point for the CLI.
@@ -113,11 +122,22 @@ def main(
             "name" or "name:param=value,...".
         conflict_strategy: Strategy for resolving filename conflicts in the
             target directory.
+        target_path_format: Format for the directory structure (using Python's
+            date format codes)
     """
     click.echo(f"Processing photos from: {directory}")
     click.echo(f"Target root directory: {target_root}")
+
+    example_path = (
+        Path(PathFormat.build_path(target_root, datetime.now(), target_path_format))
+        / "example.jpg"
+    )
+    click.echo(f"Path format example: {example_path}")
     if dry_run:
         click.echo("Running in dry-run mode - no files will be moved")
+
+    if not PathFormat.is_valid(target_path_format):
+        raise click.BadParameter("Target path format is invalid")
 
     enabled_preprocessors = []
     if preprocessors:
@@ -141,6 +161,7 @@ def main(
         enabled_preprocessors=enabled_preprocessors,
         enabled_postprocessors=enabled_postprocessors,
         conflict_resolution_strategy=conflict_strategy,
+        target_path_format=target_path_format,
     )
     tidy.process_photos()
 

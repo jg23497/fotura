@@ -1,6 +1,8 @@
 from unittest.mock import patch
 from importlib import reload
 from click.testing import CliRunner
+import pytest
+
 from photo_tidy import main, tidy
 
 from tests.helpers.helper import temporary_images
@@ -268,3 +270,45 @@ def test_main_invalid_postprocessor_argument_type():
         assert result.exit_code == 1
         assert isinstance(result.exception, ValueError)
         assert "Cannot cast 'foo' to <class 'int'>:" in str(result.exception)
+
+
+@pytest.mark.parametrize("format", ["foo/%g", "%Q-%m-%d"])
+def test_fails_when_invalid_path_format_is_provided(format):
+    with temporary_images([]) as (
+        input_path,
+        target_root,
+        _,
+    ):
+        result = CliRunner().invoke(
+            main.main,
+            [str(input_path), str(target_root), "--target-path-format", format],
+        )
+
+        assert result.exit_code == 2, result.output
+        assert isinstance(result.exception, SystemExit)
+        assert "Target path format is invalid" in str(result.stderr)
+
+
+def test_uses_custom_path_format_when_provided():
+    with temporary_images(["Canon_40D.jpg"]) as (
+        input_path,
+        target_root,
+        input_image_paths,
+    ):
+        result = CliRunner().invoke(
+            main.main,
+            [
+                str(input_path),
+                str(target_root),
+                "--target-path-format",
+                "%Y/%m/%Y-%m-%d",
+            ],
+        )
+
+        new_image_path = (
+            target_root / "2008" / "05" / "2008-05-30" / input_image_paths[0].name
+        )
+
+        assert not input_image_paths[0].exists()
+        assert new_image_path.exists()
+        assert result.exit_code == 0, result.output

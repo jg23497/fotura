@@ -7,6 +7,7 @@ import shutil
 from platformdirs import user_config_dir, user_data_dir
 
 from photo_tidy.conflict_resolution.registry import STRATEGIES
+from photo_tidy.path_format import PathFormat
 from photo_tidy.preprocessors.fact_type import FactType
 from photo_tidy.processors.context import Context
 from photo_tidy.processors.registry import POSTPROCESSOR_MAP, PREPROCESSOR_MAP
@@ -33,6 +34,7 @@ class Tidy:
         enabled_postprocessors: Optional[List[Tuple[str, Dict[str, Any]]]] = None,
         open_report: bool = False,
         conflict_resolution_strategy: str = "keep_both",
+        target_path_format: str = "%Y/%Y-%m",
     ):
         self.input_path = input_path
         self.target_root = target_root
@@ -41,6 +43,7 @@ class Tidy:
         self.report = Report()
         self.user_config_path = Path(user_config_dir("phototidy"))
         self.user_data_path = Path(user_data_dir("phototidy"))
+        self.target_path_format = target_path_format
         self.open_report = open_report
 
         self.processor_context = Context(
@@ -140,7 +143,10 @@ class Tidy:
     def __get_target_path(
         self, date: datetime, original_path: Path, claimed_paths: Set
     ) -> Path:
-        target_dir = self.target_root / str(date.year) / f"{date.year}-{date.month:02d}"
+        target_dir = PathFormat.build_path(
+            self.target_root, date, self.target_path_format
+        )
+
         if not self.dry_run:
             target_dir.mkdir(parents=True, exist_ok=True)
 
