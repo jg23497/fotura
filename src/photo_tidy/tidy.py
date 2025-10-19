@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from datetime import datetime
 import sys
@@ -53,6 +54,8 @@ class Tidy:
         self.conflict_resolver = self.__get_conflict_resolver(
             conflict_resolution_strategy
         )
+
+        self.__ensure_read_write_permissions()
 
         if enabled_preprocessors:
             self.__configure_processors(
@@ -182,3 +185,24 @@ class Tidy:
             return STRATEGIES[strategy]()
         else:
             raise ValueError(f"Unsupported conflict resolution strategy: {strategy}")
+
+    def __ensure_read_write_permissions(self):
+        temp_path = Path(self.input_path / "permission-check.tmp")
+
+        if not temp_path.exists():
+            try:
+                with open(temp_path, "w") as f:
+                    f.write("test")
+            except Exception as e:
+                raise PermissionError(
+                    f"Permission check: Failed to write test file under {self.input_path}': {e}"
+                ) from e
+
+        try:
+            os.remove(temp_path)
+        except Exception as e:
+            raise PermissionError(
+                f"Permission check: Failed to remove test file under '{temp_path}': {e}"
+            ) from e
+
+        return True

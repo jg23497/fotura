@@ -480,3 +480,32 @@ def test_filename_collisions_are_handled_when_logged_in_dry_run_mode():
         assert (
             str(target_root / "2008" / "2008-05" / "Pentax_K10D_1.jpg") in destinations
         )
+
+
+def test_permission_check_raises_on_write_error(fs, tmp_path):
+    if os.name == "nt":
+        temp_file = tmp_path / "permission-check.tmp"
+        fs.create_file(temp_file, contents="test")
+        os.chmod(temp_file, 0o444)
+    else:
+        fs.create_dir(tmp_path, perm_bits=0o555)
+
+    with pytest.raises(
+        PermissionError, match="Permission check: Failed to write test file"
+    ):
+        Tidy(input_path=tmp_path, target_root=tmp_path)
+
+
+def test_permission_check_raises_on_remove_error(fs, tmp_path):
+    temp_file = tmp_path / "permission-check.tmp"
+    fs.create_file(temp_file)
+
+    if os.name == "nt":
+        os.chmod(temp_file, 0o444)
+    else:
+        os.chmod(tmp_path, 0o555)
+
+    with pytest.raises(
+        PermissionError, match="Permission check: Failed to remove test file"
+    ):
+        Tidy(input_path=tmp_path, target_root=tmp_path)
