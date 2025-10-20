@@ -125,19 +125,20 @@ def main(
         target_path_format: Format for the directory structure (using Python's
             date format codes)
     """
-    click.echo(f"Processing photos from: {directory}")
-    click.echo(f"Target root directory: {target_root}")
+    if not PathFormat.is_valid(target_path_format):
+        raise click.BadParameter("Target path format is invalid")
 
     example_path = (
         Path(PathFormat.build_path(target_root, datetime.now(), target_path_format))
         / "example.jpg"
     )
+
+    click.echo(f"Processing photos from: {directory}")
+    click.echo(f"Target root directory: {target_root}")
     click.echo(f"Path format example: {example_path}")
+
     if dry_run:
         click.echo("Running in dry-run mode - no files will be moved")
-
-    if not PathFormat.is_valid(target_path_format):
-        raise click.BadParameter("Target path format is invalid")
 
     enabled_preprocessors = []
     if preprocessors:
