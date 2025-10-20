@@ -484,9 +484,7 @@ def test_filename_collisions_are_handled_when_logged_in_dry_run_mode():
 
 def test_permission_check_raises_on_write_error(fs, tmp_path):
     if os.name == "nt":
-        temp_file = tmp_path / "permission-check.tmp"
-        fs.create_file(temp_file, contents="test")
-        os.chmod(temp_file, 0o444)
+        fs.create_dir(tmp_path, perm_bits=0o444)
     else:
         fs.create_dir(tmp_path, perm_bits=0o555)
 
