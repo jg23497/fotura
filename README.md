@@ -4,19 +4,20 @@
 
 [![Python CI](https://github.com/jg23497/phototidy/actions/workflows/main.yml/badge.svg?branch=main)](https://github.com/jg23497/phototidy/actions/workflows/main.yml)
 
-A command-line tool for organizing and sorting photos based on their metadata and EXIF data. PhotoTidy automatically organizes photos into a structured directory hierarchy by year and month, and can extract date information from various sources including EXIF metadata, and WhatsApp and Android photo filenames. It also provides an extensible pre and post-processor system for plugging in new functionality, like automated Google Photos uploads.
+A command-line tool for organizing and sorting photos based on their metadata. PhotoTidy automatically organizes photos into a structured directory hierarchy based on their timestamps, extracting date information from various sources including EXIF metadata and filenames. It also provides an extensible pre and post-processor system for plugging in new functionality, like automated Google Photos uploads.
 
 ## Features
 
-- **Automatic photo organization**: Sorts photos into a year/month directory structure.
+- **Automatic photo organization**: Sorts photos into a configurable directory structure (`%Y/%Y-%m` by default, like `2008/2008-05`)
 - **Multiple date extraction methods**:
   - EXIF metadata extraction
   - WhatsApp photo filename parsing
   - Android photo filename parsing
-- **Pre-processor and post-processor system**: Extensible framework for plugging in photo additional processing functionality.
-- **Dry-run mode**: Preview changes without actually moving files.
+- **Pre-processor and post-processor system**: Extensible framework for plugging in photo additional processing functionality, like Google
+  Photos uploads.
+- **Dry-run mode**: Preview changes without actually moving or modifying any files.
 - **Comprehensive reporting**: HTML report of all operations performed.
-- **Conflict resolution**: Automatically handles filename conflicts.
+- **Conflict resolution**: Automatically handles filename conflicts using configurable strategies.
 
 ## Supported File Formats
 
@@ -24,6 +25,7 @@ PhotoTidy supports the following image formats:
 
 - JPEG (.jpg, .jpeg)
 - TIFF (.tiff, .tif)
+- Sony RAW (.arw)
 
 ## Setup
 
@@ -91,8 +93,11 @@ phototidy [OPTIONS] DIRECTORY TARGET_ROOT
 **Options:**
 
 - `--dry-run`: Show what would be done without making changes
-- `--preprocessors TEXT`: Comma-separated list of preprocessors to enable
-- `--postprocessors TEXT`: Comma-separated list of postprocessors to enable
+- `--preprocessors`: List of preprocessors to enable
+- `--postprocessors`: List of postprocessors to enable
+- `--open-report`: Optionally open the report once processing completes
+- `--conflict-strategy`: How to resolve conflicts in the target directory
+- `--target-path-format`: Target path format
 
 ### Examples
 
@@ -102,11 +107,22 @@ phototidy [OPTIONS] DIRECTORY TARGET_ROOT
 phototidy ~/Pictures/unsorted ~/Pictures/organized
 ```
 
-**Dry-run to preview changes:**
+**Dry run to preview changes:**
+
+Always perform a dry run first to be sure your files are moved as you expect, based on the configuration. PhotoTidy will not modify, move or otherwise touch
+your files during a dry run.
 
 ```bash
 phototidy ~/Pictures/unsorted ~/Pictures/organized --dry-run
 ```
+
+Add `--open-report` to view the report in your web browser:
+
+```bash
+phototidy ~/Pictures/unsorted ~/Pictures/organized --dry-run --open-report
+```
+
+<img src="./docs/images/report-example.png" width="600px" alt="Example report"/>
 
 #### Processors
 
@@ -124,17 +140,7 @@ phototidy --preprocessors "filename_timestamp_extract" ~/Pictures/unsorted ~/Pic
 phototidy --preprocessors "filename_timestamp_extract" --postprocessors "google_photos_upload" ~/Pictures/unsorted ~/Pictures/organized
 ```
 
-## How It Works
-
-1. **Photo Discovery**: Recursively finds all image files in the source directory.
-2. **Pre-processor execution**: Executes all specified pre-processors.
-3. **Date Extraction**: Attempts to extract date information using EXIF metadata.
-4. **Organization**: Creates year/month directory structure and moves files.
-5. **Conflict Resolution**: Automatically handles filename conflicts by appending numbers.
-6. **Post-processor execution**: Executes all specified post-processors.
-7. **Reporting**: Generates an HTML report of all operations.
-
-## Directory Structure
+**Override the default path format:**
 
 By default, photos are organized into the following structure:
 
@@ -151,6 +157,51 @@ target_root/
 └── ...
 ```
 
+You can override this by providing an argument to `target-path-format`, which uses [Python's date string directives](https://docs.python.org/3/library/datetime.html#format-codes).
+
+For example, assuming a target directory root of `~/Pictures/organized` and a photo taken on 2008-05-30, the `"%Y/%Y-%m/%Y-%m-%d"` string will cause the
+photo to be moved to `~/Pictures/organized/2008/2008-05/2008-05-30`:
+
+```bash
+phototidy ~/Pictures/unsorted ~/Pictures/organized --dry-run --open-report --target-path-format="%Y/%Y-%m/%Y-%m-%d"
+```
+
+_Note: Always perform a dry run first to be sure your files are moved as you expect._
+
+Other common examples:
+
+| Style                    | Format String                 | Example Path                    |
+| ------------------------ | ----------------------------- | ------------------------------- |
+| **Year / Month**         | `%Y/%m/example.jpg`           | `2008/05/example.jpg`           |
+| **Year / Month (named)** | `%Y/%B/example.jpg`           | `2008/May/example.jpg`          |
+| **Year-Month flat**      | `%Y-%m/example.jpg`           | `2008-05/example.jpg`           |
+| **Month-Day under year** | `%Y/%m-%d/example.jpg`        | `2008/05-28/example.jpg`        |
+| **Day-first regional**   | `%d-%m-%Y/example.jpg`        | `28-05-2008/example.jpg`        |
+| **Event-style folder**   | `%Y-%m-%d_photos/example.jpg` | `2008-05-28_photos/example.jpg` |
+
+**Select a conflict strategy:**
+
+The argument to `--conflict-strategy` determines the conflict resolution strategy:
+
+- keep_both: Keep both images, incrementing the conflicting filename (e.g. duplicate.jpg and duplicate_1.jpg will both exist).
+- skip: Skip the image to be copied, leaving it in place. No files are deleted.
+
+Example:
+
+```bash
+phototidy ~/Pictures/unsorted ~/Pictures/organized --dry-run --open-report --conflict-strategy 'keep_both'
+```
+
+## How PhotoTidy Works
+
+1. **Photo Discovery**: Recursively finds all image files in the source directory.
+2. **Pre-processor execution**: Executes all specified pre-processors.
+3. **Date Extraction**: Attempts to extract date information using photo metadata.
+4. **Organization**: Creates the target directory structure, according to the specified format string, and moves files.
+5. **Conflict Resolution**: Automatically handles filename conflicts, depending on the selected strategy.
+6. **Post-processor execution**: Executes all specified post-processors.
+7. **Reporting**: Generates an HTML report of all operations.
+
 ## Pre-processors
 
 - **FilenameTimestampExtract Preprocessor**: Extract image timestamp data from WhatsApp or Android photos and updates EXIF metadata (`--preprocessors "filename_timestamp_extract"`)
@@ -158,6 +209,13 @@ target_root/
 ## Post-processors
 
 - **[Google Photos Upload Processor](./docs/postprocessors/google_photos_upload_postprocessor/google_photos_upload_postprocessor.md)**: Uploads photos to the Google Photos API (`--postprocessors "google_photos_upload"`).
+
+## Future features
+
+- Concurrent processing.
+- Stripping of specific EXIF data (e.g. location data).
+- Automatic flagging and skipping of low quality images (i.e. blurry images, under or over-exposed images).
+- Image labelling using Llama Vision (multimodal LLM).
 
 ## Development
 
