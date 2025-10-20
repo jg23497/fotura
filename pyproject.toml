@@ -27,12 +27,12 @@ packages = ["src/photo_tidy"]
 dev = [
     "pytest>=8.3.5",
     "pytest-cov>=4.0.0",
-    "black>=24.1.0",
     "ruff>=0.12.1",
     "ty>=0.0.1a12",
     "pyfakefs>=5.9.1",
     "responses>=0.25.7",
     "beautifulsoup4>=4.14.2",
+    "platformdirs>=4.5.0",
 ]
 
 [tool.pytest.ini_options]
@@ -47,12 +47,5 @@ pythonpath = [
   "src"
 ]
 
-[tool.black]
-line-length = 88
-target-version = ['py310']
-include = '\.pyi?$'
-extend-exclude = '''
-# A regex preceded with ^/ will apply only to files and directories
-# in the root of the project.
-^/docs
-'''
+[tool.ruff]
+lint.extend-select = ["I"]

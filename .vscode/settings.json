@@ -1,7 +1,12 @@
 {
   "editor.formatOnSave": true,
   "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff",
     "files.trimTrailingWhitespace": true,
-    "editor.defaultFormatter": "ms-python.black-formatter"
-  }
+    "editor.codeActionsOnSave": {
+      "source.fixAll": "explicit"
+    }
+  },
+  "ruff.organizeImports": true,
+  "ruff.fixAll": true
 }
