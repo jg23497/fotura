@@ -1,10 +1,10 @@
-from unittest.mock import patch
 from importlib import reload
-from click.testing import CliRunner
+from unittest.mock import patch
+
 import pytest
+from click.testing import CliRunner
 
 from photo_tidy import main, tidy
-
 from tests.helpers.helper import temporary_images
 from tests.helpers.processors import (
     ComplexDummyPostprocessor,

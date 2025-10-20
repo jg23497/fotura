@@ -1,20 +1,20 @@
-from pathlib import Path
-import requests
 import logging
 import mimetypes
-from typing import Optional, Any
 import os
+from pathlib import Path
+from typing import Any, Optional
 
+import requests
+from google.auth.exceptions import RefreshError
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
-from google.auth.exceptions import RefreshError
 
 from photo_tidy.postprocessors.postprocessor import Postprocessor
 from photo_tidy.processors.context import Context
-from photo_tidy.reporting.failed_upload_report_item import FailedUploadReportItem
 from photo_tidy.processors.processor_setup_error import ProcessorSetupError
+from photo_tidy.reporting.failed_upload_report_item import FailedUploadReportItem
 from photo_tidy.reporting.uploaded_report_item import UploadedReportItem
 
 logger = logging.getLogger(__name__)

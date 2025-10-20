@@ -1,6 +1,7 @@
-from typing import Optional
-import pytest
 from pathlib import Path
+from typing import Optional
+
+import pytest
 from bs4 import BeautifulSoup, Tag
 
 from photo_tidy.tidy import Tidy

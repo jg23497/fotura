@@ -1,22 +1,21 @@
+import contextlib
+import json
 import os
+from datetime import datetime, timedelta
+from pathlib import Path
+from unittest.mock import MagicMock, Mock, patch
+
 import pytest
 import responses
-import json
-import contextlib
-
-from unittest.mock import MagicMock, Mock, patch
-from pathlib import Path
-from datetime import datetime, timedelta
-
 from google.auth.exceptions import RefreshError
 from google.oauth2.credentials import Credentials
 
-from photo_tidy.processors.context import Context
-from photo_tidy.processors.processor_setup_error import ProcessorSetupError
-from photo_tidy.reporting.report import Report
 from photo_tidy.postprocessors.google_photos_upload_postprocessor import (
     GooglePhotosUploadPostprocessor,
 )
+from photo_tidy.processors.context import Context
+from photo_tidy.processors.processor_setup_error import ProcessorSetupError
+from photo_tidy.reporting.report import Report
 
 # Test helper methods
 

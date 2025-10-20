@@ -1,5 +1,6 @@
 from datetime import datetime
 from pathlib import Path
+
 import pytest
 
 from photo_tidy.path_format import PathFormat

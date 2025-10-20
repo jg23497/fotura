@@ -1,4 +1,5 @@
 from pathlib import Path
+
 from photo_tidy.reporting.report import Report
 
 

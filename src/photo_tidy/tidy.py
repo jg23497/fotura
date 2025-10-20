@@ -1,23 +1,24 @@
-import os
-from pathlib import Path
-from datetime import datetime
-import sys
-from typing import Optional, List, Dict, Any, Set, Tuple
 import logging
+import os
 import shutil
+import sys
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Set, Tuple
+
 from platformdirs import user_config_dir, user_data_dir
 
 from photo_tidy.conflict_resolution.registry import STRATEGIES
+from photo_tidy.exif_data import ExifData
 from photo_tidy.path_format import PathFormat
 from photo_tidy.preprocessors.fact_type import FactType
 from photo_tidy.processors.context import Context
 from photo_tidy.processors.registry import POSTPROCESSOR_MAP, PREPROCESSOR_MAP
-from photo_tidy.reporting.initialize_report_item import InitializeReportItem
-from photo_tidy.reporting.report import Report
-from photo_tidy.reporting.move_report_item import MoveReportItem
-from photo_tidy.reporting.skipped_report_item import SkippedReportItem
 from photo_tidy.reporting.failed_report_item import FailedReportItem
-from photo_tidy.exif_data import ExifData
+from photo_tidy.reporting.initialize_report_item import InitializeReportItem
+from photo_tidy.reporting.move_report_item import MoveReportItem
+from photo_tidy.reporting.report import Report
+from photo_tidy.reporting.skipped_report_item import SkippedReportItem
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

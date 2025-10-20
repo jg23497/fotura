@@ -1,13 +1,14 @@
-from pathlib import Path
-from datetime import datetime
-from typing import Dict, Optional, List, Tuple
-import re
 import logging
+import re
+from datetime import datetime
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple
 
 from photo_tidy.exif_data import ExifData
 from photo_tidy.preprocessors.fact_type import FactType
 from photo_tidy.processors.context import Context
 from photo_tidy.reporting.modified_report_item import ModifiedReportItem
+
 from .preprocessor import Preprocessor
 
 logger = logging.getLogger(__name__)

@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 
 import inspect
-import click
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Tuple, Type
-from datetime import datetime
+
+import click
+
 from photo_tidy.conflict_resolution.registry import STRATEGIES
 from photo_tidy.path_format import PathFormat
 from photo_tidy.processors.registry import POSTPROCESSOR_MAP, PREPROCESSOR_MAP

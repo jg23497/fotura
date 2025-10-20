@@ -1,8 +1,8 @@
 import contextlib
-from os import scandir
-from pathlib import Path
 import shutil
 import tempfile
+from os import scandir
+from pathlib import Path
 
 import piexif
 

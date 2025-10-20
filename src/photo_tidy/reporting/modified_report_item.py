@@ -1,4 +1,5 @@
 from pathlib import Path
+
 from .report_item import ReportItem
 
 

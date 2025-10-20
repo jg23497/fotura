@@ -1,5 +1,5 @@
-from datetime import datetime
 from abc import ABC, abstractmethod
+from datetime import datetime
 
 
 class ReportItem(ABC):
