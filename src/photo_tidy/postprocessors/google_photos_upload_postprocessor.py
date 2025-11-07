@@ -2,7 +2,7 @@ import logging
 import mimetypes
 import os
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 
 import requests
 from google.auth.exceptions import RefreshError
@@ -12,6 +12,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 
 from photo_tidy.postprocessors.postprocessor import Postprocessor
+from photo_tidy.preprocessors.fact_type import FactType
 from photo_tidy.processors.context import Context
 from photo_tidy.processors.processor_setup_error import ProcessorSetupError
 from photo_tidy.reporting.failed_upload_report_item import FailedUploadReportItem
@@ -38,7 +39,9 @@ class GooglePhotosUploadPostprocessor(Postprocessor):
     def can_handle(self, image_path: Path) -> bool:
         return image_path.suffix.lower() in {".jpg", ".jpeg", ".png"}
 
-    def process(self, image_path: Path) -> None:
+    def process(
+        self, image_path: Path, facts: Dict[FactType, Any]
+    ) -> Optional[Dict[FactType, Any]]:
         if self.dry_run:
             self.report.log(UploadedReportItem(image_path, "Google Photos"))
             return

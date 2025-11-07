@@ -337,7 +337,7 @@ def test_process_uploads_image_bytes_to_google_photos_uploads_api(
     mock_successful_upload_response()
 
     with mock_successful_media_item_creation(processor_with_valid_credentials):
-        processor_with_valid_credentials.process(test_image_file)
+        processor_with_valid_credentials.process(test_image_file, {})
 
         assert len(responses.calls) == 1
         upload_call = responses.calls[0]
@@ -370,7 +370,7 @@ def test_process_specifies_correct_image_mimetype_in_uploads_api_request(
     image_path = request.getfixturevalue(image_fixture)
 
     with mock_successful_media_item_creation(processor_with_valid_credentials):
-        processor_with_valid_credentials.process(image_path)
+        processor_with_valid_credentials.process(image_path, {})
 
         upload_call = responses.calls[0]
         assert upload_call.request.headers is not None
@@ -389,7 +389,7 @@ def test_successful_upload_process_creates_media_item_with_upload_token(
     with mock_successful_media_item_creation(
         processor_with_valid_credentials
     ) as mock_batch_create:
-        processor_with_valid_credentials.process(test_image_file)
+        processor_with_valid_credentials.process(test_image_file, {})
 
         assert mock_batch_create.call_count == 1
         called_body = mock_batch_create.call_args.kwargs["body"]
@@ -412,7 +412,7 @@ def test_successful_upload_process_logs_uploaded_report_item(
     mock_successful_upload_response()
 
     with mock_successful_media_item_creation(processor_with_valid_credentials):
-        processor_with_valid_credentials.process(test_image_file)
+        processor_with_valid_credentials.process(test_image_file, {})
 
         report_items = processor_with_valid_credentials.report.get_report()
         uploaded_items = [item for item in report_items if item.name() == "Uploaded"]
@@ -434,7 +434,7 @@ def test_process_raises_exception_and_skips_upload_when_image_bytes_upload_fails
         with mock_successful_media_item_creation(
             processor_with_valid_credentials
         ) as createMediaItemMock:
-            processor_with_valid_credentials.process(test_image_file)
+            processor_with_valid_credentials.process(test_image_file, {})
 
             assert len(responses.calls) == 1
             assert createMediaItemMock.call_count == 0
@@ -447,7 +447,7 @@ def test_process_raises_exception_and_skips_upload_when_service_not_initialized(
     processor.service = None
 
     with pytest.raises(ProcessorSetupError):
-        processor.process(test_image_file)
+        processor.process(test_image_file, {})
 
         assert len(responses.calls) == 0
 
@@ -459,7 +459,7 @@ def test_process_logs_failed_upload_report_item_when_service_not_initialized(
     processor.service = None
 
     with pytest.raises(ProcessorSetupError):
-        processor.process(test_image_file)
+        processor.process(test_image_file, {})
 
         report_items = processor.report.get_report()
         failed_upload_items = [
@@ -474,7 +474,7 @@ def test_process_logs_failed_upload_report_item_when_service_not_initialized(
 
 @responses.activate
 def test_process_skips_upload_when_dry_run_enabled(processor_dry_run, test_image_file):
-    processor_dry_run.process(test_image_file)
+    processor_dry_run.process(test_image_file, {})
 
     assert len(responses.calls) == 0
 
@@ -482,7 +482,7 @@ def test_process_skips_upload_when_dry_run_enabled(processor_dry_run, test_image
 def test_process_logs_dry_run_uploaded_message_when_dry_run_enabled(
     processor_dry_run, test_image_file
 ):
-    processor_dry_run.process(test_image_file)
+    processor_dry_run.process(test_image_file, {})
 
     report_items = processor_dry_run.report.get_report()
     uploaded_items = [item for item in report_items if item.name() == "Uploaded"]
@@ -511,7 +511,7 @@ def test_process_logs_failed_upload_exception_if_exception_occurs(
     mock_successful_upload_response()
 
     with pytest.raises(Exception):
-        processor.process(test_image_file)
+        processor.process(test_image_file, {})
 
         assert len(responses.calls) == 1
 

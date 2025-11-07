@@ -100,7 +100,7 @@ class Tidy:
                     shutil.move(file_path, target_path)
                 self.report.log(MoveReportItem(file_path, target_path))
 
-                self.__run_postprocessors(target_path)
+                self.__run_postprocessors(target_path, facts)
             except Exception as e:
                 self.report.log(FailedReportItem(file_path, target_path, e))
                 break
@@ -130,19 +130,21 @@ class Tidy:
         facts: Dict[FactType, Any] = {}
         for preprocessor in self.preprocessors:
             if preprocessor.can_handle(image_path):
-                result = preprocessor.process(image_path)
+                result = preprocessor.process(image_path, facts)
                 if result:
                     facts.update(result)
         return facts
 
-    def __run_postprocessors(self, target_path: Path):
+    def __run_postprocessors(self, target_path: Path, facts: Dict[FactType, Any]):
         for postprocessor in self.postprocessors:
             if not postprocessor.can_handle(target_path):
                 logger.warning(
                     f"{postprocessor.__class__.__name__}: Skipping {target_path}"
                 )
                 continue
-            postprocessor.process(target_path)
+            result = postprocessor.process(target_path, facts)
+            if result:
+                facts.update(result)
 
     def __get_target_path(
         self, date: datetime, original_path: Path, claimed_paths: Set

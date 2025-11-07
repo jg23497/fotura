@@ -1,5 +1,8 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
+from typing import Any, Dict, Optional
+
+from photo_tidy.preprocessors.fact_type import FactType
 
 
 class Postprocessor(ABC):
@@ -8,7 +11,9 @@ class Postprocessor(ABC):
         pass
 
     @abstractmethod
-    def process(self, image_path: Path) -> None:
+    def process(
+        self, image_path: Path, facts: Dict[FactType, Any]
+    ) -> Optional[Dict[FactType, Any]]:
         pass
 
     def configure(self) -> None:

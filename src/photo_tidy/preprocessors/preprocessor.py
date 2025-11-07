@@ -11,7 +11,9 @@ class Preprocessor(ABC):
         pass
 
     @abstractmethod
-    def process(self, image_path: Path) -> Optional[Dict[FactType, Any]]:
+    def process(
+        self, image_path: Path, facts: Optional[Dict[FactType, Any]]
+    ) -> Optional[Dict[FactType, Any]]:
         pass
 
     def configure(self) -> None:

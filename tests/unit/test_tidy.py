@@ -17,7 +17,11 @@ from tests.helpers import helper
 from tests.helpers.helper import (
     temporary_images,
 )
-from tests.helpers.processors import DummyPostprocessor, DummyPreprocessor
+from tests.helpers.processors import (
+    ComplexDummyPostprocessor,
+    DummyPostprocessor,
+    DummyPreprocessor,
+)
 
 # Fixtures
 
@@ -507,3 +511,54 @@ def test_permission_check_raises_on_remove_error(fs, tmp_path):
         PermissionError, match="Permission check: Failed to remove test file"
     ):
         Tidy(input_path=tmp_path, target_root=tmp_path)
+
+
+@patch("photo_tidy.tidy.PREPROCESSOR_MAP", {"dummy_preprocessor": DummyPreprocessor})
+@patch(
+    "photo_tidy.tidy.POSTPROCESSOR_MAP",
+    {
+        "dummy_postprocessor": DummyPostprocessor,
+        "complex_dummy_postprocessor": ComplexDummyPostprocessor,
+    },
+)
+def test_processor_facts_are_accumulated_through_processor_calls():
+    with temporary_images(["Canon_40D.jpg"]) as (
+        input_path,
+        target_root,
+        _,
+    ):
+        tidy = Tidy(
+            input_path=input_path,
+            target_root=target_root,
+            dry_run=False,
+            enabled_preprocessors=[("dummy_preprocessor", {})],
+            enabled_postprocessors=[
+                ("dummy_postprocessor", {}),
+                ("complex_dummy_postprocessor", {"max_size": 100}),
+            ],
+        )
+
+        tidy.preprocessors[0].process.return_value = {
+            "preprocessor_fact": "preprocessor_value",
+        }
+        tidy.postprocessors[0].process.return_value = {
+            "postprocessor_fact": "postprocessor_value",
+        }
+        tidy.postprocessors[1].process.return_value = {
+            "complex_postprocessor_fact": "complex_postprocessor_value",
+        }
+
+        tidy.process_photos()
+
+        tidy.preprocessors[0].process.assert_called_once()
+        tidy.postprocessors[0].process.assert_called_once()
+        tidy.postprocessors[1].process.assert_called_once()
+
+        # Verify final state contains all three accumulated facts
+        final_facts = tidy.postprocessors[1].process.call_args[0][1]
+        expected_facts = {
+            "preprocessor_fact": "preprocessor_value",
+            "postprocessor_fact": "postprocessor_value",
+            "complex_postprocessor_fact": "complex_postprocessor_value",
+        }
+        assert final_facts == expected_facts

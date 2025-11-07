@@ -2,7 +2,7 @@ import logging
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from photo_tidy.exif_data import ExifData
 from photo_tidy.preprocessors.fact_type import FactType
@@ -24,7 +24,9 @@ class FilenameTimestampExtractPreprocessor(Preprocessor):
     def can_handle(self, image_path: Path) -> bool:
         return self.__get_handler(image_path.name) is not None
 
-    def process(self, image_path: Path) -> Optional[Dict[FactType, datetime]]:
+    def process(
+        self, image_path: Path, facts: Optional[Dict[FactType, Any]]
+    ) -> Optional[Dict[FactType, datetime]]:
         filename = image_path.name
         handler = self.__get_handler(filename)
         if not handler:
