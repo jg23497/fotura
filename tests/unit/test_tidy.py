@@ -1,5 +1,6 @@
 import os
 import shutil
+import stat
 from datetime import datetime
 from pathlib import Path
 from unittest.mock import Mock, patch
@@ -511,6 +512,39 @@ def test_permission_check_raises_on_remove_error(fs, tmp_path):
         PermissionError, match="Permission check: Failed to remove test file"
     ):
         Tidy(input_path=tmp_path, target_root=tmp_path)
+
+
+def test_process_photos_makes_read_only_files_writable(stub_user_dirs):
+    user_data_path, _ = stub_user_dirs
+    with temporary_images(["Canon_40D.jpg"]) as (
+        input_path,
+        target_root,
+        image_paths,
+    ):
+        # Set file to read-only
+        os.chmod(image_paths[0], stat.S_IREAD | stat.S_IRGRP | stat.S_IROTH)
+        initial_mode = image_paths[0].stat().st_mode
+        assert not (initial_mode & stat.S_IWRITE), "File should start as read-only"
+
+        tidy = Tidy(
+            input_path=input_path,
+            target_root=target_root,
+            dry_run=False,
+        )
+
+        tidy.process_photos()
+
+        dest_dir = target_root / "2008" / "2008-05"
+        moved = dest_dir / image_paths[0].name
+
+        assert moved.exists()
+        assert not image_paths[0].exists()
+        assert any(user_data_path.glob("reports/*.html"))
+
+        moved_mode = moved.stat().st_mode
+        assert moved_mode & stat.S_IWRITE, (
+            "Moved file should have write permissions (read-only flag should have been removed)"
+        )
 
 
 @patch("photo_tidy.tidy.PREPROCESSOR_MAP", {"dummy_preprocessor": DummyPreprocessor})

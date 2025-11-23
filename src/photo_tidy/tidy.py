@@ -1,6 +1,7 @@
 import logging
 import os
 import shutil
+import stat
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -56,7 +57,7 @@ class Tidy:
             conflict_resolution_strategy
         )
 
-        self.__ensure_read_write_permissions()
+        self.__test_read_write_permissions()
 
         if enabled_preprocessors:
             self.__configure_processors(
@@ -97,7 +98,9 @@ class Tidy:
                     continue
 
                 if not self.dry_run:
+                    self.__remove_read_only_flag(file_path)
                     shutil.move(file_path, target_path)
+
                 self.report.log(MoveReportItem(file_path, target_path))
 
                 self.__run_postprocessors(target_path, facts)
@@ -189,7 +192,17 @@ class Tidy:
         else:
             raise ValueError(f"Unsupported conflict resolution strategy: {strategy}")
 
-    def __ensure_read_write_permissions(self):
+    def __remove_read_only_flag(self, file_path):
+        try:
+            # Windows: ensure FILE_ATTRIBUTE_READONLY is removed.
+            # Unix: ensure user-write bit is set.
+            current_mode = file_path.stat().st_mode
+            new_mode = current_mode | stat.S_IWRITE
+            os.chmod(file_path, new_mode)
+        except Exception as e:
+            logger.warning(f"Could not remove read-only flag from {file_path}: {e}")
+
+    def __test_read_write_permissions(self):
         temp_path = Path(self.input_path / "permission-check.tmp")
 
         if not temp_path.exists():
