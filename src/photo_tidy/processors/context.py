@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from photo_tidy.reporting.report import Report
+from photo_tidy.reporting import Report
 
 
 class Context:

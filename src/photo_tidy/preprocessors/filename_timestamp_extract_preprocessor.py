@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from photo_tidy.exif_data import ExifData
 from photo_tidy.preprocessors.fact_type import FactType
 from photo_tidy.processors.context import Context
-from photo_tidy.reporting.modified_report_item import ModifiedReportItem
+from photo_tidy.reporting import ModifiedReportItem
 
 from .preprocessor import Preprocessor
 

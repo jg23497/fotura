@@ -15,8 +15,7 @@ from photo_tidy.postprocessors.postprocessor import Postprocessor
 from photo_tidy.preprocessors.fact_type import FactType
 from photo_tidy.processors.context import Context
 from photo_tidy.processors.processor_setup_error import ProcessorSetupError
-from photo_tidy.reporting.failed_upload_report_item import FailedUploadReportItem
-from photo_tidy.reporting.uploaded_report_item import UploadedReportItem
+from photo_tidy.reporting import FailedUploadReportItem, UploadedReportItem
 
 logger = logging.getLogger(__name__)
 

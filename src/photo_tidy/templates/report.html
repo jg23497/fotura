@@ -91,6 +91,11 @@
         border-color: #e3e9ff;
       }
 
+      html[data-theme="light"] .card.modified {
+        background: linear-gradient(180deg, #eef6ff, #fff);
+        border-color: #e3e9ff;
+      }
+
       html[data-theme="light"] .card.skipped {
         background: linear-gradient(180deg, #f7f8fb, #fff);
         border-color: #eceff3;
@@ -222,7 +227,8 @@
         );
       }
 
-      .card.moved {
+      .card.moved,
+      .card.modified {
         background: linear-gradient(
           180deg,
           rgba(39, 76, 146, 0.95),
@@ -345,7 +351,8 @@
         background-color: #181926;
       }
 
-      .badge.moved {
+      .badge.moved,
+      .badge.modified {
         color: var(--badge-moved-text);
         background: var(--badge-moved-bg);
         border-color: rgba(47, 111, 214, 0.06);
@@ -563,19 +570,18 @@
 
               <td>
                 {% set category = (d.get('category') or item.name()).lower() %}
-                {% if 'move' in category %}
+                {% if category == 'moved' %}
                 <span class="badge moved">Moved</span>
-                {% elif 'upload' in category or 'uploaded' in category or
-                category == 'uploaded' %}
+                {% elif category == 'uploaded' %}
                 <span class="badge uploaded">Uploaded</span>
-                {% elif 'skip' in category or 'skipped' in category %}
+                {% elif category == 'skipped' %}
                 <span class="badge skipped">Skipped</span>
-                {% elif 'fail' in category or 'failed' in category %}
+                {% elif category == 'failed' %}
                 <span class="badge failed">Failed</span>
-                {% elif category == 'initialize' or category == 'init' %}
-                <span class="badge initialize">Initialize</span>
+                {% elif category == 'modified' %}
+                <span class="badge modified">Modified</span>
                 {% else %}
-                <span class="badge">{{ item.name() }}</span>
+                <span class="badge"> {{ item.name() }}</span>
                 {% endif %}
               </td>
 

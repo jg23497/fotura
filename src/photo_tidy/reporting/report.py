@@ -10,9 +10,8 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 from photo_tidy.reporting.failed_report_item import FailedReportItem
 from photo_tidy.reporting.initialize_report_item import InitializeReportItem
 from photo_tidy.reporting.move_report_item import MoveReportItem
+from photo_tidy.reporting.report_item import ReportItem
 from photo_tidy.reporting.skipped_report_item import SkippedReportItem
-
-from .report_item import ReportItem
 
 logger = logging.getLogger(__name__)
 

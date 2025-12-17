@@ -9,10 +9,12 @@ import pytest
 
 from photo_tidy.exif_data import ExifData
 from photo_tidy.preprocessors.fact_type import FactType
-from photo_tidy.reporting.failed_report_item import FailedReportItem
-from photo_tidy.reporting.move_report_item import MoveReportItem
-from photo_tidy.reporting.report import Report
-from photo_tidy.reporting.skipped_report_item import SkippedReportItem
+from photo_tidy.reporting import (
+    FailedReportItem,
+    MoveReportItem,
+    Report,
+    SkippedReportItem,
+)
 from photo_tidy.tidy import Tidy
 from tests.helpers import helper
 from tests.helpers.helper import (

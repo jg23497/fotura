@@ -15,7 +15,7 @@ from photo_tidy.postprocessors.google_photos_upload_postprocessor import (
 )
 from photo_tidy.processors.context import Context
 from photo_tidy.processors.processor_setup_error import ProcessorSetupError
-from photo_tidy.reporting.report import Report
+from photo_tidy.reporting import Report
 
 # Test helper methods
 

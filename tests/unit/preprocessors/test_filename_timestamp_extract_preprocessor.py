@@ -11,7 +11,7 @@ from photo_tidy.preprocessors.filename_timestamp_extract_preprocessor import (
     FilenameTimestampExtractPreprocessor,
 )
 from photo_tidy.processors.context import Context
-from photo_tidy.reporting.report import Report
+from photo_tidy.reporting import Report
 
 # Fixtures
 

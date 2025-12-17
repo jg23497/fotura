@@ -4,9 +4,7 @@ from typing import Optional
 import pytest
 from bs4 import BeautifulSoup, Tag
 
-from photo_tidy.reporting.failed_report_item import FailedReportItem
-from photo_tidy.reporting.move_report_item import MoveReportItem
-from photo_tidy.reporting.report import Report
+from photo_tidy.reporting import FailedReportItem, MoveReportItem, Report
 
 
 def clean_text(element: Optional[Tag]) -> str:
