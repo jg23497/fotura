@@ -21,8 +21,9 @@ def test_main_tidies_image_files():
         input_image_paths,
     ):
         result = CliRunner().invoke(
-            main.main,
+            main.cli,
             [
+                "import",
                 str(input_path),
                 str(target_root),
                 "--preprocessors",
@@ -47,8 +48,8 @@ def test_help_lists_available_preprocessors():
     reload(main)
 
     result = CliRunner().invoke(
-        main.main,
-        ["--help"],
+        main.cli,
+        ["import", "--help"],
     )
 
     stdout = result.stdout.replace("  ", "")
@@ -75,8 +76,9 @@ def test_fails_when_unknown_preprocessor_specified():
         _,
     ):
         result = CliRunner().invoke(
-            main.main,
+            main.cli,
             [
+                "import",
                 str(input_path),
                 str(target_root),
                 "--preprocessors",
@@ -106,8 +108,9 @@ def test_passes_command_line_arguments_to_preprocessors():
             patch.object(importer.Importer, "process_photos", return_value=None),
         ):
             result = CliRunner().invoke(
-                main.main,
+                main.cli,
                 [
+                    "import",
                     str(input_path),
                     str(target_root),
                     "--preprocessors",
@@ -140,8 +143,9 @@ def test_main_invalid_preprocessor_argument_type():
         _,
     ):
         result = CliRunner().invoke(
-            main.main,
+            main.cli,
             [
+                "import",
                 str(input_path),
                 str(target_root),
                 "--preprocessors",
@@ -165,8 +169,8 @@ def test_help_lists_available_postprocessors():
     reload(main)
 
     result = CliRunner().invoke(
-        main.main,
-        ["--help"],
+        main.cli,
+        ["import", "--help"],
     )
 
     stdout = result.stdout.replace("  ", "")
@@ -193,8 +197,9 @@ def test_fails_when_unknown_postprocessor_specified():
         _,
     ):
         result = CliRunner().invoke(
-            main.main,
+            main.cli,
             [
+                "import",
                 str(input_path),
                 str(target_root),
                 "--postprocessors",
@@ -224,8 +229,9 @@ def test_passes_command_line_arguments_to_postprocessors():
             patch.object(importer.Importer, "process_photos", return_value=None),
         ):
             result = CliRunner().invoke(
-                main.main,
+                main.cli,
                 [
+                    "import",
                     str(input_path),
                     str(target_root),
                     "--postprocessors",
@@ -258,8 +264,9 @@ def test_main_invalid_postprocessor_argument_type():
         _,
     ):
         result = CliRunner().invoke(
-            main.main,
+            main.cli,
             [
+                "import",
                 str(input_path),
                 str(target_root),
                 "--postprocessors",
@@ -280,8 +287,14 @@ def test_fails_when_invalid_path_format_is_provided(format):
         _,
     ):
         result = CliRunner().invoke(
-            main.main,
-            [str(input_path), str(target_root), "--target-path-format", format],
+            main.cli,
+            [
+                "import",
+                str(input_path),
+                str(target_root),
+                "--target-path-format",
+                format,
+            ],
         )
 
         assert result.exit_code == 2, result.output
@@ -296,8 +309,9 @@ def test_uses_custom_path_format_when_provided():
         input_image_paths,
     ):
         result = CliRunner().invoke(
-            main.main,
+            main.cli,
             [
+                "import",
                 str(input_path),
                 str(target_root),
                 "--target-path-format",

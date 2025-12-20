@@ -61,41 +61,7 @@ def __build_processor_help(processor_map: Dict[str, Type]) -> str:
     return "\n".join(lines)
 
 
-@click.command()
-@click.argument("directory", type=click.Path(exists=True, path_type=Path))
-@click.argument("target_root", type=click.Path(path_type=Path))
-@click.option(
-    "--dry-run", is_flag=True, help="Show what would be done without making changes"
-)
-@click.option(
-    "--open-report",
-    is_flag=True,
-    help="Open the report in your web browser after completion",
-)
-@click.option(
-    "--preprocessors",
-    multiple=True,
-    help=__build_processor_help(PREPROCESSOR_MAP),
-)
-@click.option(
-    "--postprocessors",
-    multiple=True,
-    help=__build_processor_help(POSTPROCESSOR_MAP),
-)
-@click.option(
-    "--conflict-strategy",
-    type=click.Choice(STRATEGIES.keys(), case_sensitive=False),
-    default="keep_both",
-    show_default=True,
-    help="How to resolve filename conflicts in the target directory",
-)
-@click.option(
-    "--target-path-format",
-    default="%Y/%Y-%m",
-    show_default=True,
-    help="Path format using date format codes (see https://docs.python.org/3/library/datetime.html#format-codes)",
-)
-def main(
+def run_import(
     directory: Path,
     target_root: Path,
     dry_run: bool,
@@ -106,12 +72,10 @@ def main(
     target_path_format: str,
 ) -> None:
     """
-    Entry point for the CLI.
+    Execute the import operation.
 
-    Organizes photos from a source directory into a target directory,
-    optionally applying pre and post-processors, controlling side effects
-    with dry-run, opening a report on completion, and selecting a
-    conflict-resolution strategy for target filename collisions.
+    Imports photos from a source directory into a target directory hierarchy,
+    optionally applying pre and post-processors to the photos.
 
     Args:
         directory: Source directory containing photos.
@@ -167,6 +131,67 @@ def main(
         target_path_format=target_path_format,
     )
     importer.process_photos()
+
+
+@click.group()
+def cli() -> None:
+    pass
+
+
+@cli.command(name="import")
+@click.argument("directory", type=click.Path(exists=True, path_type=Path))
+@click.argument("target_root", type=click.Path(path_type=Path))
+@click.option(
+    "--dry-run", is_flag=True, help="Show what would be done without making changes"
+)
+@click.option(
+    "--open-report",
+    is_flag=True,
+    help="Open the report in your web browser after completion",
+)
+@click.option(
+    "--preprocessors",
+    multiple=True,
+    help=__build_processor_help(PREPROCESSOR_MAP),
+)
+@click.option(
+    "--postprocessors",
+    multiple=True,
+    help=__build_processor_help(POSTPROCESSOR_MAP),
+)
+@click.option(
+    "--conflict-strategy",
+    type=click.Choice(STRATEGIES.keys(), case_sensitive=False),
+    default="keep_both",
+    show_default=True,
+    help="How to resolve filename conflicts in the target directory",
+)
+@click.option(
+    "--target-path-format",
+    default="%Y/%Y-%m",
+    show_default=True,
+    help="Path format using date format codes (see https://docs.python.org/3/library/datetime.html#format-codes)",
+)
+def import_cmd(
+    directory: Path,
+    target_root: Path,
+    dry_run: bool,
+    open_report: bool,
+    preprocessors: Tuple[str, ...],
+    postprocessors: Tuple[str, ...],
+    conflict_strategy: str,
+    target_path_format: str,
+) -> None:
+    run_import(
+        directory=directory,
+        target_root=target_root,
+        dry_run=dry_run,
+        open_report=open_report,
+        preprocessors=preprocessors,
+        postprocessors=postprocessors,
+        conflict_strategy=conflict_strategy,
+        target_path_format=target_path_format,
+    )
 
 
 def __cast_arg(value: str, klass: Type) -> Any:
@@ -233,4 +258,4 @@ def __parse_processor_arguments(
 
 
 if __name__ == "__main__":
-    main()
+    cli()

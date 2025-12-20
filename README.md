@@ -4,7 +4,7 @@
 
 [![Python CI](https://github.com/jg23497/fotura/actions/workflows/main.yml/badge.svg?branch=main)](https://github.com/jg23497/fotura/actions/workflows/main.yml)
 
-A command-line tool for organizing and sorting photos based on their metadata. Fotura automatically organizes photos into a structured directory hierarchy based on their timestamps, extracting date information from various sources including EXIF metadata and filenames. It also provides an extensible pre and post-processor system for plugging in new functionality, like automated Google Photos uploads.
+A command-line tool for organizing and sorting photos based on their metadata. Fotura automatically organizes photos into a structured directory hierarchy based on their timestamps, extracting date information from sources including EXIF metadata and filenames. It also provides an extensible pre and post-processor system for plugging in new functionality, like automated Google Photos uploads.
 
 ## Features
 
@@ -76,13 +76,13 @@ uv pip install .
 ### Basic Usage
 
 ```bash
-fotura /path/to/photos /path/to/organized/photos
+fotura import /path/to/photos /path/to/organized/photos
 ```
 
 ### Command Line Options
 
 ```bash
-fotura [OPTIONS] DIRECTORY TARGET_ROOT
+fotura import [OPTIONS] DIRECTORY TARGET_ROOT
 ```
 
 **Arguments:**
@@ -104,7 +104,7 @@ fotura [OPTIONS] DIRECTORY TARGET_ROOT
 **Basic photo organization:**
 
 ```bash
-fotura ~/Pictures/unsorted ~/Pictures/organized
+fotura import ~/Pictures/unsorted ~/Pictures/organized
 ```
 
 **Dry run to preview changes:**
@@ -113,13 +113,13 @@ Always perform a dry run first to be sure your files are moved as you expect, ba
 your files during a dry run.
 
 ```bash
-fotura ~/Pictures/unsorted ~/Pictures/organized --dry-run
+fotura import ~/Pictures/unsorted ~/Pictures/organized --dry-run
 ```
 
 Add `--open-report` to view the report in your web browser:
 
 ```bash
-fotura ~/Pictures/unsorted ~/Pictures/organized --dry-run --open-report
+fotura import ~/Pictures/unsorted ~/Pictures/organized --dry-run --open-report
 ```
 
 <img src="./docs/images/report-example.png" width="600px" alt="Example report"/>
@@ -131,13 +131,13 @@ You can specify multiple pre and post-processors like: `--preprocessors "foo" --
 **Enable FilenameTimestampExtract pre-processor:**
 
 ```bash
-fotura --preprocessors "filename_timestamp_extract" ~/Pictures/unsorted ~/Pictures/organized
+fotura import --preprocessors "filename_timestamp_extract" ~/Pictures/unsorted ~/Pictures/organized
 ```
 
 **Enable the Google Photos Upload post-processor:**
 
 ```bash
-fotura --preprocessors "filename_timestamp_extract" --postprocessors "google_photos_upload" ~/Pictures/unsorted ~/Pictures/organized
+fotura import --preprocessors "filename_timestamp_extract" --postprocessors "google_photos_upload" ~/Pictures/unsorted ~/Pictures/organized
 ```
 
 **Override the default path format:**
@@ -163,21 +163,21 @@ For example, assuming a target directory root of `~/Pictures/organized` and a ph
 photo to be moved to `~/Pictures/organized/2008/2008-05/2008-05-30`:
 
 ```bash
-fotura ~/Pictures/unsorted ~/Pictures/organized --dry-run --open-report --target-path-format="%Y/%Y-%m/%Y-%m-%d"
+fotura import ~/Pictures/unsorted ~/Pictures/organized --dry-run --open-report --target-path-format="%Y/%Y-%m/%Y-%m-%d"
 ```
 
-_Note: Always perform a dry run first to be sure your files are moved as you expect._
+_Note: Always perform a dry run first to ensure your photos will be moved as you would expect._
 
 Other common examples:
 
-| Style                    | Format String                 | Example Path                    |
-| ------------------------ | ----------------------------- | ------------------------------- |
-| **Year / Month**         | `%Y/%m/example.jpg`           | `2008/05/example.jpg`           |
-| **Year / Month (named)** | `%Y/%B/example.jpg`           | `2008/May/example.jpg`          |
-| **Year-Month flat**      | `%Y-%m/example.jpg`           | `2008-05/example.jpg`           |
-| **Month-Day under year** | `%Y/%m-%d/example.jpg`        | `2008/05-28/example.jpg`        |
-| **Day-first regional**   | `%d-%m-%Y/example.jpg`        | `28-05-2008/example.jpg`        |
-| **Event-style folder**   | `%Y-%m-%d_photos/example.jpg` | `2008-05-28_photos/example.jpg` |
+| Style                     | Format String                 | Example Path                    |
+| ------------------------- | ----------------------------- | ------------------------------- |
+| **Year / Month**          | `%Y/%m/example.jpg`           | `2008/05/example.jpg`           |
+| **Year / Month (named)**  | `%Y/%B/example.jpg`           | `2008/May/example.jpg`          |
+| **Year-Month (flat)**     | `%Y-%m/example.jpg`           | `2008-05/example.jpg`           |
+| **Month-Day under year**  | `%Y/%m-%d/example.jpg`        | `2008/05-28/example.jpg`        |
+| **Day-Month-Year (flat)** | `%d-%m-%Y/example.jpg`        | `28-05-2008/example.jpg`        |
+| **Custom folder name**    | `%Y-%m-%d_photos/example.jpg` | `2008-05-28_photos/example.jpg` |
 
 **Select a conflict strategy:**
 
@@ -189,18 +189,8 @@ The argument to `--conflict-strategy` determines the conflict resolution strateg
 Example:
 
 ```bash
-fotura ~/Pictures/unsorted ~/Pictures/organized --dry-run --open-report --conflict-strategy 'keep_both'
+fotura import ~/Pictures/unsorted ~/Pictures/organized --dry-run --open-report --conflict-strategy 'keep_both'
 ```
-
-## How Fotura Works
-
-1. **Photo Discovery**: Recursively finds all image files in the source directory.
-2. **Pre-processor execution**: Executes all specified pre-processors.
-3. **Date Extraction**: Attempts to extract date information using photo metadata.
-4. **Organization**: Creates the target directory structure, according to the specified format string, and moves files.
-5. **Conflict Resolution**: Automatically handles filename conflicts, depending on the selected strategy.
-6. **Post-processor execution**: Executes all specified post-processors.
-7. **Reporting**: Generates an HTML report of all operations.
 
 ## Pre-processors
 
@@ -213,6 +203,7 @@ fotura ~/Pictures/unsorted ~/Pictures/organized --dry-run --open-report --confli
 ## Future features
 
 - Concurrent processing.
+- Implementing a standalone tool/processor execution mode, like `fotura run google_photos_upload my-image.jpg`.
 - Stripping of specific EXIF data (e.g. location data).
 - Automatic flagging and skipping of low quality images (i.e. blurry images, under or over-exposed images).
 - Image labelling using Llama Vision (multimodal LLM).
