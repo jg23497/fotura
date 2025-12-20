@@ -4,7 +4,7 @@ from pathlib import Path
 import piexif
 import pytest
 
-from photo_tidy.exif_data import ExifData
+from fotura.exif_data import ExifData
 from tests.helpers.helper import assert_exif_dates, temporary_images
 
 # extract_date

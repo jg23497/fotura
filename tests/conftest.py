@@ -12,8 +12,8 @@ def stub_user_dirs(tmp_path):
     user_config_path.mkdir()
 
     with (
-        patch("photo_tidy.tidy.user_data_dir", return_value=user_data_path),
-        patch("photo_tidy.tidy.user_config_dir", return_value=user_config_path),
+        patch("fotura.importer.user_data_dir", return_value=user_data_path),
+        patch("fotura.importer.user_config_dir", return_value=user_config_path),
     ):
         yield user_data_path, user_config_path
 

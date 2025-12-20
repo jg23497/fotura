@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Iterator
 
-from photo_tidy.reporting import Report, SkippedReportItem
+from fotura.reporting import Report, SkippedReportItem
 
 
 class PhotoFinder:

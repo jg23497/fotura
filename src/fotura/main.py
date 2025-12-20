@@ -7,10 +7,10 @@ from typing import Any, Dict, Tuple, Type
 
 import click
 
-from photo_tidy.conflict_resolution.registry import STRATEGIES
-from photo_tidy.path_format import PathFormat
-from photo_tidy.processors.registry import POSTPROCESSOR_MAP, PREPROCESSOR_MAP
-from photo_tidy.tidy import Tidy
+from fotura.conflict_resolution.registry import STRATEGIES
+from fotura.importer import Importer
+from fotura.path_format import PathFormat
+from fotura.processors.registry import POSTPROCESSOR_MAP, PREPROCESSOR_MAP
 
 
 def __get_processor_params(klass: Type) -> Dict[str, Type]:
@@ -156,7 +156,7 @@ def main(
             for p in postprocessors
         ]
 
-    tidy = Tidy(
+    importer = Importer(
         directory,
         target_root,
         dry_run=dry_run,
@@ -166,7 +166,7 @@ def main(
         conflict_resolution_strategy=conflict_strategy,
         target_path_format=target_path_format,
     )
-    tidy.process_photos()
+    importer.process_photos()
 
 
 def __cast_arg(value: str, klass: Type) -> Any:

@@ -25,12 +25,12 @@
 
 ## How to
 
-### Run PhotoTidy in development
+### Run Fotura in development
 
 In development, access the main entrypoint like so:
 
 ```bash
-uv run src/photo_tidy/main.py
+uv run src/fotura/main.py
 ```
 
 Alternatively, install the package in editable mode:
@@ -39,7 +39,7 @@ Alternatively, install the package in editable mode:
 uv pip install -e .
 ```
 
-This will make the `phototidy` command available for testing during development.
+This will make the `fotura` command available for testing during development.
 
 ### Run tests
 

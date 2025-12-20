@@ -4,7 +4,7 @@ from typing import Optional
 import pytest
 from bs4 import BeautifulSoup, Tag
 
-from photo_tidy.tidy import Tidy
+from fotura.importer import Importer
 from tests.helpers.helper import all_temporary_images
 
 
@@ -19,12 +19,12 @@ def report(stub_user_dirs):
     user_data_path, _ = stub_user_dirs
 
     with all_temporary_images() as (input_path, target_root):
-        tidy = Tidy(
+        importer = Importer(
             Path(input_path),
             Path(target_root),
             enabled_preprocessors=[("filename_timestamp_extract", {})],
         )
-        tidy.process_photos()
+        importer.process_photos()
 
         report_files = list((user_data_path / "reports").glob("*.html"))
         assert report_files, "Expect a report to have been generated."
@@ -38,7 +38,7 @@ def report(stub_user_dirs):
 def test_report_summary_information(report):
     title = report.find("title")
     assert title is not None, "Report should have a <title> element."
-    assert "Photo Tidy" in title.text, f"Unexpected title: {title.text}"
+    assert "Fotura" in title.text, f"Unexpected title: {title.text}"
 
     moved_card_text = clean_text(report.select_one(".card.main"))
     assert "Total 11" in moved_card_text

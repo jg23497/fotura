@@ -4,10 +4,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from photo_tidy.exif_data import ExifData
-from photo_tidy.preprocessors.fact_type import FactType
-from photo_tidy.processors.context import Context
-from photo_tidy.reporting import ModifiedReportItem
+from fotura.exif_data import ExifData
+from fotura.preprocessors.fact_type import FactType
+from fotura.processors.context import Context
+from fotura.reporting import ModifiedReportItem
 
 from .preprocessor import Preprocessor
 

@@ -1,10 +1,10 @@
-# PhotoTidy
+# Fotura
 
-<img src="./docs/images/logo.jpg" width="400px" alt="PhotoTidy logo"/>
+<img src="./docs/images/logo.jpg" width="400px" alt="Fotura logo"/>
 
-[![Python CI](https://github.com/jg23497/phototidy/actions/workflows/main.yml/badge.svg?branch=main)](https://github.com/jg23497/phototidy/actions/workflows/main.yml)
+[![Python CI](https://github.com/jg23497/fotura/actions/workflows/main.yml/badge.svg?branch=main)](https://github.com/jg23497/fotura/actions/workflows/main.yml)
 
-A command-line tool for organizing and sorting photos based on their metadata. PhotoTidy automatically organizes photos into a structured directory hierarchy based on their timestamps, extracting date information from various sources including EXIF metadata and filenames. It also provides an extensible pre and post-processor system for plugging in new functionality, like automated Google Photos uploads.
+A command-line tool for organizing and sorting photos based on their metadata. Fotura automatically organizes photos into a structured directory hierarchy based on their timestamps, extracting date information from various sources including EXIF metadata and filenames. It also provides an extensible pre and post-processor system for plugging in new functionality, like automated Google Photos uploads.
 
 ## Features
 
@@ -21,7 +21,7 @@ A command-line tool for organizing and sorting photos based on their metadata. P
 
 ## Supported File Formats
 
-PhotoTidy supports the following image formats:
+Fotura supports the following image formats:
 
 - JPEG (.jpg, .jpeg)
 - TIFF (.tiff, .tif)
@@ -63,7 +63,7 @@ pip install uv
 winget install astral-sh.uv
 ```
 
-### Installing PhotoTidy
+### Installing Fotura
 
 After installing uv, install the project dependencies:
 
@@ -76,13 +76,13 @@ uv pip install .
 ### Basic Usage
 
 ```bash
-phototidy /path/to/photos /path/to/organized/photos
+fotura /path/to/photos /path/to/organized/photos
 ```
 
 ### Command Line Options
 
 ```bash
-phototidy [OPTIONS] DIRECTORY TARGET_ROOT
+fotura [OPTIONS] DIRECTORY TARGET_ROOT
 ```
 
 **Arguments:**
@@ -104,22 +104,22 @@ phototidy [OPTIONS] DIRECTORY TARGET_ROOT
 **Basic photo organization:**
 
 ```bash
-phototidy ~/Pictures/unsorted ~/Pictures/organized
+fotura ~/Pictures/unsorted ~/Pictures/organized
 ```
 
 **Dry run to preview changes:**
 
-Always perform a dry run first to be sure your files are moved as you expect, based on the configuration. PhotoTidy will not modify, move or otherwise touch
+Always perform a dry run first to be sure your files are moved as you expect, based on the configuration. Fotura will not modify, move or otherwise touch
 your files during a dry run.
 
 ```bash
-phototidy ~/Pictures/unsorted ~/Pictures/organized --dry-run
+fotura ~/Pictures/unsorted ~/Pictures/organized --dry-run
 ```
 
 Add `--open-report` to view the report in your web browser:
 
 ```bash
-phototidy ~/Pictures/unsorted ~/Pictures/organized --dry-run --open-report
+fotura ~/Pictures/unsorted ~/Pictures/organized --dry-run --open-report
 ```
 
 <img src="./docs/images/report-example.png" width="600px" alt="Example report"/>
@@ -131,13 +131,13 @@ You can specify multiple pre and post-processors like: `--preprocessors "foo" --
 **Enable FilenameTimestampExtract pre-processor:**
 
 ```bash
-phototidy --preprocessors "filename_timestamp_extract" ~/Pictures/unsorted ~/Pictures/organized
+fotura --preprocessors "filename_timestamp_extract" ~/Pictures/unsorted ~/Pictures/organized
 ```
 
 **Enable the Google Photos Upload post-processor:**
 
 ```bash
-phototidy --preprocessors "filename_timestamp_extract" --postprocessors "google_photos_upload" ~/Pictures/unsorted ~/Pictures/organized
+fotura --preprocessors "filename_timestamp_extract" --postprocessors "google_photos_upload" ~/Pictures/unsorted ~/Pictures/organized
 ```
 
 **Override the default path format:**
@@ -163,7 +163,7 @@ For example, assuming a target directory root of `~/Pictures/organized` and a ph
 photo to be moved to `~/Pictures/organized/2008/2008-05/2008-05-30`:
 
 ```bash
-phototidy ~/Pictures/unsorted ~/Pictures/organized --dry-run --open-report --target-path-format="%Y/%Y-%m/%Y-%m-%d"
+fotura ~/Pictures/unsorted ~/Pictures/organized --dry-run --open-report --target-path-format="%Y/%Y-%m/%Y-%m-%d"
 ```
 
 _Note: Always perform a dry run first to be sure your files are moved as you expect._
@@ -189,10 +189,10 @@ The argument to `--conflict-strategy` determines the conflict resolution strateg
 Example:
 
 ```bash
-phototidy ~/Pictures/unsorted ~/Pictures/organized --dry-run --open-report --conflict-strategy 'keep_both'
+fotura ~/Pictures/unsorted ~/Pictures/organized --dry-run --open-report --conflict-strategy 'keep_both'
 ```
 
-## How PhotoTidy Works
+## How Fotura Works
 
 1. **Photo Discovery**: Recursively finds all image files in the source directory.
 2. **Pre-processor execution**: Executes all specified pre-processors.

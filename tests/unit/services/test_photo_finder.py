@@ -2,8 +2,8 @@ from pathlib import Path
 
 import pytest
 
-from photo_tidy.reporting import Report, SkippedReportItem
-from photo_tidy.services.photo_finder import PhotoFinder
+from fotura.reporting import Report, SkippedReportItem
+from fotura.services.photo_finder import PhotoFinder
 
 # Fixtures
 

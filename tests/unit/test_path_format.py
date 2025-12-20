@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from photo_tidy.path_format import PathFormat
+from fotura.path_format import PathFormat
 
 # is_valid
 

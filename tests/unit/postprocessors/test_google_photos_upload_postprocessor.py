@@ -10,12 +10,12 @@ import responses
 from google.auth.exceptions import RefreshError
 from google.oauth2.credentials import Credentials
 
-from photo_tidy.postprocessors.google_photos_upload_postprocessor import (
+from fotura.postprocessors.google_photos_upload_postprocessor import (
     GooglePhotosUploadPostprocessor,
 )
-from photo_tidy.processors.context import Context
-from photo_tidy.processors.processor_setup_error import ProcessorSetupError
-from photo_tidy.reporting import Report
+from fotura.processors.context import Context
+from fotura.processors.processor_setup_error import ProcessorSetupError
+from fotura.reporting import Report
 
 # Test helper methods
 
@@ -120,7 +120,7 @@ def mock_failed_upload_response():
 @pytest.fixture(autouse=True)
 def mock_photoslibrary_service():
     with patch(
-        "photo_tidy.postprocessors.google_photos_upload_postprocessor.build"
+        "fotura.postprocessors.google_photos_upload_postprocessor.build"
     ) as mock_build:
         mock_service = MagicMock()
         mock_service._http = MagicMock(

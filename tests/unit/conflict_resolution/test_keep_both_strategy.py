@@ -1,6 +1,6 @@
 import pytest
 
-from photo_tidy.conflict_resolution.keep_both_strategy import KeepBothStrategy
+from fotura.conflict_resolution.keep_both_strategy import KeepBothStrategy
 
 
 @pytest.fixture

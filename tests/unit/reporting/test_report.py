@@ -4,7 +4,7 @@ from typing import Optional
 import pytest
 from bs4 import BeautifulSoup, Tag
 
-from photo_tidy.reporting import FailedReportItem, MoveReportItem, Report
+from fotura.reporting import FailedReportItem, MoveReportItem, Report
 
 
 def clean_text(element: Optional[Tag]) -> str:

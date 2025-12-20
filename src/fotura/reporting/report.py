@@ -5,13 +5,12 @@ from datetime import datetime
 from pathlib import Path
 from typing import List
 
+from fotura.reporting.failed_report_item import FailedReportItem
+from fotura.reporting.initialize_report_item import InitializeReportItem
+from fotura.reporting.move_report_item import MoveReportItem
+from fotura.reporting.report_item import ReportItem
+from fotura.reporting.skipped_report_item import SkippedReportItem
 from jinja2 import Environment, FileSystemLoader, select_autoescape
-
-from photo_tidy.reporting.failed_report_item import FailedReportItem
-from photo_tidy.reporting.initialize_report_item import InitializeReportItem
-from photo_tidy.reporting.move_report_item import MoveReportItem
-from photo_tidy.reporting.report_item import ReportItem
-from photo_tidy.reporting.skipped_report_item import SkippedReportItem
 
 logger = logging.getLogger(__name__)
 

@@ -11,11 +11,11 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 
-from photo_tidy.postprocessors.postprocessor import Postprocessor
-from photo_tidy.preprocessors.fact_type import FactType
-from photo_tidy.processors.context import Context
-from photo_tidy.processors.processor_setup_error import ProcessorSetupError
-from photo_tidy.reporting import FailedUploadReportItem, UploadedReportItem
+from fotura.postprocessors.postprocessor import Postprocessor
+from fotura.preprocessors.fact_type import FactType
+from fotura.processors.context import Context
+from fotura.processors.processor_setup_error import ProcessorSetupError
+from fotura.reporting import FailedUploadReportItem, UploadedReportItem
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +60,7 @@ class GooglePhotosUploadPostprocessor(Postprocessor):
 
     def __get_credentials_directory_path(self) -> Path:
         path = self.context.user_config_path / "integrations" / "google_photos"
+        breakpoint
         path.mkdir(parents=True, exist_ok=True)
         return path
 

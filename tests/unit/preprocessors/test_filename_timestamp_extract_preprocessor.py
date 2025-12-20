@@ -5,13 +5,13 @@ from unittest.mock import patch
 
 import pytest
 
-from photo_tidy.exif_data import ExifData
-from photo_tidy.preprocessors.fact_type import FactType
-from photo_tidy.preprocessors.filename_timestamp_extract_preprocessor import (
+from fotura.exif_data import ExifData
+from fotura.preprocessors.fact_type import FactType
+from fotura.preprocessors.filename_timestamp_extract_preprocessor import (
     FilenameTimestampExtractPreprocessor,
 )
-from photo_tidy.processors.context import Context
-from photo_tidy.reporting import Report
+from fotura.processors.context import Context
+from fotura.reporting import Report
 
 # Fixtures
 

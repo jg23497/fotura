@@ -9,26 +9,26 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 from platformdirs import user_config_dir, user_data_dir
 
-from photo_tidy.conflict_resolution.registry import STRATEGIES
-from photo_tidy.exif_data import ExifData
-from photo_tidy.path_format import PathFormat
-from photo_tidy.preprocessors.fact_type import FactType
-from photo_tidy.processors.context import Context
-from photo_tidy.processors.registry import POSTPROCESSOR_MAP, PREPROCESSOR_MAP
-from photo_tidy.reporting import (
+from fotura.conflict_resolution.registry import STRATEGIES
+from fotura.exif_data import ExifData
+from fotura.path_format import PathFormat
+from fotura.preprocessors.fact_type import FactType
+from fotura.processors.context import Context
+from fotura.processors.registry import POSTPROCESSOR_MAP, PREPROCESSOR_MAP
+from fotura.reporting import (
     FailedReportItem,
     InitializeReportItem,
     MoveReportItem,
     Report,
     SkippedReportItem,
 )
-from photo_tidy.services.photo_finder import PhotoFinder
+from fotura.services.photo_finder import PhotoFinder
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-class Tidy:
+class Importer:
     def __init__(
         self,
         input_path: Path,
@@ -76,8 +76,8 @@ class Tidy:
         self.preprocessors = []
         self.postprocessors = []
         self.report = Report()
-        self.user_config_path = Path(user_config_dir("phototidy"))
-        self.user_data_path = Path(user_data_dir("phototidy"))
+        self.user_config_path = Path(user_config_dir("fotura"))
+        self.user_data_path = Path(user_data_dir("fotura"))
         self.processor_context = Context(
             report=self.report,
             user_config_path=self.user_config_path,

@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from photo_tidy.conflict_resolution.skip_strategy import SkipStrategy
+from fotura.conflict_resolution.skip_strategy import SkipStrategy
 
 
 @pytest.fixture

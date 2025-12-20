@@ -11,7 +11,7 @@ help:
 	@echo "  make ci                 CI: Run all checks"
 
 test:
-	uv run pytest
+	uv run python -m pytest
 
 format:
 	uv run ruff format $$(git diff --name-only --cached --diff-filter=AM -- '*.py')

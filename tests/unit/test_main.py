@@ -4,7 +4,7 @@ from unittest.mock import patch
 import pytest
 from click.testing import CliRunner
 
-from photo_tidy import main, tidy
+from fotura import importer, main
 from tests.helpers.helper import temporary_images
 from tests.helpers.processors import (
     ComplexDummyPostprocessor,
@@ -37,7 +37,7 @@ def test_main_tidies_image_files():
 
 
 @patch(
-    "photo_tidy.processors.registry.PREPROCESSOR_MAP",
+    "fotura.processors.registry.PREPROCESSOR_MAP",
     {
         "complex_preprocessor": ComplexDummyPreprocessor,
         "other_preprocessor": DummyPreprocessor,
@@ -61,7 +61,7 @@ def test_help_lists_available_preprocessors():
 
 
 @patch(
-    "photo_tidy.processors.registry.PREPROCESSOR_MAP",
+    "fotura.processors.registry.PREPROCESSOR_MAP",
     {
         "other_preprocessor": DummyPreprocessor,
     },
@@ -88,7 +88,7 @@ def test_fails_when_unknown_preprocessor_specified():
 
 
 @patch(
-    "photo_tidy.processors.registry.PREPROCESSOR_MAP",
+    "fotura.processors.registry.PREPROCESSOR_MAP",
     {
         "complex_preprocessor": ComplexDummyPreprocessor,
     },
@@ -102,8 +102,8 @@ def test_passes_command_line_arguments_to_preprocessors():
         _,
     ):
         with (
-            patch.object(tidy.Tidy, "__init__", return_value=None) as mock_init,
-            patch.object(tidy.Tidy, "process_photos", return_value=None),
+            patch.object(importer.Importer, "__init__", return_value=None) as mock_init,
+            patch.object(importer.Importer, "process_photos", return_value=None),
         ):
             result = CliRunner().invoke(
                 main.main,
@@ -126,7 +126,7 @@ def test_passes_command_line_arguments_to_preprocessors():
 
 
 @patch(
-    "photo_tidy.processors.registry.PREPROCESSOR_MAP",
+    "fotura.processors.registry.PREPROCESSOR_MAP",
     {
         "complex_preprocessor": ComplexDummyPreprocessor,
     },
@@ -155,7 +155,7 @@ def test_main_invalid_preprocessor_argument_type():
 
 
 @patch(
-    "photo_tidy.processors.registry.POSTPROCESSOR_MAP",
+    "fotura.processors.registry.POSTPROCESSOR_MAP",
     {
         "complex_postprocessor": ComplexDummyPreprocessor,
         "other_postprocessor": DummyPostprocessor,
@@ -179,7 +179,7 @@ def test_help_lists_available_postprocessors():
 
 
 @patch(
-    "photo_tidy.processors.registry.POSTPROCESSOR_MAP",
+    "fotura.processors.registry.POSTPROCESSOR_MAP",
     {
         "other_postprocessor": DummyPostprocessor,
     },
@@ -206,7 +206,7 @@ def test_fails_when_unknown_postprocessor_specified():
 
 
 @patch(
-    "photo_tidy.processors.registry.POSTPROCESSOR_MAP",
+    "fotura.processors.registry.POSTPROCESSOR_MAP",
     {
         "complex_postprocessor": ComplexDummyPostprocessor,
     },
@@ -220,8 +220,8 @@ def test_passes_command_line_arguments_to_postprocessors():
         _,
     ):
         with (
-            patch.object(tidy.Tidy, "__init__", return_value=None) as mock_init,
-            patch.object(tidy.Tidy, "process_photos", return_value=None),
+            patch.object(importer.Importer, "__init__", return_value=None) as mock_init,
+            patch.object(importer.Importer, "process_photos", return_value=None),
         ):
             result = CliRunner().invoke(
                 main.main,
@@ -244,7 +244,7 @@ def test_passes_command_line_arguments_to_postprocessors():
 
 
 @patch(
-    "photo_tidy.processors.registry.POSTPROCESSOR_MAP",
+    "fotura.processors.registry.POSTPROCESSOR_MAP",
     {
         "complex_postprocessor": ComplexDummyPostprocessor,
     },

@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from photo_tidy.tidy import Tidy
+from fotura.importer import Importer
 from tests.helpers.helper import all_temporary_images, assert_exif_dates, get_all_files
 
 
@@ -9,13 +9,13 @@ def test_photo_sorting():
         input_path,
         target_root,
     ):
-        tidy = Tidy(
+        importer = Importer(
             Path(input_path),
             Path(target_root),
             enabled_preprocessors=[("filename_timestamp_extract", {})],
         )
 
-        tidy.process_photos()
+        importer.process_photos()
 
         results = []
         for file in get_all_files(path=target_root):

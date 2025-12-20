@@ -1,6 +1,6 @@
 from unittest.mock import Mock
 
-from photo_tidy.processors.context import Context
+from fotura.processors.context import Context
 
 
 class DummyPreprocessor:
