@@ -10,11 +10,12 @@ dependencies = [
     "jinja2>=3.0.0",
     "google-auth>=2.22.0",
     "google-auth-oauthlib>=1.0.0",
-    "google-api-python-client>=2.97.0"
+    "google-api-python-client>=2.97.0",
+    "platformdirs>=4.5.0"
 ]
 
 [project.scripts]
-fotura = "fotura.main:main"
+fotura = "fotura.main:cli"
 
 [build-system]
 requires = ["hatchling"]
@@ -32,7 +33,6 @@ dev = [
     "pyfakefs>=5.9.1",
     "responses>=0.25.7",
     "beautifulsoup4>=4.14.2",
-    "platformdirs>=4.5.0",
 ]
 
 [tool.pytest.ini_options]

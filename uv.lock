@@ -197,6 +197,53 @@ wheels = [
 ]
 
 [[package]]
+name = "fotura"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "click" },
+    { name = "google-api-python-client" },
+    { name = "google-auth" },
+    { name = "google-auth-oauthlib" },
+    { name = "jinja2" },
+    { name = "piexif" },
+    { name = "platformdirs" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "beautifulsoup4" },
+    { name = "pyfakefs" },
+    { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "responses" },
+    { name = "ruff" },
+    { name = "ty" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "click", specifier = ">=8.1.0" },
+    { name = "google-api-python-client", specifier = ">=2.97.0" },
+    { name = "google-auth", specifier = ">=2.22.0" },
+    { name = "google-auth-oauthlib", specifier = ">=1.0.0" },
+    { name = "jinja2", specifier = ">=3.0.0" },
+    { name = "piexif", specifier = ">=1.1.3" },
+    { name = "platformdirs", specifier = ">=4.5.0" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "beautifulsoup4", specifier = ">=4.14.2" },
+    { name = "pyfakefs", specifier = ">=5.9.1" },
+    { name = "pytest", specifier = ">=8.3.5" },
+    { name = "pytest-cov", specifier = ">=4.0.0" },
+    { name = "responses", specifier = ">=0.25.7" },
+    { name = "ruff", specifier = ">=0.12.1" },
+    { name = "ty", specifier = ">=0.0.1a12" },
+]
+
+[[package]]
 name = "google-api-core"
 version = "2.25.1"
 source = { registry = "https://pypi.org/simple" }
@@ -396,53 +443,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/a1/d4/1fc4078c65507b51b96ca8f8c3ba19e6a61c8253c72794544580a7b6c24d/packaging-25.0.tar.gz", hash = "sha256:d443872c98d677bf60f6a1f2f8c1cb748e8fe762d2bf9d3148b5599295b0fc4f", size = 165727, upload-time = "2025-04-19T11:48:59.673Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/20/12/38679034af332785aac8774540895e234f4d07f7545804097de4b666afd8/packaging-25.0-py3-none-any.whl", hash = "sha256:29572ef2b1f17581046b3a2227d5c611fb25ec70ca1ba8554b24b0e69331a484", size = 66469, upload-time = "2025-04-19T11:48:57.875Z" },
-]
-
-[[package]]
-name = "fotura"
-version = "0.1.0"
-source = { editable = "." }
-dependencies = [
-    { name = "click" },
-    { name = "google-api-python-client" },
-    { name = "google-auth" },
-    { name = "google-auth-oauthlib" },
-    { name = "jinja2" },
-    { name = "piexif" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "beautifulsoup4" },
-    { name = "platformdirs" },
-    { name = "pyfakefs" },
-    { name = "pytest" },
-    { name = "pytest-cov" },
-    { name = "responses" },
-    { name = "ruff" },
-    { name = "ty" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "click", specifier = ">=8.1.0" },
-    { name = "google-api-python-client", specifier = ">=2.97.0" },
-    { name = "google-auth", specifier = ">=2.22.0" },
-    { name = "google-auth-oauthlib", specifier = ">=1.0.0" },
-    { name = "jinja2", specifier = ">=3.0.0" },
-    { name = "piexif", specifier = ">=1.1.3" },
-]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "beautifulsoup4", specifier = ">=4.14.2" },
-    { name = "platformdirs", specifier = ">=4.5.0" },
-    { name = "pyfakefs", specifier = ">=5.9.1" },
-    { name = "pytest", specifier = ">=8.3.5" },
-    { name = "pytest-cov", specifier = ">=4.0.0" },
-    { name = "responses", specifier = ">=0.25.7" },
-    { name = "ruff", specifier = ">=0.12.1" },
-    { name = "ty", specifier = ">=0.0.1a12" },
 ]
 
 [[package]]
