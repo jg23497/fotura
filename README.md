@@ -2,7 +2,7 @@
 
 <img src="./docs/images/logo.jpg" width="200px" alt="Fotura logo"/>
 
-<h4>A Python CLI application for importing, organizing and uploading (backing up) your photos.</h4>
+**A Python CLI application for importing, organizing and uploading (backing up) your photos.**
 
 [![Python CI](https://github.com/jg23497/fotura/actions/workflows/main.yml/badge.svg?branch=main)](https://github.com/jg23497/fotura/actions/workflows/main.yml)
 
@@ -16,49 +16,25 @@
 - **Dry-run mode**: Fully preview changes without moving or modifying your files.
 - **Conflict resolution**: Automatically handle filename conflicts using configurable strategies.
 
-## Setup
+## Installation
 
-This project uses `uv` for dependency management. To set up the project:
+```
+# Install pipx if not already installed
+python3 -m pip install --user pipx
+python3 -m pipx ensurepath
 
-### Installing uv
+# Install Fotura
+pipx install fotura
 
-#### MacOS and Linux (Unix-like systems)
-
-Install uv using the standalone installer:
-
-```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
+# Run Fotura
+fotura --help
 ```
 
-#### Windows
-
-Install uv using one of these methods:
-
-**Option 1: Using PowerShell (recommended)**
-
-```powershell
-powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
-```
-
-**Option 2: Using pip**
-
-```cmd
-pip install uv
-```
-
-**Option 3: Using winget**
-
-```cmd
-winget install astral-sh.uv
-```
-
-### Installing Fotura
-
-After installing uv, install the project dependencies:
-
-```bash
-uv pip install .
-```
+> [!TIP]
+> **Why pipx?**
+> - Configures a "global" command without touching system Python packages.
+> - Installs Fotura in an isolated environment, keeping its dependencies separate from those for other Python projects on your system.
+> - It's easy to uninstall with `pipx uninstall fotura`.
 
 ## Usage
 

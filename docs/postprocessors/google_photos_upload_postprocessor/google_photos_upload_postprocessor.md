@@ -35,12 +35,6 @@ Note: Using the [Google Auth Platform - Audience](https://console.cloud.google.c
    - MacOS: ~/Library/Application Support/fotura/integrations/google_photos
    - Windows: %LocalAppData%\fotura\fotura\integrations\google_photos
 
-   Environment variables or other configuration differences may override these paths, so run the following command in the Fotura directory to confirm:
-
-   ```python
-   uv run python -c "from platformdirs import user_config_dir; from pathlib import Path; print(Path(user_config_dir('fotura')) / 'fotura' / 'integrations' / 'google_photos')"
-   ```
-
    Or attempt to use the processor without providing the file and check the path it provides in its error message.
 
 ### Step 3: Run the post-processor
