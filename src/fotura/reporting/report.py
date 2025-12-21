@@ -5,12 +5,13 @@ from datetime import datetime
 from pathlib import Path
 from typing import List
 
+from jinja2 import Environment, FileSystemLoader, select_autoescape
+
 from fotura.reporting.failed_report_item import FailedReportItem
 from fotura.reporting.initialize_report_item import InitializeReportItem
 from fotura.reporting.move_report_item import MoveReportItem
 from fotura.reporting.report_item import ReportItem
 from fotura.reporting.skipped_report_item import SkippedReportItem
-from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +32,7 @@ class Report:
             level=logging.INFO,
             pathname=frame.f_code.co_filename,
             lineno=frame.f_lineno,
-            msg=str(item),
+            msg=item,
             args=(),
             exc_info=None,
             func=frame.f_code.co_name,
@@ -45,7 +46,7 @@ class Report:
         logger.info(f"Creating report at: {output_path}")
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        html_report = self._generate_html(dry_run)
+        html_report = self.__generate_html(dry_run)
         output_path.write_text(html_report, encoding="utf-8")
         self.report_path = output_path
 
@@ -54,7 +55,7 @@ class Report:
             logger.info("Opening report in browser")
             webbrowser.open(self.report_path.as_uri())
 
-    def _get_summary_stats(self) -> dict:
+    def __get_summary_stats(self) -> dict:
         moved_count = sum(
             1 for item in self.report_items if type(item) is MoveReportItem
         )
@@ -76,7 +77,7 @@ class Report:
             "initialize_event": initialize_event,
         }
 
-    def _get_template_env(self):
+    def __get_template_env(self):
         if self._template_env is None:
             template_dir = Path(__file__).parent.parent / "templates"
             self._template_env = Environment(
@@ -85,11 +86,11 @@ class Report:
             )
         return self._template_env
 
-    def _generate_html(self, dry_run: bool = False) -> str:
-        template_env = self._get_template_env()
+    def __generate_html(self, dry_run: bool = False) -> str:
+        template_env = self.__get_template_env()
         template = template_env.get_template("report.html")
 
-        summary_stats = self._get_summary_stats()
+        summary_stats = self.__get_summary_stats()
 
         context = {
             "report_items": self.report_items,

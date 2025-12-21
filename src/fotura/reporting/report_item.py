@@ -15,5 +15,5 @@ class ReportItem(ABC):
         pass
 
     def __repr__(self) -> str:
-        description = ", ".join(f"{k}: {v}" for k, v in self.as_dict().items())
+        description = "\n".join(f"{k}: {v}" for k, v in self.as_dict().items())
         return f"[{self.name()}] {description}"

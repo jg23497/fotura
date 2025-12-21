@@ -13,7 +13,6 @@ from fotura.preprocessors.fact_type import FactType
 from fotura.reporting import (
     FailedReportItem,
     MoveReportItem,
-    Report,
     SkippedReportItem,
 )
 from tests.helpers import helper
@@ -38,7 +37,9 @@ def input_dir(fs) -> Path:
 
 @pytest.fixture(autouse=True)
 def stub_report_template():
-    with patch.object(Report, "_generate_html", return_value="<html></html>"):
+    mock_template = Mock()
+    mock_template.render.return_value = "<html></html>"
+    with patch("jinja2.Environment.get_template", return_value=mock_template):
         yield
 
 

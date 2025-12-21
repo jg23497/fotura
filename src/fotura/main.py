@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import inspect
+import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Tuple, Type
@@ -11,6 +12,10 @@ from fotura.conflict_resolution.registry import STRATEGIES
 from fotura.importer import Importer
 from fotura.path_format import PathFormat
 from fotura.processors.registry import POSTPROCESSOR_MAP, PREPROCESSOR_MAP
+from fotura.reporting.logging_config import setup_logging
+
+setup_logging(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 def __get_processor_params(klass: Type) -> Dict[str, Type]:
@@ -99,12 +104,12 @@ def run_import(
         / "example.jpg"
     )
 
-    click.echo(f"Processing photos from: {directory}")
-    click.echo(f"Target root directory: {target_root}")
-    click.echo(f"Path format example: {example_path}")
+    logger.info(f"Processing photos from: {directory}")
+    logger.info(f"Importing photos to: {target_root}")
+    logger.info(f"Configured example path format: {example_path}")
 
     if dry_run:
-        click.echo("Running in dry-run mode - no files will be moved")
+        logger.warning("Running in dry-run mode - no files will be moved")
 
     enabled_preprocessors = []
     if preprocessors:

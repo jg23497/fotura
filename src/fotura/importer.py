@@ -24,7 +24,6 @@ from fotura.reporting import (
 )
 from fotura.services.photo_finder import PhotoFinder
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
