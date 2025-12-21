@@ -1,31 +1,20 @@
 # Fotura
 
-<img src="./docs/images/logo.jpg" width="400px" alt="Fotura logo"/>
+<img src="./docs/images/logo.jpg" width="200px" alt="Fotura logo"/>
+
+<h4>A Python CLI application for importing, organizing and uploading (backing up) your photos.</h4>
 
 [![Python CI](https://github.com/jg23497/fotura/actions/workflows/main.yml/badge.svg?branch=main)](https://github.com/jg23497/fotura/actions/workflows/main.yml)
 
-A command-line tool for organizing and sorting photos based on their metadata. Fotura automatically organizes photos into a structured directory hierarchy based on their timestamps, extracting date information from sources including EXIF metadata and filenames. It also provides an extensible pre and post-processor system for plugging in new functionality, like automated Google Photos uploads.
-
 ## Features
 
-- **Automatic photo organization**: Sorts photos into a configurable directory structure (`%Y/%Y-%m` by default, like `2008/2008-05`)
-- **Multiple date extraction methods**:
+- **Automatic photo organization**: Intelligently imports photos into a hierarchical directory structure based on their taken timestamps (`%Y/%Y-%m` by default, like `2008/2008-05`).
+- **Supports multiple timestamp extraction methods**:
   - EXIF metadata extraction
-  - WhatsApp photo filename parsing
-  - Android photo filename parsing
-- **Pre-processor and post-processor system**: Extensible framework for plugging in photo additional processing functionality, like Google
-  Photos uploads.
-- **Dry-run mode**: Preview changes without actually moving or modifying any files.
-- **Comprehensive reporting**: HTML report of all operations performed.
-- **Conflict resolution**: Automatically handles filename conflicts using configurable strategies.
-
-## Supported File Formats
-
-Fotura supports the following image formats:
-
-- JPEG (.jpg, .jpeg)
-- TIFF (.tiff, .tif)
-- Sony RAW (.arw)
+  - WhatsApp and Android filename parsing
+- **Google Photos Uploads**: Using the extensible processors framework (actions that run before or after an import) to upload your photos via the Google Photos API.
+- **Dry-run mode**: Fully preview changes without moving or modifying your files.
+- **Conflict resolution**: Automatically handle filename conflicts using configurable strategies.
 
 ## Setup
 
@@ -76,7 +65,7 @@ uv pip install .
 ### Basic Usage
 
 ```bash
-fotura import /path/to/photos /path/to/organized/photos
+fotura import /photos/to/import /home/user/Pictures
 ```
 
 ### Command Line Options
