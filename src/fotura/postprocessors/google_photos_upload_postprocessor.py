@@ -60,7 +60,6 @@ class GooglePhotosUploadPostprocessor(Postprocessor):
 
     def __get_credentials_directory_path(self) -> Path:
         path = self.context.user_config_path / "integrations" / "google_photos"
-        breakpoint
         path.mkdir(parents=True, exist_ok=True)
         return path
 
