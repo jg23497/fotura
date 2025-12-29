@@ -1,7 +1,5 @@
 import logging
 import os
-import shutil
-import stat
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -10,7 +8,10 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 from platformdirs import user_config_dir, user_data_dir
 
 from fotura.conflict_resolution.registry import STRATEGIES
-from fotura.exif_data import ExifData
+from fotura.domain.photo import Photo
+from fotura.io.files import Files
+from fotura.io.media_finder import MediaFinder
+from fotura.io.photos.exif_data import ExifData
 from fotura.path_format import PathFormat
 from fotura.preprocessors.fact_type import FactType
 from fotura.processors.context import Context
@@ -18,11 +19,9 @@ from fotura.processors.registry import POSTPROCESSOR_MAP, PREPROCESSOR_MAP
 from fotura.reporting import (
     FailedReportItem,
     InitializeReportItem,
-    MoveReportItem,
     Report,
     SkippedReportItem,
 )
-from fotura.services.photo_finder import PhotoFinder
 
 logger = logging.getLogger(__name__)
 
@@ -55,18 +54,18 @@ class Importer:
 
         claimed_paths = set[Path]()
 
-        for file_path in self.photo_finder.find_photos():
+        for photo in self.media_finder.find():
             target_path = Path()
 
             try:
-                self.__remove_read_only_flag(file_path)
-                facts = self.__run_preprocessors(file_path)
-                target_path = self.__get_target_path(file_path, facts, claimed_paths)
+                self.files.ensure_writable(photo)
+                photo.facts = self.__run_preprocessors(photo)
+                target_path = self.__get_target_path(photo, claimed_paths)
                 if target_path is not None:
-                    self.__move_photo(file_path, target_path)
-                    self.__run_postprocessors(target_path, facts)
+                    self.files.move(photo, target_path)
+                    self.__run_postprocessors(photo, target_path)
             except Exception as e:
-                self.report.log(FailedReportItem(file_path, target_path, e))
+                self.report.log(FailedReportItem(photo.path, target_path, e))
                 break
 
         self.__write_report()
@@ -85,7 +84,8 @@ class Importer:
         self.conflict_resolver = self.__get_conflict_resolver(
             conflict_resolution_strategy
         )
-        self.photo_finder = PhotoFinder(self.input_path, self.report)
+        self.media_finder = MediaFinder(self.input_path, self.report)
+        self.files = Files(self.report, self.dry_run)
         self.__test_read_write_permissions()
 
     def __get_conflict_resolver(self, strategy: str):
@@ -143,39 +143,27 @@ class Importer:
                 logger.error(f"Unknown processor: {processor_name}")
                 sys.exit(1)
 
-    def __remove_read_only_flag(self, file_path):
-        if self.dry_run:
-            return
-        try:
-            # Windows: ensure FILE_ATTRIBUTE_READONLY is removed.
-            # Unix: ensure user-write bit is set.
-            current_mode = file_path.stat().st_mode
-            new_mode = current_mode | stat.S_IWRITE
-            os.chmod(file_path, new_mode)
-        except Exception as e:
-            logger.warning(f"Could not remove read-only flag from {file_path}: {e}")
-
-    def __run_preprocessors(self, image_path: Path) -> Dict[FactType, Any]:
+    def __run_preprocessors(self, photo: Photo) -> Dict[FactType, Any]:
         facts: Dict[FactType, Any] = {}
         for preprocessor in self.preprocessors:
-            if preprocessor.can_handle(image_path):
-                result = preprocessor.process(image_path, facts)
+            if preprocessor.can_handle(photo.path):
+                result = preprocessor.process(photo.path, facts)
                 if result:
                     facts.update(result)
         return facts
 
     def __get_target_path(
-        self, file_path: Path, facts: Dict[FactType, Any], claimed_paths: Set[Path]
+        self, photo: Photo, claimed_paths: Set[Path]
     ) -> Optional[Path]:
-        date = facts.get(FactType.TAKEN_TIMESTAMP)
+        date = photo.facts.get(FactType.TAKEN_TIMESTAMP)
 
         if not date:
-            date = ExifData.extract_date(file_path)
+            date = ExifData.extract_date(photo.path)
         if not date:
-            self.report.log(SkippedReportItem(file_path, "No date found"))
+            self.report.log(SkippedReportItem(photo.path, "No date found"))
             return None
 
-        return self.__assign_target_path(date, file_path, claimed_paths)
+        return self.__assign_target_path(date, photo.path, claimed_paths)
 
     def __assign_target_path(
         self, date: datetime, original_path: Path, claimed_paths: Set[Path]
@@ -203,22 +191,20 @@ class Importer:
         claimed_paths.add(target_path)
         return target_path
 
-    def __move_photo(self, file_path: Path, target_path: Path) -> None:
-        if not self.dry_run:
-            shutil.move(file_path, target_path)
-
-        self.report.log(MoveReportItem(file_path, target_path))
-
-    def __run_postprocessors(self, target_path: Path, facts: Dict[FactType, Any]):
+    def __run_postprocessors(
+        self,
+        photo: Photo,
+        target_path: Path,
+    ):
         for postprocessor in self.postprocessors:
             if not postprocessor.can_handle(target_path):
                 logger.warning(
                     f"{postprocessor.__class__.__name__}: Skipping {target_path}"
                 )
                 continue
-            result = postprocessor.process(target_path, facts)
+            result = postprocessor.process(target_path, photo.facts)
             if result:
-                facts.update(result)
+                photo.facts.update(result)
 
     def __write_report(self):
         report_name = datetime.now().strftime("%Y%m%d_%H%M%S")

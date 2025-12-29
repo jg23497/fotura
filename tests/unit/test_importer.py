@@ -7,8 +7,8 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from fotura.exif_data import ExifData
 from fotura.importer import Importer
+from fotura.io.photos.exif_data import ExifData
 from fotura.preprocessors.fact_type import FactType
 from fotura.reporting import (
     FailedReportItem,

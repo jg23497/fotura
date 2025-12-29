@@ -4,7 +4,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from fotura.exif_data import ExifData
+from fotura.io.photos.exif_data import ExifData
 from fotura.preprocessors.fact_type import FactType
 from fotura.processors.context import Context
 from fotura.reporting import ModifiedReportItem

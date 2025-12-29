@@ -1,17 +1,18 @@
 from pathlib import Path
 from typing import Iterator
 
+from fotura.domain.photo import Photo
 from fotura.reporting import Report, SkippedReportItem
 
 
-class PhotoFinder:
+class MediaFinder:
     SUPPORTED_EXTENSIONS = {".jpg", ".jpeg", ".tiff", ".tif", ".arw"}
 
     def __init__(self, input_path: Path, report: Report):
         self.input_path = input_path
         self.report = report
 
-    def find_photos(self) -> Iterator[Path]:
+    def find(self) -> Iterator[Path]:
         for file_path in self.input_path.rglob("*"):
             if not file_path.is_file():
                 continue
@@ -25,4 +26,4 @@ class PhotoFinder:
                 )
                 continue
 
-            yield file_path
+            yield Photo(file_path)
