@@ -1,6 +1,4 @@
 import logging
-import os
-import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
@@ -15,7 +13,7 @@ from fotura.io.photos.exif_data import ExifData
 from fotura.path_format import PathFormat
 from fotura.preprocessors.fact_type import FactType
 from fotura.processors.context import Context
-from fotura.processors.registry import POSTPROCESSOR_MAP, PREPROCESSOR_MAP
+from fotura.processors.processor_orchestrator import ProcessorOrchestrator
 from fotura.reporting import (
     FailedReportItem,
     InitializeReportItem,
@@ -45,7 +43,16 @@ class Importer:
         self.open_report = open_report
 
         self.__initialize_dependencies(conflict_resolution_strategy)
-        self.__configure_processors(enabled_preprocessors, enabled_postprocessors)
+
+        processor_context = Context(
+            report=self.report,
+            user_config_path=self.user_config_path,
+            dry_run=self.dry_run,
+        )
+
+        self.processor_orchestrator = ProcessorOrchestrator(
+            processor_context, enabled_preprocessors, enabled_postprocessors
+        )
 
     def process_photos(self):
         self.report.log(
@@ -59,11 +66,11 @@ class Importer:
 
             try:
                 self.files.ensure_writable(photo)
-                photo.facts = self.__run_preprocessors(photo)
+                photo.facts = self.processor_orchestrator.run_preprocessors(photo)
                 target_path = self.__get_target_path(photo, claimed_paths)
                 if target_path is not None:
                     self.files.move(photo, target_path)
-                    self.__run_postprocessors(photo, target_path)
+                    self.processor_orchestrator.run_postprocessors(photo, target_path)
             except Exception as e:
                 self.report.log(FailedReportItem(photo.path, target_path, e))
                 break
@@ -71,86 +78,21 @@ class Importer:
         self.__write_report()
 
     def __initialize_dependencies(self, conflict_resolution_strategy: str) -> None:
-        self.preprocessors = []
-        self.postprocessors = []
         self.report = Report()
         self.user_config_path = Path(user_config_dir("fotura"))
         self.user_data_path = Path(user_data_dir("fotura"))
-        self.processor_context = Context(
-            report=self.report,
-            user_config_path=self.user_config_path,
-            dry_run=self.dry_run,
-        )
         self.conflict_resolver = self.__get_conflict_resolver(
             conflict_resolution_strategy
         )
         self.media_finder = MediaFinder(self.input_path, self.report)
         self.files = Files(self.report, self.dry_run)
-        self.__test_read_write_permissions()
+        self.files.test_read_write_permissions(self.input_path)
 
     def __get_conflict_resolver(self, strategy: str):
         if strategy in STRATEGIES:
             return STRATEGIES[strategy]()
         else:
             raise ValueError(f"Unsupported conflict resolution strategy: {strategy}")
-
-    def __test_read_write_permissions(self):
-        temp_path = Path(self.input_path / "permission-check.tmp")
-
-        if not temp_path.exists():
-            try:
-                with open(temp_path, "w") as f:
-                    f.write("test")
-            except Exception as e:
-                raise PermissionError(
-                    f"Permission check: Failed to write test file under {self.input_path}': {e}"
-                ) from e
-
-        try:
-            os.remove(temp_path)
-        except Exception as e:
-            raise PermissionError(
-                f"Permission check: Failed to remove test file under '{temp_path}': {e}"
-            ) from e
-
-        return True
-
-    def __configure_processors(
-        self,
-        enabled_preprocessors: Optional[List[Tuple[str, Dict[str, Any]]]],
-        enabled_postprocessors: Optional[List[Tuple[str, Dict[str, Any]]]],
-    ) -> None:
-        if enabled_preprocessors:
-            self.__configure_processors_list(
-                PREPROCESSOR_MAP, enabled_preprocessors, self.preprocessors
-            )
-        if enabled_postprocessors:
-            self.__configure_processors_list(
-                POSTPROCESSOR_MAP, enabled_postprocessors, self.postprocessors
-            )
-
-    def __configure_processors_list(
-        self, processor_map, enabled_processors, processor_instances
-    ) -> None:
-        for processor_name, processor_args in enabled_processors:
-            if processor_name in processor_map:
-                instance = processor_map[processor_name](
-                    context=self.processor_context, **processor_args
-                )
-                instance.configure()
-                processor_instances.append(instance)
-            else:
-                logger.error(f"Unknown processor: {processor_name}")
-                sys.exit(1)
-
-    def __run_preprocessors(self, photo: Photo) -> Dict[FactType, Any]:
-        facts: Dict[FactType, Any] = {}
-        for preprocessor in self.preprocessors:
-            if preprocessor.can_handle(photo.path):
-                result = preprocessor.process(photo.path, facts)
-                if result:
-                    facts.update(result)
-        return facts
 
     def __get_target_path(
         self, photo: Photo, claimed_paths: Set[Path]
@@ -190,21 +132,6 @@ class Importer:
 
         claimed_paths.add(target_path)
         return target_path
-
-    def __run_postprocessors(
-        self,
-        photo: Photo,
-        target_path: Path,
-    ):
-        for postprocessor in self.postprocessors:
-            if not postprocessor.can_handle(target_path):
-                logger.warning(
-                    f"{postprocessor.__class__.__name__}: Skipping {target_path}"
-                )
-                continue
-            result = postprocessor.process(target_path, photo.facts)
-            if result:
-                photo.facts.update(result)
 
     def __write_report(self):
         report_name = datetime.now().strftime("%Y%m%d_%H%M%S")
