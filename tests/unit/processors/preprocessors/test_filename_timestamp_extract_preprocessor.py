@@ -6,11 +6,11 @@ from unittest.mock import patch
 import pytest
 
 from fotura.io.photos.exif_data import ExifData
-from fotura.preprocessors.filename_timestamp_extract_preprocessor import (
-    FilenameTimestampExtractPreprocessor,
-)
 from fotura.processors.context import Context
 from fotura.processors.fact_type import FactType
+from fotura.processors.preprocessors.filename_timestamp_extract_preprocessor import (
+    FilenameTimestampExtractPreprocessor,
+)
 from fotura.reporting import Report
 
 # Fixtures

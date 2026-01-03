@@ -1,7 +1,7 @@
-from fotura.postprocessors.google_photos_upload_postprocessor import (
+from fotura.processors.postprocessors.google_photos_upload_postprocessor import (
     GooglePhotosUploadPostprocessor,
 )
-from fotura.preprocessors.filename_timestamp_extract_preprocessor import (
+from fotura.processors.preprocessors.filename_timestamp_extract_preprocessor import (
     FilenameTimestampExtractPreprocessor,
 )
 

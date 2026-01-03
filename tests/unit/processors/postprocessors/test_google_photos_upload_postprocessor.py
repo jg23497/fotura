@@ -10,10 +10,10 @@ import responses
 from google.auth.exceptions import RefreshError
 from google.oauth2.credentials import Credentials
 
-from fotura.postprocessors.google_photos_upload_postprocessor import (
+from fotura.processors.context import Context
+from fotura.processors.postprocessors.google_photos_upload_postprocessor import (
     GooglePhotosUploadPostprocessor,
 )
-from fotura.processors.context import Context
 from fotura.processors.processor_setup_error import ProcessorSetupError
 from fotura.reporting import Report
 
@@ -120,7 +120,7 @@ def mock_failed_upload_response():
 @pytest.fixture(autouse=True)
 def mock_photoslibrary_service():
     with patch(
-        "fotura.postprocessors.google_photos_upload_postprocessor.build"
+        "fotura.processors.postprocessors.google_photos_upload_postprocessor.build"
     ) as mock_build:
         mock_service = MagicMock()
         mock_service._http = MagicMock(
