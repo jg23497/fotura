@@ -8,9 +8,9 @@ from typing import Any, Dict, Tuple, Type
 
 import click
 
-from fotura.conflict_resolution.registry import STRATEGIES
 from fotura.importer import Importer
-from fotura.path_format import PathFormat
+from fotura.importing.conflict_resolution.registry import STRATEGIES
+from fotura.io.path_format import PathFormat
 from fotura.processors.registry import POSTPROCESSOR_MAP, PREPROCESSOR_MAP
 from fotura.reporting.logging_config import setup_logging
 

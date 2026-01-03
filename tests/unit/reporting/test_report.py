@@ -33,7 +33,7 @@ def test_report_logs_report_items(report):
     assert items[1] == failed_item
 
 
-def test_create_report_writes_html_file(report, stub_user_dirs):
+def test_write_report_writes_html_file(report, stub_user_dirs):
     user_data_path, _ = stub_user_dirs
 
     report.log(MoveReportItem(Path("file1.jpg"), Path("/dest/path1")))
@@ -41,13 +41,9 @@ def test_create_report_writes_html_file(report, stub_user_dirs):
         FailedReportItem(Path("file2.txt"), Path("/dest/path2"), ValueError("Error"))
     )
 
-    output_path = user_data_path / "reports" / "report.html"
-    report.create_report(output_path)
+    report.write_report(user_data_path, False)
 
-    assert output_path.exists()
-    assert report.report_path == output_path
-
-    html = output_path.read_text(encoding="utf-8")
+    html = report.report_path.read_text(encoding="utf-8")
     soup = BeautifulSoup(html, "html.parser")
     assert soup.find("title") is not None
 
@@ -61,10 +57,9 @@ def test_summary_counts_in_html(report, stub_user_dirs):
         FailedReportItem(Path("file3.txt"), Path("/dest/path3"), ValueError("Error"))
     )
 
-    output_path = user_data_path / "reports" / "report.html"
-    report.create_report(output_path)
+    report.write_report(user_data_path, False)
 
-    html = output_path.read_text(encoding="utf-8")
+    html = report.report_path.read_text(encoding="utf-8")
     soup = BeautifulSoup(html, "html.parser")
 
     moved_card_text = clean_text(soup.select_one(".card.main"))

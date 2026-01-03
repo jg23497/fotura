@@ -9,7 +9,7 @@ import pytest
 
 from fotura.importer import Importer
 from fotura.io.photos.exif_data import ExifData
-from fotura.preprocessors.fact_type import FactType
+from fotura.processors.fact_type import FactType
 from fotura.reporting import (
     FailedReportItem,
     MoveReportItem,
@@ -532,7 +532,8 @@ def test_permission_check_raises_on_write_error(fs, tmp_path):
     with pytest.raises(
         PermissionError, match="Permission check: Failed to write test file"
     ):
-        Importer(input_path=tmp_path, target_root=tmp_path)
+        importer = Importer(input_path=tmp_path, target_root=tmp_path)
+        importer.process_photos()
 
 
 def test_permission_check_raises_on_remove_error(fs, tmp_path):
@@ -547,7 +548,8 @@ def test_permission_check_raises_on_remove_error(fs, tmp_path):
     with pytest.raises(
         PermissionError, match="Permission check: Failed to remove test file"
     ):
-        Importer(input_path=tmp_path, target_root=tmp_path)
+        importer = Importer(input_path=tmp_path, target_root=tmp_path)
+        importer.process_photos()
 
 
 def test_process_photos_makes_read_only_files_writable(stub_user_dirs):

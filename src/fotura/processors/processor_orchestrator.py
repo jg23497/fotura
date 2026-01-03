@@ -4,7 +4,6 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from fotura.domain.photo import Photo
-from fotura.preprocessors.fact_type import FactType
 from fotura.processors.context import Context
 from fotura.processors.registry import POSTPROCESSOR_MAP, PREPROCESSOR_MAP
 
@@ -38,14 +37,12 @@ class ProcessorOrchestrator:
                 POSTPROCESSOR_MAP, enabled_postprocessors, self.postprocessors
             )
 
-    def run_preprocessors(self, photo: Photo) -> Dict[FactType, Any]:
-        facts: Dict[FactType, Any] = {}
+    def run_preprocessors(self, photo: Photo) -> None:
         for preprocessor in self.preprocessors:
             if preprocessor.can_handle(photo.path):
-                result = preprocessor.process(photo.path, facts)
+                result = preprocessor.process(photo.path, photo.facts)
                 if result:
-                    facts.update(result)
-        return facts
+                    photo.facts.update(result)
 
     def run_postprocessors(
         self,

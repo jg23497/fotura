@@ -39,21 +39,29 @@ class Report:
         )
         logger.handle(record)
 
+    def write_report(self, user_data_path: Path, dry_run: bool, open: bool = False):
+        report_name = datetime.now().strftime("%Y%m%d_%H%M%S")
+        report_path = user_data_path / "reports" / f"{report_name}.html"
+        self.__create_report(report_path, dry_run)
+
+        if open:
+            self.open()
+
     def get_report(self) -> List[ReportItem]:
         return self.report_items
 
-    def create_report(self, output_path: Path, dry_run: bool = False) -> None:
+    def open(self):
+        if self.report_path is not None:
+            logger.info("Opening report in browser")
+            webbrowser.open(self.report_path.as_uri())
+
+    def __create_report(self, output_path: Path, dry_run: bool = False) -> None:
         logger.info(f"Creating report at: {output_path}")
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
         html_report = self.__generate_html(dry_run)
         output_path.write_text(html_report, encoding="utf-8")
         self.report_path = output_path
-
-    def open(self):
-        if self.report_path is not None:
-            logger.info("Opening report in browser")
-            webbrowser.open(self.report_path.as_uri())
 
     def __get_summary_stats(self) -> dict:
         moved_count = sum(
@@ -79,7 +87,7 @@ class Report:
 
     def __get_template_env(self):
         if self._template_env is None:
-            template_dir = Path(__file__).parent.parent / "templates"
+            template_dir = Path(__file__).parent / "templates"
             self._template_env = Environment(
                 loader=FileSystemLoader(str(template_dir)),
                 autoescape=select_autoescape(["html", "xml"]),

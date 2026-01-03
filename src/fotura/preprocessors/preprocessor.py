@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from fotura.preprocessors.fact_type import FactType
+from fotura.processors.fact_type import FactType
 
 
 class Preprocessor(ABC):

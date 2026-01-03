@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from fotura.domain.photo import Photo
-from fotura.io.media_finder import MediaFinder
+from fotura.importing.media_finder import MediaFinder
 from fotura.reporting import Report, SkippedReportItem
 
 # Fixtures

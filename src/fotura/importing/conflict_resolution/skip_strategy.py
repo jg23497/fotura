@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Optional, Set
 
-from fotura.conflict_resolution.strategy_base import StrategyBase
+from fotura.importing.conflict_resolution.strategy_base import StrategyBase
 
 
 class SkipStrategy(StrategyBase):

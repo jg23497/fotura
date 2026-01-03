@@ -12,8 +12,8 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 
 from fotura.postprocessors.postprocessor import Postprocessor
-from fotura.preprocessors.fact_type import FactType
 from fotura.processors.context import Context
+from fotura.processors.fact_type import FactType
 from fotura.processors.processor_setup_error import ProcessorSetupError
 from fotura.reporting import FailedUploadReportItem, UploadedReportItem
 
