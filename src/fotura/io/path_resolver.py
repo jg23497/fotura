@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Optional
 
 from fotura.domain.photo import Photo
-from fotura.importing.conflict_resolution.strategy_base import StrategyBase
+from fotura.importing.conflict_resolution.strategies.strategy_base import StrategyBase
 from fotura.io.path_format import PathFormat
 from fotura.io.photos.exif_data import ExifData
 from fotura.processors.fact_type import FactType
@@ -43,14 +43,14 @@ class PathResolver:
     def __assign_target_path(
         self, date: datetime, original_path: Path
     ) -> Optional[Path]:
-        target_dir = PathFormat.build_path(
+        target_directory = PathFormat.build_path(
             self.target_root, date, self.target_path_format
         )
 
         if not self.dry_run:
-            target_dir.mkdir(parents=True, exist_ok=True)
+            target_directory.mkdir(parents=True, exist_ok=True)
 
-        target_path = target_dir / f"{original_path.stem}{original_path.suffix}"
+        target_path = target_directory / f"{original_path.stem}{original_path.suffix}"
 
         if target_path in self.claimed_paths or target_path.exists():
             target_path = self.conflict_resolver.resolve(

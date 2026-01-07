@@ -428,14 +428,14 @@ def test_process_skips_destination_directory_creation_for_dry_runs():
         target_root,
         image_paths,
     ):
-        target_dir = target_root / "2008" / "2008-05"
+        target_directory = target_root / "2008" / "2008-05"
         importer = Importer(
             input_path=input_path, target_root=target_root, dry_run=True
         )
 
         importer.process_photos()
 
-        assert not target_dir.exists()
+        assert not target_directory.exists()
 
 
 def test_filename_collision_increment_when_target_exists():
@@ -444,9 +444,9 @@ def test_filename_collision_increment_when_target_exists():
         target_root,
         image_paths,
     ):
-        target_dir = target_root / "2008" / "2008-05"
-        os.makedirs(target_dir)
-        shutil.copy(image_paths[0], target_dir)
+        target_directory = target_root / "2008" / "2008-05"
+        os.makedirs(target_directory)
+        shutil.copy(image_paths[0], target_directory)
 
         importer = Importer(
             input_path=input_path,
@@ -456,8 +456,8 @@ def test_filename_collision_increment_when_target_exists():
         importer.process_photos()
 
         assert not image_paths[0].exists()
-        assert (target_dir / "Canon_40D.jpg").exists()
-        assert (target_dir / "Canon_40D_1.jpg").exists()
+        assert (target_directory / "Canon_40D.jpg").exists()
+        assert (target_directory / "Canon_40D_1.jpg").exists()
 
 
 def test_filename_collision_keep_both_strategy_when_inputs_resolve_to_same_path():
@@ -473,9 +473,9 @@ def test_filename_collision_keep_both_strategy_when_inputs_resolve_to_same_path(
         importer.process_photos()
 
         assert not image_paths[0].exists()
-        target_dir = target_root / "2008" / "2008-05"
-        assert (target_dir / "Pentax_K10D.jpg").exists()
-        assert (target_dir / "Pentax_K10D_1.jpg").exists()
+        target_directory = target_root / "2008" / "2008-05"
+        assert (target_directory / "Pentax_K10D.jpg").exists()
+        assert (target_directory / "Pentax_K10D_1.jpg").exists()
 
 
 def test_filename_collision_skip_strategy_when_inputs_resolve_to_same_path():
@@ -493,9 +493,9 @@ def test_filename_collision_skip_strategy_when_inputs_resolve_to_same_path():
         assert not image_paths[0].exists()
         assert image_paths[1].exists()
 
-        target_dir = target_root / "2008" / "2008-05"
-        assert (target_dir / "Pentax_K10D.jpg").exists()
-        files_in_directory = list(helper.get_all_files(target_dir))
+        target_directory = target_root / "2008" / "2008-05"
+        assert (target_directory / "Pentax_K10D.jpg").exists()
+        files_in_directory = list(helper.get_all_files(target_directory))
         assert len(files_in_directory) == 1
 
 

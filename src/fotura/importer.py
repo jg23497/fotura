@@ -37,6 +37,42 @@ class Importer:
         self.target_path_format = target_path_format
         self.open_report = open_report
 
+        self.__configure_dependencies(
+            conflict_resolution_strategy, enabled_preprocessors, enabled_postprocessors
+        )
+
+    def process_photos(self):
+        self.report.log(
+            InitializeReportItem(self.dry_run, self.input_path, self.target_root)
+        )
+
+        self.files.has_read_write_permissions(self.input_path)
+
+        for photo in self.media_finder.find():
+            target_path = Path()
+            try:
+                self.__process_photo(photo)
+            except Exception as e:
+                self.report.log(FailedReportItem(photo.path, target_path, e))
+                break
+
+        self.report.write_report(self.user_data_path, self.dry_run, self.open_report)
+
+    def __process_photo(self, photo):
+        self.files.ensure_writable(photo)
+        self.processor_orchestrator.run_preprocessors(photo)
+        target_path = self.path_resolver.get_target_path(photo)
+
+        if target_path is not None:
+            self.files.move(photo, target_path)
+            self.processor_orchestrator.run_postprocessors(photo, target_path)
+
+    def __configure_dependencies(
+        self,
+        conflict_resolution_strategy,
+        enabled_preprocessors,
+        enabled_postprocessors,
+    ):
         self.report = Report()
         self.user_config_path = Path(user_config_dir("fotura"))
         self.user_data_path = Path(user_data_dir("fotura"))
@@ -62,29 +98,3 @@ class Importer:
         self.processor_orchestrator = ProcessorOrchestrator(
             processor_context, enabled_preprocessors, enabled_postprocessors
         )
-
-    def process_photos(self):
-        self.report.log(
-            InitializeReportItem(self.dry_run, self.input_path, self.target_root)
-        )
-
-        self.files.test_read_write_permissions(self.input_path)
-
-        for photo in self.media_finder.find():
-            target_path = Path()
-            try:
-                self.__process_photo(photo)
-            except Exception as e:
-                self.report.log(FailedReportItem(photo.path, target_path, e))
-                break
-
-        self.report.write_report(self.user_data_path, self.dry_run, self.open_report)
-
-    def __process_photo(self, photo):
-        self.files.ensure_writable(photo)
-        self.processor_orchestrator.run_preprocessors(photo)
-        target_path = self.path_resolver.get_target_path(photo)
-
-        if target_path is not None:
-            self.files.move(photo, target_path)
-            self.processor_orchestrator.run_postprocessors(photo, target_path)

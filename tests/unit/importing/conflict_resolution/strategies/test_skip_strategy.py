@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from fotura.importing.conflict_resolution.skip_strategy import SkipStrategy
+from fotura.importing.conflict_resolution.strategies.skip_strategy import SkipStrategy
 
 
 @pytest.fixture

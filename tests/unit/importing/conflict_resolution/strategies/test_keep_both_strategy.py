@@ -1,6 +1,8 @@
 import pytest
 
-from fotura.importing.conflict_resolution.keep_both_strategy import KeepBothStrategy
+from fotura.importing.conflict_resolution.strategies.keep_both_strategy import (
+    KeepBothStrategy,
+)
 
 
 @pytest.fixture

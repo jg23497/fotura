@@ -33,7 +33,7 @@ class Files:
         except Exception as e:
             logger.warning(f"Could not remove read-only flag from {photo.path}: {e}")
 
-    def test_read_write_permissions(self, input_path: Path):
+    def has_read_write_permissions(self, input_path: Path):
         temp_path = Path(input_path / "permission-check.tmp")
 
         if not temp_path.exists():
