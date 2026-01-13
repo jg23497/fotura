@@ -5,21 +5,19 @@ import stat
 from pathlib import Path
 
 from fotura.domain.photo import Photo
-from fotura.reporting import MoveReportItem, Report
 
 logger = logging.getLogger(__name__)
 
 
 class Files:
-    def __init__(self, report: Report, dry_run: bool):
-        self.report = report
+    def __init__(self, dry_run: bool):
         self.dry_run = dry_run
 
     def move(self, photo: Photo, target_path: Path):
         if not self.dry_run:
             shutil.move(photo.path, target_path)
 
-        self.report.log(MoveReportItem(photo.path, target_path))
+        photo.log(logging.INFO, "Moved to %s", target_path)
 
     def ensure_writable(self, photo: Photo):
         if self.dry_run:

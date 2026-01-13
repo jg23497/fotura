@@ -7,7 +7,6 @@ from typing import Any, Dict, List, Optional, Tuple
 from fotura.io.photos.exif_data import ExifData
 from fotura.processors.context import Context
 from fotura.processors.fact_type import FactType
-from fotura.reporting import ModifiedReportItem
 
 from .preprocessor import Preprocessor
 
@@ -36,11 +35,10 @@ class FilenameTimestampExtractPreprocessor(Preprocessor):
         if not date:
             raise ValueError(f"Unable to extract timestamp from {filename}")
 
-        self.context.report.log(
-            ModifiedReportItem(
-                image_path,
-                f"Update EXIF date fields to {date.strftime('%Y/%m/%d %H:%M:%S')}",
-            )
+        logger.info(
+            "Updated %s EXIF date fields to %s",
+            image_path,
+            date.strftime("%Y/%m/%d %H:%M:%S"),
         )
 
         if not self.context.dry_run:

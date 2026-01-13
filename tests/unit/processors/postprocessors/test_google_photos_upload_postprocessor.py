@@ -1,5 +1,6 @@
 import contextlib
 import json
+import logging
 import os
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -15,7 +16,7 @@ from fotura.processors.postprocessors.google_photos_upload_postprocessor import 
     GooglePhotosUploadPostprocessor,
 )
 from fotura.processors.processor_setup_error import ProcessorSetupError
-from fotura.reporting import Report
+from tests.helpers.helper import get_log_entries
 
 # Test helper methods
 
@@ -154,15 +155,13 @@ def secrets_dir(fs):
 
 @pytest.fixture
 def processor(secrets_dir):
-    report = Report()
-    context = Context(report=report, user_config_path=secrets_dir, dry_run=False)
+    context = Context(user_config_path=secrets_dir, dry_run=False)
     return GooglePhotosUploadPostprocessor(context)
 
 
 @pytest.fixture
 def processor_dry_run(secrets_dir):
-    report = Report()
-    context = Context(report=report, user_config_path=secrets_dir, dry_run=True)
+    context = Context(user_config_path=secrets_dir, dry_run=True)
     return GooglePhotosUploadPostprocessor(context)
 
 
@@ -407,20 +406,24 @@ def test_successful_upload_process_creates_media_item_with_upload_token(
 
 @responses.activate
 def test_successful_upload_process_logs_uploaded_report_item(
-    processor_with_valid_credentials, test_image_file
+    processor_with_valid_credentials, test_image_file, caplog
 ):
     mock_successful_upload_response()
 
     with mock_successful_media_item_creation(processor_with_valid_credentials):
-        processor_with_valid_credentials.process(test_image_file, {})
+        with caplog.at_level(logging.INFO):
+            processor_with_valid_credentials.process(test_image_file, {})
 
-        report_items = processor_with_valid_credentials.report.get_report()
-        uploaded_items = [item for item in report_items if item.name() == "Uploaded"]
-        assert len(uploaded_items) == 1
-        assert uploaded_items[0].source == str(test_image_file)
+        log_entries = get_log_entries(
+            caplog,
+            lambda r: r.levelno == logging.INFO
+            and r.getMessage().startswith("Uploaded"),
+        )
+
+        assert len(log_entries) == 1
         assert (
-            uploaded_items[0].destination
-            == "https://photos.google.com/photo/AF1QipM_12345"
+            "https://photos.google.com/photo/AF1QipM_12345"
+            in log_entries[0].getMessage()
         )
 
 
@@ -480,15 +483,17 @@ def test_process_skips_upload_when_dry_run_enabled(processor_dry_run, test_image
 
 
 def test_process_logs_dry_run_uploaded_message_when_dry_run_enabled(
-    processor_dry_run, test_image_file
+    processor_dry_run, test_image_file, caplog
 ):
-    processor_dry_run.process(test_image_file, {})
+    with caplog.at_level(logging.INFO):
+        processor_dry_run.process(test_image_file, {})
 
-    report_items = processor_dry_run.report.get_report()
-    uploaded_items = [item for item in report_items if item.name() == "Uploaded"]
-    assert len(uploaded_items) == 1
-    assert uploaded_items[0].source == str(test_image_file)
-    assert uploaded_items[0].destination == "Google Photos"
+    log_entries = get_log_entries(
+        caplog,
+        lambda r: r.levelno == logging.INFO and r.getMessage().startswith("Uploaded"),
+    )
+
+    assert len(log_entries) == 1
 
 
 @responses.activate

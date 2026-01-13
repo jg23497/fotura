@@ -1,16 +1,17 @@
+import logging
 from pathlib import Path
 from typing import Iterator
 
 from fotura.domain.photo import Photo
-from fotura.reporting import Report, SkippedReportItem
+
+logger = logging.getLogger(__name__)
 
 
 class MediaFinder:
     SUPPORTED_EXTENSIONS = {".jpg", ".jpeg", ".tiff", ".tif", ".arw"}
 
-    def __init__(self, input_path: Path, report: Report):
+    def __init__(self, input_path: Path):
         self.input_path = input_path
-        self.report = report
 
     def find(self) -> Iterator[Path]:
         for file_path in self.input_path.rglob("*"):
@@ -19,10 +20,10 @@ class MediaFinder:
 
             file_extension = file_path.suffix.lower()
             if file_extension not in self.SUPPORTED_EXTENSIONS:
-                self.report.log(
-                    SkippedReportItem(
-                        file_path, f"{file_extension} not in supported file extensions"
-                    )
+                logger.warning(
+                    "Skipped %s (%s extension not in supported list)",
+                    file_path,
+                    file_extension,
                 )
                 continue
 

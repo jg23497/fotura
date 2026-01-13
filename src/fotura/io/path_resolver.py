@@ -8,7 +8,6 @@ from fotura.importing.conflict_resolution.strategies.strategy_base import Strate
 from fotura.io.path_format import PathFormat
 from fotura.io.photos.exif_data import ExifData
 from fotura.processors.fact_type import FactType
-from fotura.reporting import Report, SkippedReportItem
 
 logger = logging.getLogger(__name__)
 
@@ -19,12 +18,10 @@ class PathResolver:
         target_root: Path,
         target_path_format: str,
         conflict_resolver: StrategyBase,
-        report: Report,
         dry_run: bool = False,
     ):
         self.target_root = target_root
         self.target_path_format = target_path_format
-        self.report = report
         self.dry_run = dry_run
         self.conflict_resolver = conflict_resolver
         self.claimed_paths = set[Path]()
@@ -35,7 +32,7 @@ class PathResolver:
         if not date:
             date = ExifData.extract_date(photo.path)
         if not date:
-            self.report.log(SkippedReportItem(photo.path, "No date found"))
+            photo.log(logging.WARNING, "Skipping photo: no date found")
             return None
 
         return self.__assign_target_path(date, photo.path)
@@ -58,8 +55,9 @@ class PathResolver:
                 claimed_paths=self.claimed_paths,
             )
             if target_path is None:
-                self.report.log(
-                    SkippedReportItem(original_path, "Conflict resolution strategy")
+                logger.warning(
+                    "Skipping file %s due to conflict resolution strategy",
+                    original_path,
                 )
                 return None
 

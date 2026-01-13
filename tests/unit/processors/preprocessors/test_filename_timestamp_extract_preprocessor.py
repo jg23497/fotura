@@ -11,26 +11,19 @@ from fotura.processors.fact_type import FactType
 from fotura.processors.preprocessors.filename_timestamp_extract_preprocessor import (
     FilenameTimestampExtractPreprocessor,
 )
-from fotura.reporting import Report
 
 # Fixtures
 
 
 @pytest.fixture
 def processor():
-    report = Report()
-    context = Context(
-        report=report, user_config_path=Path(tempfile.mkdtemp()), dry_run=False
-    )
+    context = Context(user_config_path=Path(tempfile.mkdtemp()), dry_run=False)
     return FilenameTimestampExtractPreprocessor(context)
 
 
 @pytest.fixture
 def processor_dry_run():
-    report = Report()
-    context = Context(
-        report=report, user_config_path=Path(tempfile.mkdtemp()), dry_run=True
-    )
+    context = Context(user_config_path=Path(tempfile.mkdtemp()), dry_run=True)
     return FilenameTimestampExtractPreprocessor(context)
 
 

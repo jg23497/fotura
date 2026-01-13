@@ -1,8 +1,10 @@
 import contextlib
+import logging
 import shutil
 import tempfile
 from os import scandir
 from pathlib import Path
+from typing import Callable
 
 import piexif
 
@@ -55,6 +57,10 @@ def assert_exif_dates(image_path, expected_date_str):
     ]:
         date_str = exif_dict[location][tag].decode("utf-8")
         assert date_str == expected_date_str
+
+
+def get_log_entries(caplog, predicate: Callable[[logging.LogRecord], bool]):
+    return [r for r in caplog.records if predicate(r)]
 
 
 @contextlib.contextmanager

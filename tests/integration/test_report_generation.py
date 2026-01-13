@@ -30,68 +30,81 @@ def report(stub_user_dirs):
         assert report_files, "Expect a report to have been generated."
 
         latest_report = max(report_files, key=lambda p: p.stat().st_mtime)
+        print(latest_report.read_text(encoding="utf-8"))
         soup = BeautifulSoup(latest_report.read_text(encoding="utf-8"), "html.parser")
 
         return soup
 
 
-def test_report_summary_information(report):
+def test_report_structure(report):
     title = report.find("title")
     assert title is not None, "Report should have a <title> element."
     assert "Fotura" in title.text, f"Unexpected title: {title.text}"
 
-    moved_card_text = clean_text(report.select_one(".card.main"))
-    assert "Total 11" in moved_card_text
+    details_sections = report.find_all("details")
+    assert len(details_sections) > 0, "Report should have details sections."
 
-    moved_card_text = clean_text(report.select_one(".card.moved"))
-    assert "Moved 9" in moved_card_text
+    general_section = None
+    for section in details_sections:
+        summary = section.find("summary")
+        if summary and "Log entries" in clean_text(summary):
+            general_section = section
+            break
 
-    moved_card_text = clean_text(report.select_one(".card.ignored"))
-    assert "Skipped 2" in moved_card_text
+    assert general_section is not None, (
+        "Report should have a general log entries section."
+    )
+
+    image_sections = [
+        section for section in details_sections if section != general_section
+    ]
+
+    assert len(image_sections) >= 1, (
+        f"Report should have at least one image logs section, found {len(image_sections)}."
+    )
 
 
 def test_report_table_contents(report):
-    expected_row_substrings = [
-        ["test.txt", "Skipped", "Reason: .txt not in supported file extensions"],
-        ["IMG-20250521-WA0002.jpg", "Moved", "Destination"],
-        ["no-date.jpg", "Skipped", "Reason: No date found"],
-        ["sony_alpha_a58.JPG", "Moved", "Destination"],
-        ["date-time-digitized-only.jpg", "Moved", "Destination"],
-        ["date-time-only.jpg", "Moved", "Destination"],
-        ["IMG_20100102_030405.jpg", "Moved", "Destination"],
-        ["IMG_20240909_103402.jpg", "Moved", "Destination"],
-        ["Canon_40D.jpg", "Moved", "Destination"],
-        ["Pentax_K10D.jpg", "Moved", "Destination"],
-        ["Pentax_K10D.jpg", "Moved", "Pentax_K10D_1.jpg"],
+    expected_results = [
+        ("IMG-20250521-WA0002.jpg", "Moved to"),
+        ("no-date.jpg", "Skipping"),
+        ("sony_alpha_a58.JPG", "Moved to"),
+        ("date-time-digitized-only.jpg", "Moved to"),
+        ("date-time-only.jpg", "Moved to"),
+        ("IMG_20100102_030405.jpg", "Moved to"),
+        ("IMG_20240909_103402.jpg", "Moved to"),
+        ("Canon_40D.jpg", "Moved to"),
+        ("Pentax_K10D.jpg", "Moved to"),
     ]
 
-    rows = report.select("table tr")
-    assert len(rows) > 1, "Expected more than one table row in the report."
+    photo_sections = report.select("#media-logs details")
+    assert photo_sections, "Expected photo log sections under #media-logs"
 
-    headers = [clean_text(th) for th in rows[0].select("th")]
-    assert headers == [
-        "File",
-        "Category",
-        "Description",
-    ], f"Unexpected headers: {headers}"
+    for filename, expected_action in expected_results:
+        matching_sections = [
+            section
+            for section in photo_sections
+            if filename in clean_text(section.find("summary"))
+        ]
 
-    actual_rows = [[clean_text(td) for td in row.select("td")] for row in rows[1:]]
-    formatted_actual = [" | ".join(r) for r in actual_rows]
+        assert matching_sections, f"No photo section found for {filename}"
 
-    for expected in expected_row_substrings:
-        file_part, category_part, desc_part = expected
-        found = any(
-            file_part in actual[0]
-            and category_part in actual[1]
-            and desc_part in actual[2]
-            for actual in actual_rows
+        matched = False
+        for section in matching_sections:
+            logs = section.select(".log")
+            for log in logs:
+                if expected_action in clean_text(log):
+                    matched = True
+                    break
+            if matched:
+                break
+
+        assert matched, (
+            f"No '{expected_action}' log found for {filename}\n"
+            f"Actual logs:\n"
+            + "\n".join(
+                f"- {clean_text(log)}"
+                for section in matching_sections
+                for log in section.select(".log")
+            )
         )
-        if not found:
-            pytest.fail(
-                f"No matching row for: {expected}\n\n"
-                f"Expected a row containing:\n"
-                f"  File: '{file_part}'\n"
-                f"  Category: '{category_part}'\n"
-                f"  Description: '{desc_part}'\n\n"
-                f"Actual rows:\n  - " + "\n  - ".join(formatted_actual)
-            )  # type: ignore

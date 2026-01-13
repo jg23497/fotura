@@ -1,10 +1,11 @@
+import logging
 from pathlib import Path
 
 import pytest
 
 from fotura.domain.photo import Photo
 from fotura.importing.media_finder import MediaFinder
-from fotura.reporting import Report, SkippedReportItem
+from tests.helpers.helper import get_log_entries
 
 # Fixtures
 
@@ -17,13 +18,8 @@ def input_dir(fs) -> Path:
 
 
 @pytest.fixture
-def report():
-    return Report()
-
-
-@pytest.fixture
-def finder(input_dir, report):
-    return MediaFinder(input_dir, report)
+def finder(input_dir):
+    return MediaFinder(input_dir)
 
 
 # find
@@ -41,18 +37,25 @@ def test_find_finds_files_with_supported_extensions(finder, input_dir, extension
 
 @pytest.mark.parametrize("extension", ["png", "gif", "mp4", "txt", ""])
 def test_find_skips_files_with_unsupported_extensions(
-    finder, report, input_dir, extension
+    finder, input_dir, extension, caplog
 ):
     file_path = create_path(
         input_dir / f"test.{extension}" if extension else input_dir / "test"
     )
 
-    photos = list[Photo](finder.find())
+    with caplog.at_level(logging.INFO):
+        photos = list[Photo](finder.find())
+
+    log_entries = get_log_entries(
+        caplog,
+        lambda r: (
+            r.levelno == logging.WARNING and r.getMessage().startswith("Skipped")
+        ),
+    )
 
     assert len(photos) == 0
-    skipped = [i for i in report.get_report() if type(i) is SkippedReportItem]
-    assert len(skipped) == 1
-    assert str(file_path) in str(skipped[0])
+    assert len(log_entries) > 0
+    assert str(file_path) in log_entries[0].getMessage()
 
 
 def test_find_locates_images_under_nested_directories(finder, input_dir):

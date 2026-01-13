@@ -15,7 +15,6 @@ from fotura.processors.context import Context
 from fotura.processors.fact_type import FactType
 from fotura.processors.postprocessors.postprocessor import Postprocessor
 from fotura.processors.processor_setup_error import ProcessorSetupError
-from fotura.reporting import FailedUploadReportItem, UploadedReportItem
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +25,6 @@ class GooglePhotosUploadPostprocessor(Postprocessor):
     def __init__(self, context: Context) -> None:
         self.context = context
         self.dry_run = context.dry_run
-        self.report = context.report
         self.service = None
 
     def configure(self) -> None:
@@ -42,7 +40,10 @@ class GooglePhotosUploadPostprocessor(Postprocessor):
         self, image_path: Path, facts: Dict[FactType, Any]
     ) -> Optional[Dict[FactType, Any]]:
         if self.dry_run:
-            self.report.log(UploadedReportItem(image_path, "Google Photos"))
+            logger.info(
+                "Uploaded %s to Google Photos",
+                image_path,
+            )
             return
         try:
             if not self.service:
@@ -53,9 +54,11 @@ class GooglePhotosUploadPostprocessor(Postprocessor):
             upload_token = self.__upload_bytes(str(image_path))
             response = self.__create_media_item(upload_token, image_path.name)
             library_url = response["newMediaItemResults"][0]["mediaItem"]["productUrl"]
-            self.report.log(UploadedReportItem(image_path, library_url))
+            logger.info("Uploaded %s to Google Photos: %s", image_path, library_url)
         except Exception as e:
-            self.report.log(FailedUploadReportItem(image_path, e))
+            logger.error(
+                "Failed to upload %s to Google Photos due to error: %s", image_path, e
+            )
             raise
 
     def __get_credentials_directory_path(self) -> Path:

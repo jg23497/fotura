@@ -1,4 +1,6 @@
 import logging
+import webbrowser
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -10,11 +12,7 @@ from fotura.io.files import Files
 from fotura.io.path_resolver import PathResolver
 from fotura.processors.context import Context
 from fotura.processors.processor_orchestrator import ProcessorOrchestrator
-from fotura.reporting import (
-    FailedReportItem,
-    InitializeReportItem,
-    Report,
-)
+from fotura.reporting.logging_config import configure_report
 
 logger = logging.getLogger(__name__)
 
@@ -42,21 +40,24 @@ class Importer:
         )
 
     def process_photos(self):
-        self.report.log(
-            InitializeReportItem(self.dry_run, self.input_path, self.target_root)
+        logger.info(
+            "Importing photos from %s to %s (dry-run: %s)",
+            self.input_path,
+            self.target_root,
+            str(self.dry_run).lower(),
         )
 
         self.files.has_read_write_permissions(self.input_path)
 
-        for photo in self.media_finder.find():
-            target_path = Path()
-            try:
-                self.__process_photo(photo)
-            except Exception as e:
-                self.report.log(FailedReportItem(photo.path, target_path, e))
-                break
-
-        self.report.write_report(self.user_data_path, self.dry_run, self.open_report)
+        try:
+            for photo in self.media_finder.find():
+                try:
+                    self.__process_photo(photo)
+                except Exception:
+                    photo.log(logging.ERROR, "Failed to import", exc_info=True)
+                    break
+        finally:
+            self.__close_report()
 
     def __process_photo(self, photo):
         self.files.ensure_writable(photo)
@@ -73,24 +74,24 @@ class Importer:
         enabled_preprocessors,
         enabled_postprocessors,
     ):
-        self.report = Report()
         self.user_config_path = Path(user_config_dir("fotura"))
         self.user_data_path = Path(user_data_dir("fotura"))
+
+        self.__setup_report()
+
         self.conflict_resolver = registry.get_conflict_resolver(
             conflict_resolution_strategy
         )
-        self.media_finder = MediaFinder(self.input_path, self.report)
-        self.files = Files(self.report, self.dry_run)
+        self.media_finder = MediaFinder(self.input_path)
+        self.files = Files(self.dry_run)
         self.path_resolver = PathResolver(
             self.target_root,
             self.target_path_format,
             self.conflict_resolver,
-            self.report,
             self.dry_run,
         )
 
         processor_context = Context(
-            report=self.report,
             user_config_path=self.user_config_path,
             dry_run=self.dry_run,
         )
@@ -98,3 +99,17 @@ class Importer:
         self.processor_orchestrator = ProcessorOrchestrator(
             processor_context, enabled_preprocessors, enabled_postprocessors
         )
+
+    def __setup_report(self):
+        report_dir = self.user_data_path / "reports"
+        report_dir.mkdir(parents=True, exist_ok=True)
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.report_path = report_dir / f"import-report-{timestamp}.html"
+
+        self.html_report_handler = configure_report(self.report_path)
+
+    def __close_report(self):
+        self.html_report_handler.close()
+        if self.open_report:
+            webbrowser.open(self.report_path.as_uri())

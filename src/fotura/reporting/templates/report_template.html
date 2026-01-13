@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Fotura Import Report</title>
+    <style>
+      :root {
+        --bg-color: #fff;
+        --text-color: #222;
+        --level-info: #222;
+        --level-warning: #b58900;
+        --level-error: #dc322f;
+        --level-debug: #777;
+      }
+
+      [data-theme="dark"] {
+        --bg-color: #1e1e1e;
+        --text-color: #ddd;
+        --level-info: #ddd;
+        --level-warning: #f5c542;
+        --level-error: #ff6b6b;
+        --level-debug: #aaa;
+      }
+
+      body {
+        font-family: system-ui, sans-serif;
+        padding: 1rem;
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        transition: background-color 0.3s, color 0.3s;
+      }
+
+      button#themeToggle {
+        margin-bottom: 1rem;
+        cursor: pointer;
+      }
+
+      details {
+        margin-bottom: 1rem;
+      }
+
+      summary {
+        font-weight: bold;
+        cursor: pointer;
+      }
+
+      .log {
+        margin-left: 1rem;
+        padding: 0.2rem 0;
+      }
+
+      .level {
+        display: inline-block;
+        width: 6em;
+        font-weight: bold;
+      }
+
+      .log.info {
+        color: var(--level-info);
+      }
+
+      .log.warning {
+        color: var(--level-warning);
+      }
+
+      .log.error {
+        color: var(--level-error);
+      }
+
+      .log.debug {
+        color: var(--level-debug);
+      }
+    </style>
+  </head>
+  <body>
+    <button id="themeToggle">
+      <span id="themeIcon">🌙</span> <span id="themeLabel">Dark mode</span>
+    </button>
+
+    <h1>Fotura Import Report</h1>
+
+    <div id="general-logs">
+      <details open>
+        <summary>Log entries</summary>
+        {% for record in entries %}
+        <div class="log {{ record.levelname|lower }}">
+          <span class="level">{{ record.levelname }}</span>
+          <span class="message">
+            {{ record.getMessage()|replace('\n','<br />')|safe }}</span
+          >
+        </div>
+        {% endfor %}
+      </details>
+    </div>
+
+    <div id="media-logs">
+      {% for photo, records in photo_entries.items() %}
+      <div class="photo-logs">
+        <details open>
+          <summary>{{ photo }}</summary>
+          {% for record in records %}
+          <div class="log {{ record.levelname|lower }}">
+            <span class="level">{{ record.levelname }}</span>
+            <span class="message"
+              >{{ record.getMessage()|replace('\n','<br />')|safe }}</span
+            >
+          </div>
+          {% endfor %}
+        </details>
+      </div>
+      {% endfor %}
+    </div>
+
+    <script>
+      (function () {
+        var storageKey = "fotura-theme";
+        var root = document.documentElement;
+
+        function systemPrefersDark() {
+          return (
+            window.matchMedia &&
+            window.matchMedia("(prefers-color-scheme: dark)").matches
+          );
+        }
+
+        function applyTheme(theme) {
+          if (theme === "dark") {
+            root.setAttribute("data-theme", "dark");
+          } else if (theme === "light") {
+            root.setAttribute("data-theme", "light");
+          } else {
+            root.removeAttribute("data-theme");
+          }
+          updateToggle();
+        }
+
+        function getInitialTheme() {
+          var saved = localStorage.getItem(storageKey);
+          if (saved === "light" || saved === "dark") return saved;
+          return systemPrefersDark() ? "dark" : "light";
+        }
+
+        function updateToggle() {
+          var isDark =
+            (root.getAttribute("data-theme") ||
+              (systemPrefersDark() ? "dark" : "light")) === "dark";
+          var icon = document.getElementById("themeIcon");
+          var label = document.getElementById("themeLabel");
+          if (icon) icon.textContent = isDark ? "☀️" : "🌙";
+          if (label) label.textContent = isDark ? "Light mode" : "Dark mode";
+        }
+
+        function toggleTheme() {
+          var current =
+            root.getAttribute("data-theme") ||
+            (systemPrefersDark() ? "dark" : "light");
+          var next = current === "dark" ? "light" : "dark";
+          localStorage.setItem(storageKey, next);
+          applyTheme(next);
+        }
+
+        applyTheme(getInitialTheme());
+
+        var toggleButton = document.getElementById("themeToggle");
+        if (toggleButton) {
+          toggleButton.addEventListener("click", toggleTheme);
+        }
+
+        if (window.matchMedia) {
+          try {
+            var media = window.matchMedia("(prefers-color-scheme: dark)");
+            media.addEventListener("change", function () {
+              var saved = localStorage.getItem(storageKey);
+              if (saved !== "light" && saved !== "dark") {
+                applyTheme(media.matches ? "dark" : "light");
+              }
+            });
+          } catch (e) {
+            try {
+              media.addListener(function () {
+                var saved = localStorage.getItem(storageKey);
+                if (saved !== "light" && saved !== "dark") {
+                  applyTheme(media.matches ? "dark" : "light");
+                }
+              });
+            } catch (ee) {}
+          }
+        }
+      })();
+    </script>
+  </body>
+</html>

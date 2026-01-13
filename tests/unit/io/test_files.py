@@ -1,3 +1,4 @@
+import logging
 import os
 import stat
 from pathlib import Path
@@ -6,7 +7,7 @@ import pytest
 
 from fotura.domain.photo import Photo
 from fotura.io.files import Files
-from fotura.reporting import MoveReportItem, Report
+from tests.helpers.helper import get_log_entries
 
 
 @pytest.fixture
@@ -31,14 +32,9 @@ def photo(fs, input_path):
 
 
 @pytest.fixture
-def report():
-    return Report()
-
-
-@pytest.fixture
-def files(request, report):
+def files(request):
     dry_run = request.param
-    return Files(report, dry_run)
+    return Files(dry_run)
 
 
 # move
@@ -56,16 +52,19 @@ def test_move_moves_file_to_target_path(files, photo, input_path, target_path):
 
 
 @pytest.mark.parametrize("files", [False, True], indirect=True)
-def test_move_logs_moved_report_entry(files, photo, target_path, report):
-    files.move(photo, target_path)
+def test_move_logs_moved_report_entry(files, photo, target_path, caplog):
+    with caplog.at_level(logging.INFO):
+        files.move(photo, target_path)
 
-    moved_items = list(
-        item for item in report.get_report() if type(item) is MoveReportItem
+    log_entries = get_log_entries(
+        caplog,
+        lambda r: r.levelno == logging.INFO and r.getMessage().startswith("Moved"),
     )
 
-    assert len(moved_items) == 1
-    assert moved_items[0].source == "~/Desktop/test_image.jpg"
-    assert moved_items[0].destination == "~/Pictures/2024/12/31"
+    assert len(log_entries) == 1
+
+    assert str(log_entries[0].photo) == "~/Desktop/test_image.jpg"
+    assert str(target_path) in log_entries[0].getMessage()
 
 
 @pytest.mark.parametrize("files", [True], indirect=True)

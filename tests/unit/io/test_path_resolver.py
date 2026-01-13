@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 from pathlib import Path
 
@@ -10,7 +11,7 @@ from fotura.importing.conflict_resolution.strategies.keep_both_strategy import (
 from fotura.importing.conflict_resolution.strategies.skip_strategy import SkipStrategy
 from fotura.io.path_resolver import PathResolver
 from fotura.processors.fact_type import FactType
-from fotura.reporting import Report, SkippedReportItem
+from tests.helpers.helper import get_log_entries
 
 # Fixtures
 
@@ -23,23 +24,17 @@ def target_root(fs) -> Path:
 
 
 @pytest.fixture
-def report():
-    return Report()
-
-
-@pytest.fixture
 def path_format():
     return "%Y/%m/%d"
 
 
 @pytest.fixture
-def resolver(request, target_root, path_format, report):
+def resolver(request, target_root, path_format):
     dry_run = request.param
     return PathResolver(
         target_root=target_root,
         target_path_format=path_format,
         conflict_resolver=KeepBothStrategy(),
-        report=report,
         dry_run=dry_run,
     )
 
@@ -73,15 +68,22 @@ def test_get_target_path_builds_path_from_taken_timestamp_fact(
 
 @pytest.mark.parametrize("resolver", [True, False], indirect=True)
 def test_get_target_path_returns_none_and_logs_when_no_date_found(
-    resolver, photo, report
+    resolver, photo, caplog
 ):
-    result = resolver.get_target_path(photo)
+    with caplog.at_level(logging.INFO):
+        result = resolver.get_target_path(photo)
 
     assert result is None
 
-    skipped = [item for item in report.get_report() if type(item) is SkippedReportItem]
-    assert len(skipped) == 1
-    assert skipped[0].reason == "No date found"
+    log_entries = get_log_entries(
+        caplog,
+        lambda r: (
+            r.levelno == logging.WARNING and r.getMessage().startswith("Skipping photo")
+        ),
+    )
+
+    assert len(log_entries) == 1
+    assert str(photo.path) in str(log_entries[0].photo)
 
 
 @pytest.mark.parametrize("resolver", [False], indirect=True)
@@ -128,7 +130,7 @@ def test_claimed_path_triggers_conflict_resolution(resolver, photo, taken_date):
 
 
 def test_skipped_conflict_resolution_writes_skipped_log_entry(
-    target_root, path_format, report, photo, taken_date
+    target_root, path_format, photo, taken_date, caplog
 ):
     photo.facts[FactType.TAKEN_TIMESTAMP] = taken_date
 
@@ -136,7 +138,6 @@ def test_skipped_conflict_resolution_writes_skipped_log_entry(
         target_root=target_root,
         target_path_format=path_format,
         conflict_resolver=SkipStrategy(),
-        report=report,
         dry_run=False,
     )
 
@@ -144,10 +145,15 @@ def test_skipped_conflict_resolution_writes_skipped_log_entry(
     target_directory.mkdir(parents=True)
     (target_directory / "test_image.jpg").touch()
 
-    result = resolver.get_target_path(photo)
+    with caplog.at_level(logging.INFO):
+        result = resolver.get_target_path(photo)
 
     assert result is None
 
-    skipped = [item for item in report.get_report() if type(item) is SkippedReportItem]
-    assert len(skipped) == 1
-    assert skipped[0].reason == "Conflict resolution strategy"
+    log_entries = get_log_entries(
+        caplog,
+        lambda r: (r.levelno == logging.WARNING and "Skipping file" in r.getMessage()),
+    )
+
+    assert len(log_entries) == 1
+    assert str(photo.path) in str(log_entries[0].getMessage())

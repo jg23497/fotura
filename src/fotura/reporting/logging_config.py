@@ -1,8 +1,57 @@
 import logging
+from pathlib import Path
 from typing import Optional
 
+from jinja2 import Environment, FileSystemLoader, select_autoescape
 from rich.console import Console
 from rich.logging import RichHandler
+
+
+class PhotoPrefixFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        photo = getattr(record, "photo", None)
+        if photo:
+            record.photo_prefix = f"[{photo}] "
+        else:
+            record.photo_prefix = ""
+        return True
+
+
+class HTMLReportHandler(logging.Handler):
+    def __init__(self, output_path: Path):
+        super().__init__()
+        self.output_path = output_path
+        self.entries: dict[str, list[logging.LogRecord]] = {}
+        self._template_env: Optional[Environment] = None
+        self.template_name = "report_template.html"
+
+    def __get_template_env(self) -> Environment:
+        if self._template_env is None:
+            template_dir = Path(__file__).parent / "templates"
+            self._template_env = Environment(
+                loader=FileSystemLoader(str(template_dir)),
+                autoescape=select_autoescape(["html", "xml"]),
+            )
+        return self._template_env
+
+    def __generate_html(self) -> str:
+        template_env = self.__get_template_env()
+        template = template_env.get_template(self.template_name)
+
+        general_entries = self.entries.get("General", [])
+
+        photo_entries = {k: v for k, v in self.entries.items() if k != "General"}
+        return template.render(entries=general_entries, photo_entries=photo_entries)
+
+    def emit(self, record: logging.LogRecord) -> None:
+        photo = getattr(record, "photo", None)
+        key = str(photo) if photo else "General"
+        self.entries.setdefault(key, []).append(record)
+
+    def close(self) -> None:
+        html_content = self.__generate_html()
+        self.output_path.write_text(html_content, encoding="utf-8")
+        super().close()
 
 
 def setup_logging(
@@ -19,15 +68,27 @@ def setup_logging(
         show_path=show_path,
         rich_tracebacks=rich_tracebacks,
         tracebacks_show_locals=False,
-        markup=True,
+        markup=False,
         show_time=True,
         show_level=True,
         level=level,
-        log_time_format="[%X]",  # (HH:MM:SS)
+        log_time_format="[%X]",
     )
+
+    formatter = logging.Formatter("%(photo_prefix)s%(message)s")
+    handler.setFormatter(formatter)
+    handler.addFilter(PhotoPrefixFilter())
 
     root_logger = logging.getLogger()
     root_logger.setLevel(level)
-    root_logger.handlers.clear()
-
     root_logger.addHandler(handler)
+
+
+def configure_report(report_path: Path):
+    root_logger = logging.getLogger()
+
+    html_handler = HTMLReportHandler(report_path)
+    html_handler.setLevel(logging.INFO)
+
+    root_logger.addHandler(html_handler)
+    return html_handler
