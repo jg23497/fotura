@@ -12,6 +12,7 @@ from google.auth.exceptions import RefreshError
 from google.oauth2.credentials import Credentials
 
 from fotura.domain.photo import Photo
+from fotura.importing.synchronized_counter import SynchronizedCounter
 from fotura.processors.context import Context
 from fotura.processors.postprocessors.google_photos_upload_postprocessor import (
     GooglePhotosUploadPostprocessor,
@@ -119,6 +120,11 @@ def mock_failed_upload_response():
 # Fixtures
 
 
+@pytest.fixture
+def tally():
+    return SynchronizedCounter({"errored": 0})
+
+
 @pytest.fixture(autouse=True)
 def mock_photoslibrary_service():
     with patch(
@@ -155,14 +161,14 @@ def secrets_dir(fs):
 
 
 @pytest.fixture
-def processor(secrets_dir):
-    context = Context(user_config_path=secrets_dir, dry_run=False)
+def processor(secrets_dir, tally):
+    context = Context(user_config_path=secrets_dir, tally=tally, dry_run=False)
     return GooglePhotosUploadPostprocessor(context)
 
 
 @pytest.fixture
-def processor_dry_run(secrets_dir):
-    context = Context(user_config_path=secrets_dir, dry_run=True)
+def processor_dry_run(secrets_dir, tally):
+    context = Context(user_config_path=secrets_dir, tally=tally, dry_run=True)
     return GooglePhotosUploadPostprocessor(context)
 
 
@@ -497,6 +503,27 @@ def test_process_logs_dry_run_uploaded_message_when_dry_run_enabled(
     assert len(log_entries) == 1
 
 
+def test_process_increments_tally_when_dry_run_enabled(
+    processor_dry_run, test_photo, tally
+):
+    processor_dry_run.process(test_photo)
+
+    final_snapshot = tally.get_snapshot()
+    assert final_snapshot.get("uploaded to google photos") == 1
+
+
+@responses.activate
+def test_process_increments_tally_when_uploaded_successfully(
+    processor_with_valid_credentials, test_photo, tally
+):
+    mock_successful_upload_response()
+    with mock_successful_media_item_creation(processor_with_valid_credentials):
+        processor_with_valid_credentials.process(test_photo)
+
+    final_snapshot = tally.get_snapshot()
+    assert final_snapshot.get("uploaded to google photos") == 1
+
+
 @responses.activate
 def test_process_logs_failed_upload_exception_if_exception_occurs(
     processor, secrets_dir, cached_credentials_valid, test_photo
@@ -526,3 +553,16 @@ def test_process_logs_failed_upload_exception_if_exception_occurs(
             item for item in report_items if item.name() == "Failed Upload"
         ]
         assert len(failed_report_items) == 1
+
+
+@responses.activate
+def test_process_does_not_increment_tally_when_exception_occurs(
+    processor_with_valid_credentials, test_photo, tally
+):
+    mock_failed_upload_response()
+
+    with pytest.raises(RuntimeError):
+        processor_with_valid_credentials.process(test_photo)
+
+    tally_snapshot = tally.get_snapshot()
+    assert tally_snapshot.get("uploaded to google photos") is None

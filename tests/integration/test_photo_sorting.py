@@ -43,3 +43,23 @@ def test_photo_sorting():
             Path(target_root) / "2024" / "2024-09" / "IMG_20240909_103402.jpg"
         )
         assert_exif_dates(android_image_path, "2024:09:09 10:34:02")
+
+
+def test_tally_counts():
+    with all_temporary_images() as (
+        input_path,
+        target_root,
+    ):
+        importer = Importer(
+            Path(input_path),
+            Path(target_root),
+            enabled_preprocessors=[("filename_timestamp_extract", {})],
+        )
+
+        importer.process_photos()
+
+        tally_snapshot = importer.tally.get_snapshot()
+
+        assert tally_snapshot.get("moved") == 9
+        assert tally_snapshot.get("skipped") == 1
+        assert tally_snapshot.get("errored") == 0

@@ -6,6 +6,8 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 from rich.console import Console
 from rich.logging import RichHandler
 
+from fotura.importing.synchronized_counter import SynchronizedCounter
+
 
 class PhotoPrefixFilter(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
@@ -35,14 +37,18 @@ class HTMLReportHandler(logging.Handler):
             )
         return self._template_env
 
-    def __generate_html(self) -> str:
+    def __generate_html(self, summary_attributes: SynchronizedCounter) -> str:
         template_env = self.__get_template_env()
         template = template_env.get_template(self.template_name)
 
         general_entries = self.entries.get("General", [])
 
         photo_entries = {k: v for k, v in self.entries.items() if k != "General"}
-        return template.render(entries=general_entries, photo_entries=photo_entries)
+        return template.render(
+            entries=general_entries,
+            photo_entries=photo_entries,
+            summary_attributes=summary_attributes.get_snapshot(),
+        )
 
     def emit(self, record: logging.LogRecord) -> None:
         media_file = getattr(record, "media_file", None)
@@ -60,8 +66,14 @@ class HTMLReportHandler(logging.Handler):
 
         self.entries.setdefault(key, []).append(entry)
 
-    def close(self) -> None:
-        html_content = self.__generate_html()
+    def close(
+        self, summary_attributes: SynchronizedCounter = SynchronizedCounter()
+    ) -> None:
+        # Ensure close is not called twice on shutdown
+        root_logger = logging.getLogger()
+        root_logger.removeHandler(self)
+
+        html_content = self.__generate_html(summary_attributes)
         self.output_path.write_text(html_content, encoding="utf-8")
         super().close()
 

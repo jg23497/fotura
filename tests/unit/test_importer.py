@@ -210,7 +210,7 @@ def test_process_photos_handles_files_with_supported_extensions(
 
 
 @pytest.mark.parametrize("extension", ["mp4", "txt", ""])
-def test_process_photos_skips_unsupported_files(
+def test_process_photos_ignores_unsupported_files(
     input_dir, target_root, extension, caplog
 ):
     importer = Importer(input_path=input_dir, target_root=target_root)
@@ -223,7 +223,7 @@ def test_process_photos_skips_unsupported_files(
 
     log_entries = get_log_entries(
         caplog,
-        lambda r: r.levelno == logging.WARNING and r.getMessage().startswith("Skipped"),
+        lambda r: r.levelno == logging.WARNING and r.getMessage().startswith("Ignored"),
     )
 
     assert file_path.exists()
@@ -252,6 +252,25 @@ def test_process_photos_moves_files():
 
         assert moved.exists()
         assert not image_paths[0].exists()
+
+
+def test_process_photos_increments_moved_tally_when_photo_moved():
+    with temporary_images(["IMG_20240909_103402.jpg"]) as (
+        input_path,
+        target_root,
+        image_paths,
+    ):
+        importer = Importer(
+            input_path=input_path,
+            target_root=target_root,
+            dry_run=False,
+            enabled_preprocessors=[("filename_timestamp_extract", {})],
+        )
+
+        importer.process_photos()
+
+        tally_snapshot = importer.tally.get_snapshot()
+        assert tally_snapshot.get("moved") == 1
 
 
 def test_process_photos_leaves_files_in_place_for_dry_runs():
@@ -373,6 +392,24 @@ def test_process_photos_skips_when_a_timestamp_cannot_be_obtained(caplog):
         assert "no-date.jpg" in str(log_entries[0].media_file)
 
 
+def test_process_photos_increments_skipped_tally_when_photo_skipped():
+    with temporary_images(["no-date.jpg"]) as (
+        input_path,
+        target_root,
+        image_paths,
+    ):
+        importer = Importer(
+            input_path=input_path,
+            target_root=target_root,
+            enabled_preprocessors=[("filename_timestamp_extract", {})],
+        )
+
+        importer.process_photos()
+
+        tally_snapshot = importer.tally.get_snapshot()
+        assert tally_snapshot.get("skipped") == 1
+
+
 @patch.object(shutil, "move", side_effect=ValueError)
 def test_process_photos_logs_failed_on_move_exception(_, caplog):
     with temporary_images(["Canon_40D.jpg"]) as (
@@ -425,6 +462,24 @@ def test_process_photos_halts_on_exception(_, caplog):
         )
 
         assert len(log_entries) == 1
+
+
+@patch.object(ExifData, "extract_date", side_effect=ValueError)
+def test_process_photos_increments_errored_tally_when_error_occurs(_):
+    with temporary_images(["Canon_40D.jpg"]) as (
+        input_path,
+        target_root,
+        _,
+    ):
+        importer = Importer(
+            input_path=input_path,
+            target_root=target_root,
+        )
+
+        importer.process_photos()
+
+        tally_snapshot = importer.tally.get_snapshot()
+        assert tally_snapshot.get("errored") == 1
 
 
 def test_process_skips_destination_directory_creation_for_dry_runs():

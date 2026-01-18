@@ -20,6 +20,7 @@ from fotura.processors.processor_setup_error import ProcessorSetupError
 logger = logging.getLogger(__name__)
 
 SCOPES = ["https://www.googleapis.com/auth/photoslibrary.appendonly"]
+TALLY_KEY = "uploaded to google photos"
 
 
 class GooglePhotosUploadPostprocessor(Postprocessor):
@@ -40,6 +41,7 @@ class GooglePhotosUploadPostprocessor(Postprocessor):
     def process(self, photo: Photo) -> Optional[Dict[FactType, Any]]:
         if self.dry_run:
             photo.log(logging.INFO, "Uploaded to Google Photos")
+            self.context.tally.increment(TALLY_KEY)
             return
         try:
             if not self.service:
@@ -52,6 +54,7 @@ class GooglePhotosUploadPostprocessor(Postprocessor):
             response = self.__create_media_item(upload_token, image_path.name)
             library_url = response["newMediaItemResults"][0]["mediaItem"]["productUrl"]
             photo.log(logging.INFO, "Uploaded to Google Photos: %s", library_url)
+            self.context.tally.increment(TALLY_KEY)
         except Exception:
             photo.log(logging.ERROR, "Failed to upload to Google Photos", exc_info=True)
             raise

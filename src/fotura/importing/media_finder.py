@@ -21,7 +21,7 @@ class MediaFinder:
             file_extension = file_path.suffix.lower()
             if file_extension not in self.SUPPORTED_EXTENSIONS:
                 logger.warning(
-                    "Skipped %s (%s extension not in supported list)",
+                    "Ignored %s (%s extension not in supported list)",
                     file_path,
                     file_extension,
                 )

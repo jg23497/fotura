@@ -8,6 +8,7 @@ from platformdirs import user_config_dir, user_data_dir
 
 from fotura.importing.conflict_resolution import registry
 from fotura.importing.media_finder import MediaFinder
+from fotura.importing.synchronized_counter import SynchronizedCounter
 from fotura.io.files import Files
 from fotura.io.path_resolver import PathResolver
 from fotura.processors.context import Context
@@ -34,6 +35,7 @@ class Importer:
         self.dry_run = dry_run
         self.target_path_format = target_path_format
         self.open_report = open_report
+        self.tally = SynchronizedCounter({"errored": 0})
 
         self.__configure_dependencies(
             conflict_resolution_strategy, enabled_preprocessors, enabled_postprocessors
@@ -55,6 +57,7 @@ class Importer:
                     self.__process_photo(photo)
                 except Exception:
                     photo.log(logging.ERROR, "Failed to import", exc_info=True)
+                    self.tally.increment("errored")
                     break
         finally:
             self.__close_report()
@@ -66,7 +69,10 @@ class Importer:
 
         if target_path is not None:
             self.files.move(photo, target_path)
+            self.tally.increment("moved")
             self.processor_orchestrator.run_postprocessors(photo)
+        else:
+            self.tally.increment("skipped")
 
     def __configure_dependencies(
         self,
@@ -94,6 +100,7 @@ class Importer:
         processor_context = Context(
             user_config_path=self.user_config_path,
             dry_run=self.dry_run,
+            tally=self.tally,
         )
 
         self.processor_orchestrator = ProcessorOrchestrator(
@@ -110,6 +117,6 @@ class Importer:
         self.html_report_handler = configure_report(self.report_path)
 
     def __close_report(self):
-        self.html_report_handler.close()
+        self.html_report_handler.close(self.tally)
         if self.open_report:
             webbrowser.open(self.report_path.as_uri())

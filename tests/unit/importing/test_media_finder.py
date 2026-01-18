@@ -36,7 +36,7 @@ def test_find_finds_files_with_supported_extensions(finder, input_dir, extension
 
 
 @pytest.mark.parametrize("extension", ["png", "gif", "mp4", "txt", ""])
-def test_find_skips_files_with_unsupported_extensions(
+def test_find_ignores_files_with_unsupported_extensions(
     finder, input_dir, extension, caplog
 ):
     file_path = create_path(
@@ -49,7 +49,7 @@ def test_find_skips_files_with_unsupported_extensions(
     log_entries = get_log_entries(
         caplog,
         lambda r: (
-            r.levelno == logging.WARNING and r.getMessage().startswith("Skipped")
+            r.levelno == logging.WARNING and r.getMessage().startswith("Ignored")
         ),
     )
 

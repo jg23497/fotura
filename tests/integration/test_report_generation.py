@@ -64,7 +64,7 @@ def test_report_structure(report):
     )
 
 
-def test_report_table_contents(report):
+def test_report_photo_contents(report):
     expected_results = [
         ("IMG-20250521-WA0002.jpg", "Moved to"),
         ("no-date.jpg", "Skipping"),
@@ -108,3 +108,34 @@ def test_report_table_contents(report):
                 for log in section.select(".log")
             )
         )
+
+
+def test_report_displays_tally_counts(report):
+    attributes_section = report.select(".summary-attributes")
+    assert attributes_section, "Report should have an attributes section"
+
+    attribute_cards = report.select(".summary-attribute-card")
+    assert len(attribute_cards) > 0, "Report should have attribute cards"
+
+    attributes = {}
+    for card in attribute_cards:
+        name_elem = card.select_one(".attribute-name")
+        value_elem = card.select_one(".attribute-value")
+        if name_elem and value_elem:
+            name = clean_text(name_elem).strip()
+            value = clean_text(value_elem).strip()
+            attributes[name] = value
+
+    assert "moved" in attributes, "Report should display 'moved' count"
+    assert "skipped" in attributes, "Report should display 'skipped' count"
+    assert "errored" in attributes, "Report should display 'errored' count"
+
+    assert attributes["moved"] == "9", (
+        f"Expected 9 moved files, got {attributes['moved']}"
+    )
+    assert attributes["skipped"] == "1", (
+        f"Expected 1 skipped file, got {attributes['skipped']}"
+    )
+    assert attributes["errored"] == "0", (
+        f"Expected 0 errored files, got {attributes['errored']}"
+    )

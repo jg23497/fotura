@@ -6,6 +6,7 @@ from unittest.mock import ANY, patch
 import pytest
 
 from fotura.domain.photo import Photo
+from fotura.importing.synchronized_counter import SynchronizedCounter
 from fotura.io.photos.exif_data import ExifData
 from fotura.processors.context import Context
 from fotura.processors.fact_type import FactType
@@ -17,14 +18,23 @@ from fotura.processors.preprocessors.filename_timestamp_extract_preprocessor imp
 
 
 @pytest.fixture
-def processor():
-    context = Context(user_config_path=Path(tempfile.mkdtemp()), dry_run=False)
+def tally():
+    return SynchronizedCounter({"errored": 0})
+
+
+@pytest.fixture
+def processor(tally):
+    context = Context(
+        user_config_path=Path(tempfile.mkdtemp()), tally=tally, dry_run=False
+    )
     return FilenameTimestampExtractPreprocessor(context)
 
 
 @pytest.fixture
-def processor_dry_run():
-    context = Context(user_config_path=Path(tempfile.mkdtemp()), dry_run=True)
+def processor_dry_run(tally):
+    context = Context(
+        user_config_path=Path(tempfile.mkdtemp()), tally=tally, dry_run=True
+    )
     return FilenameTimestampExtractPreprocessor(context)
 
 
