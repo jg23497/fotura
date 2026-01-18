@@ -9,11 +9,11 @@ from rich.logging import RichHandler
 
 class PhotoPrefixFilter(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
-        photo = getattr(record, "photo", None)
-        if photo:
-            record.photo_prefix = f"[{photo}] "
+        media_file = getattr(record, "media_file", None)
+        if media_file:
+            record.prefix = f"[{media_file}] "
         else:
-            record.photo_prefix = ""
+            record.prefix = ""
         return True
 
 
@@ -24,6 +24,7 @@ class HTMLReportHandler(logging.Handler):
         self.entries: dict[str, list[logging.LogRecord]] = {}
         self._template_env: Optional[Environment] = None
         self.template_name = "report_template.html"
+        self.setFormatter(logging.Formatter())
 
     def __get_template_env(self) -> Environment:
         if self._template_env is None:
@@ -44,9 +45,20 @@ class HTMLReportHandler(logging.Handler):
         return template.render(entries=general_entries, photo_entries=photo_entries)
 
     def emit(self, record: logging.LogRecord) -> None:
-        photo = getattr(record, "photo", None)
-        key = str(photo) if photo else "General"
-        self.entries.setdefault(key, []).append(record)
+        media_file = getattr(record, "media_file", None)
+        key = str(media_file) if media_file else "General"
+
+        entry = {
+            "level": record.levelname.lower(),
+            "levelname": record.levelname,
+            "message": record.getMessage(),
+            "exception": None,
+        }
+
+        if record.exc_info:
+            entry["exception"] = self.formatter.formatException(record.exc_info)
+
+        self.entries.setdefault(key, []).append(entry)
 
     def close(self) -> None:
         html_content = self.__generate_html()
@@ -75,7 +87,7 @@ def setup_logging(
         log_time_format="[%X]",
     )
 
-    formatter = logging.Formatter("%(photo_prefix)s%(message)s")
+    formatter = logging.Formatter("%(prefix)s%(message)s")
     handler.setFormatter(formatter)
     handler.addFilter(PhotoPrefixFilter())
 

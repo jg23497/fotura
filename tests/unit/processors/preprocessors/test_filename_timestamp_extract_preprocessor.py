@@ -1,10 +1,11 @@
 import datetime
 import tempfile
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import ANY, patch
 
 import pytest
 
+from fotura.domain.photo import Photo
 from fotura.io.photos.exif_data import ExifData
 from fotura.processors.context import Context
 from fotura.processors.fact_type import FactType
@@ -31,22 +32,22 @@ def processor_dry_run():
 
 
 def test_can_handle_accepts_whatsapp_filename(processor):
-    assert processor.can_handle(Path("IMG-20200101-WA1234.jpg")) is True
+    assert processor.can_handle(Photo(Path("IMG-20200101-WA1234.jpg"))) is True
 
 
 def test_can_handle_accepts_android_filename(processor):
-    assert processor.can_handle(Path("IMG_20200101_123456.jpg")) is True
+    assert processor.can_handle(Photo(Path("IMG_20200101_123456.jpg"))) is True
 
 
 def test_can_handle_rejects_other_filenames(processor):
-    assert processor.can_handle(Path("holiday.jpg")) is False
+    assert processor.can_handle(Photo(Path("holiday.jpg"))) is False
 
 
 # process
 
 
 def test_process_extracts_whatsapp_photo_timestamp(processor_dry_run):
-    result = processor_dry_run.process(Path("IMG-20211225-WA9999.jpg"), {})
+    result = processor_dry_run.process(Photo(Path("IMG-20211225-WA9999.jpg")))
 
     assert result is not None
     assert FactType.TAKEN_TIMESTAMP in result
@@ -54,7 +55,7 @@ def test_process_extracts_whatsapp_photo_timestamp(processor_dry_run):
 
 
 def test_process_extracts_android_photo_timestamp(processor_dry_run):
-    result = processor_dry_run.process(Path("IMG_20211225_123456.jpg"), {})
+    result = processor_dry_run.process(Photo(Path("IMG_20211225_123456.jpg")))
 
     assert result is not None
     assert FactType.TAKEN_TIMESTAMP in result
@@ -64,12 +65,12 @@ def test_process_extracts_android_photo_timestamp(processor_dry_run):
 
 
 def test_process_returns_none_for_unhandled_filename(processor_dry_run):
-    assert processor_dry_run.process(Path("foobar.jpg"), {}) is None
+    assert processor_dry_run.process(Photo(Path("foobar.jpg"))) is None
 
 
 def test_process_skips_exif_writing_when_dry_run_is_used(processor_dry_run):
     with patch.object(ExifData, "write_date") as mock:
-        result = processor_dry_run.process(Path("IMG-20220101-WA0001.jpg"), {})
+        result = processor_dry_run.process(Photo(Path("IMG-20220101-WA0001.jpg")))
 
     assert result is not None
     assert FactType.TAKEN_TIMESTAMP in result
@@ -77,11 +78,15 @@ def test_process_skips_exif_writing_when_dry_run_is_used(processor_dry_run):
 
 
 def test_process_writes_exif_date_data_when_dry_run_is_not_used(processor):
-    filename = Path("IMG-20220101-WA0001.jpg")
+    photo = Photo(Path("IMG-20220101-WA0001.jpg"))
 
     with patch.object(ExifData, "write_date") as mock:
-        result = processor.process(filename, {})
+        result = processor.process(photo)
 
     assert result is not None
     assert FactType.TAKEN_TIMESTAMP in result
-    mock.assert_called_once_with(filename, datetime.datetime(2022, 1, 1, 12, 0, 0))
+    mock.assert_called_once_with(ANY, datetime.datetime(2022, 1, 1, 12, 0, 0))
+
+    photo_argument, _ = mock.call_args.args
+    assert isinstance(photo_argument, Photo)
+    assert photo_argument.path == photo.path

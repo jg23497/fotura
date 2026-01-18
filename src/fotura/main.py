@@ -2,7 +2,6 @@
 
 import inspect
 import logging
-from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Tuple, Type
 
@@ -98,15 +97,6 @@ def run_import(
     """
     if not PathFormat.is_valid(target_path_format):
         raise click.BadParameter("Target path format is invalid")
-
-    example_path = (
-        Path(PathFormat.build_path(target_root, datetime.now(), target_path_format))
-        / "example.jpg"
-    )
-
-    logger.info(f"Processing photos from: {directory}")
-    logger.info(f"Importing photos to: {target_root}")
-    logger.info(f"Configured example path format: {example_path}")
 
     if dry_run:
         logger.warning("Running in dry-run mode - no files will be moved")

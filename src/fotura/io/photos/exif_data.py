@@ -1,16 +1,17 @@
 import logging
 from datetime import datetime
-from pathlib import Path
 from typing import Optional
 
 import piexif
+
+from fotura.domain.photo import Photo
 
 logger = logging.getLogger(__name__)
 
 
 class ExifData:
     @staticmethod
-    def extract_date(image_path: Path) -> Optional[datetime]:
+    def extract_date(photo: Photo) -> Optional[datetime]:
         """
         Extracts the capture date and time from an image's EXIF metadata.
 
@@ -31,7 +32,7 @@ class ExifData:
                                 capture date, or None if unavailable.
         """
         try:
-            exif_dict = piexif.load(str(image_path))
+            exif_dict = piexif.load(str(photo.path))
 
             date_fields = [
                 (piexif.ExifIFD.DateTimeOriginal, "Exif"),
@@ -47,15 +48,14 @@ class ExifData:
                     except ValueError:
                         continue
 
-            logger.warning(f"No EXIF date found in {image_path}")
             return None
 
-        except Exception as e:
-            logger.error(f"Error reading EXIF data from {image_path}: {str(e)}")
+        except Exception:
+            photo.log(logging.ERROR, "Error reading EXIF data", exc_info=True)
             return None
 
     @staticmethod
-    def write_date(image_path: Path, timestamp: datetime) -> None:
+    def write_date(photo: Photo, timestamp: datetime) -> None:
         """
         Writes or updates the capture date in an image's EXIF metadata.
 
@@ -71,7 +71,7 @@ class ExifData:
             image_path (Path): Path to the image file to be updated.
             timestamp (datetime): The datetime value to write into EXIF.
         """
-        exif = piexif.load(str(image_path))
+        exif = piexif.load(str(photo.path))
         formatted_date: str = timestamp.strftime("%Y:%m:%d %H:%M:%S")
 
         exif["Exif"][piexif.ExifIFD.DateTimeOriginal] = formatted_date
@@ -79,4 +79,4 @@ class ExifData:
         exif["0th"][piexif.ImageIFD.DateTime] = formatted_date
 
         exif_bytes = piexif.dump(exif)
-        piexif.insert(exif_bytes, str(image_path))
+        piexif.insert(exif_bytes, str(photo.path))

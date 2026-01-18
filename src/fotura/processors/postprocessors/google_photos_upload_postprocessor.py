@@ -11,6 +11,7 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 
+from fotura.domain.photo import Photo
 from fotura.processors.context import Context
 from fotura.processors.fact_type import FactType
 from fotura.processors.postprocessors.postprocessor import Postprocessor
@@ -33,17 +34,12 @@ class GooglePhotosUploadPostprocessor(Postprocessor):
             "photoslibrary", "v1", credentials=credentials, static_discovery=False
         )
 
-    def can_handle(self, image_path: Path) -> bool:
-        return image_path.suffix.lower() in {".jpg", ".jpeg", ".png"}
+    def can_handle(self, photo: Photo) -> bool:
+        return photo.path.suffix.lower() in {".jpg", ".jpeg", ".png"}
 
-    def process(
-        self, image_path: Path, facts: Dict[FactType, Any]
-    ) -> Optional[Dict[FactType, Any]]:
+    def process(self, photo: Photo) -> Optional[Dict[FactType, Any]]:
         if self.dry_run:
-            logger.info(
-                "Uploaded %s to Google Photos",
-                image_path,
-            )
+            photo.log(logging.INFO, "Uploaded to Google Photos")
             return
         try:
             if not self.service:
@@ -51,14 +47,13 @@ class GooglePhotosUploadPostprocessor(Postprocessor):
                     "Google Photos service not initialized. Skipping upload."
                 )
 
+            image_path = photo.path
             upload_token = self.__upload_bytes(str(image_path))
             response = self.__create_media_item(upload_token, image_path.name)
             library_url = response["newMediaItemResults"][0]["mediaItem"]["productUrl"]
-            logger.info("Uploaded %s to Google Photos: %s", image_path, library_url)
-        except Exception as e:
-            logger.error(
-                "Failed to upload %s to Google Photos due to error: %s", image_path, e
-            )
+            photo.log(logging.INFO, "Uploaded to Google Photos: %s", library_url)
+        except Exception:
+            photo.log(logging.ERROR, "Failed to upload to Google Photos", exc_info=True)
             raise
 
     def __get_credentials_directory_path(self) -> Path:

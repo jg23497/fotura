@@ -3,6 +3,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
+from fotura.domain.media_file import MediaFile
 from fotura.domain.photo import Photo
 from fotura.importing.conflict_resolution.strategies.strategy_base import StrategyBase
 from fotura.io.path_format import PathFormat
@@ -26,20 +27,25 @@ class PathResolver:
         self.conflict_resolver = conflict_resolver
         self.claimed_paths = set[Path]()
 
-    def get_target_path(self, photo: Photo) -> Optional[Path]:
+    def get_target_path(self, media_file: MediaFile) -> Optional[Path]:
+        if not isinstance(media_file, Photo):
+            raise ValueError("Only Photo MediaFile instances are supported.")
+
+        photo = media_file
         date = photo.facts.get(FactType.TAKEN_TIMESTAMP)
 
         if not date:
-            date = ExifData.extract_date(photo.path)
+            date = ExifData.extract_date(photo)
         if not date:
-            photo.log(logging.WARNING, "Skipping photo: no date found")
+            photo.log(logging.WARNING, "Skipping file: no date found")
             return None
 
-        return self.__assign_target_path(date, photo.path)
+        return self.__assign_target_path(date, photo)
 
     def __assign_target_path(
-        self, date: datetime, original_path: Path
+        self, date: datetime, media_file: MediaFile
     ) -> Optional[Path]:
+        original_path = media_file.path
         target_directory = PathFormat.build_path(
             self.target_root, date, self.target_path_format
         )
@@ -55,9 +61,9 @@ class PathResolver:
                 claimed_paths=self.claimed_paths,
             )
             if target_path is None:
-                logger.warning(
-                    "Skipping file %s due to conflict resolution strategy",
-                    original_path,
+                media_file.log(
+                    logging.WARNING,
+                    "Skipping due to conflict resolution strategy",
                 )
                 return None
 

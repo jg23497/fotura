@@ -66,7 +66,7 @@ class Importer:
 
         if target_path is not None:
             self.files.move(photo, target_path)
-            self.processor_orchestrator.run_postprocessors(photo, target_path)
+            self.processor_orchestrator.run_postprocessors(photo)
 
     def __configure_dependencies(
         self,

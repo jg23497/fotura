@@ -8,6 +8,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
+from fotura.domain.photo import Photo
 from fotura.importer import Importer
 from fotura.io.photos.exif_data import ExifData
 from fotura.processors.fact_type import FactType
@@ -182,7 +183,7 @@ def test_process_photos_ignores_exif_data_when_processor_sourced_timestamp_is_ob
 
         dest_dir = target_root / "2010" / "2010-01"
         expected_path = dest_dir / image_paths[0].name
-        date = ExifData.extract_date(expected_path)
+        date = ExifData.extract_date(Photo(expected_path))
 
         assert date is not None
         assert date.year == 2025
@@ -297,7 +298,7 @@ def test_process_photos_logs_file_moves_to_report(dry_run, caplog):
 
         assert len(log_entries) == 1
 
-        assert "Canon_40D.jpg" in str(log_entries[0].photo)
+        assert "Canon_40D.jpg" in str(log_entries[0].media_file)
         assert str("Canon_40D.jpg") in log_entries[0].getMessage()
 
 
@@ -365,11 +366,11 @@ def test_process_photos_skips_when_a_timestamp_cannot_be_obtained(caplog):
         log_entries = get_log_entries(
             caplog,
             lambda r: r.levelno == logging.WARNING
-            and r.getMessage().startswith("Skipping photo: no date found"),
+            and r.getMessage().startswith("Skipping file: no date found"),
         )
 
         assert len(log_entries) == 1
-        assert "no-date.jpg" in str(log_entries[0].photo)
+        assert "no-date.jpg" in str(log_entries[0].media_file)
 
 
 @patch.object(shutil, "move", side_effect=ValueError)
@@ -377,7 +378,7 @@ def test_process_photos_logs_failed_on_move_exception(_, caplog):
     with temporary_images(["Canon_40D.jpg"]) as (
         input_path,
         target_root,
-        image_paths,
+        _,
     ):
         importer = Importer(
             input_path=input_path,
@@ -395,7 +396,7 @@ def test_process_photos_logs_failed_on_move_exception(_, caplog):
         )
 
         assert len(log_entries) == 1
-        assert "Canon_40D.jpg" in str(log_entries[0].photo)
+        assert "Canon_40D.jpg" in str(log_entries[0].media_file)
 
 
 @patch.object(ExifData, "extract_date", side_effect=ValueError)
@@ -647,12 +648,13 @@ def test_processor_facts_are_accumulated_through_processor_calls():
         importer.processor_orchestrator.postprocessors[1].process.assert_called_once()
 
         # Verify final state contains all three accumulated facts
-        final_facts = importer.processor_orchestrator.postprocessors[
-            1
-        ].process.call_args[0][1]
+        photo = importer.processor_orchestrator.postprocessors[1].process.call_args[0][
+            0
+        ]
+
         expected_facts = {
             "preprocessor_fact": "preprocessor_value",
             "postprocessor_fact": "postprocessor_value",
             "complex_postprocessor_fact": "complex_postprocessor_value",
         }
-        assert final_facts == expected_facts
+        assert photo.facts == expected_facts

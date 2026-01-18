@@ -70,24 +70,57 @@
       .log.debug {
         color: var(--level-debug);
       }
+
+      .exception-summary {
+        margin-top: 0.5em;
+        margin-left: 7.5em;
+        font-size: 0.85em;
+        cursor: pointer;
+      }
+
+      .exception {
+        margin: 0.4rem 0 0.6rem 7.5em;
+        padding: 0.6rem;
+        background: rgba(0, 0, 0, 0.05);
+        border-left: 3px solid var(--level-error);
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.85em;
+        white-space: pre-wrap;
+        overflow-x: auto;
+      }
+
+      [data-theme="dark"] .exception {
+        background: rgba(255, 255, 255, 0.05);
+      }
     </style>
   </head>
   <body>
     <button id="themeToggle">
-      <span id="themeIcon">🌙</span> <span id="themeLabel">Dark mode</span>
+      <span id="themeIcon">🌙</span>
+      <span id="themeLabel">Dark mode</span>
     </button>
 
     <h1>Fotura Import Report</h1>
 
     <div id="general-logs">
       <details open>
-        <summary>Log entries</summary>
+        <summary>General logs</summary>
+
         {% for record in entries %}
         <div class="log {{ record.levelname|lower }}">
           <span class="level">{{ record.levelname }}</span>
           <span class="message">
-            {{ record.getMessage()|replace('\n','<br />')|safe }}</span
-          >
+            {{ record.message | replace('\n', '<br />') | safe }}
+          </span>
+
+          {% if record.exc_text or record.exception %}
+          <details>
+            <summary class="exception-summary">Exception details</summary>
+            <pre class="exception">
+{{ record.exc_text or record.exception }}
+            </pre>
+          </details>
+          {% endif %}
         </div>
         {% endfor %}
       </details>
@@ -98,12 +131,22 @@
       <div class="photo-logs">
         <details open>
           <summary>{{ photo }}</summary>
+
           {% for record in records %}
           <div class="log {{ record.levelname|lower }}">
             <span class="level">{{ record.levelname }}</span>
-            <span class="message"
-              >{{ record.getMessage()|replace('\n','<br />')|safe }}</span
-            >
+            <span class="message">
+              {{ record.message | replace('\n', '<br />') | safe }}
+            </span>
+
+            {% if record.exc_text or record.exception %}
+            <details>
+              <summary class="exception-summary">Exception details</summary>
+              <pre class="exception">
+{{ record.exc_text or record.exception }}
+              </pre>
+            </details>
+            {% endif %}
           </div>
           {% endfor %}
         </details>

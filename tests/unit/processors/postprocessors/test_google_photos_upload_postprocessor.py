@@ -11,6 +11,7 @@ import responses
 from google.auth.exceptions import RefreshError
 from google.oauth2.credentials import Credentials
 
+from fotura.domain.photo import Photo
 from fotura.processors.context import Context
 from fotura.processors.postprocessors.google_photos_upload_postprocessor import (
     GooglePhotosUploadPostprocessor,
@@ -173,17 +174,17 @@ def processor_with_valid_credentials(secrets_dir, cached_credentials_valid, proc
 
 
 @pytest.fixture
-def test_image_file(fs):
+def test_photo(fs):
     test_image_path = Path("test_image.jpg")
     fs.create_file(test_image_path, contents=b"fake image data")
-    return test_image_path
+    return Photo(test_image_path)
 
 
 @pytest.fixture
-def test_image_file_png(fs):
+def test_photo_png(fs):
     test_image_path = Path("test_image.png")
     fs.create_file(test_image_path, contents=b"fake image data")
-    return test_image_path
+    return Photo(test_image_path)
 
 
 # Tests
@@ -193,12 +194,12 @@ def test_image_file_png(fs):
 
 @pytest.mark.parametrize("ext", [".jpg", ".jpeg", ".png", ".txt.jpg"])
 def test_handles_supported_extensions(ext, processor):
-    assert processor.can_handle(Path(f"foo{ext}"))
+    assert processor.can_handle(Photo(Path(f"foo{ext}")))
 
 
 @pytest.mark.parametrize("ext", [None, "", ".txt", ".mp4"])
 def test_rejects_unsupported_extensions(ext, processor):
-    assert not processor.can_handle(Path(f"foo{ext}"))
+    assert not processor.can_handle(Photo(Path(f"foo{ext}")))
 
 
 ## configure method
@@ -331,12 +332,12 @@ def test_uses_oauth_flow_if_token_has_expired_and_refresh_token_is_present_but_e
 
 @responses.activate
 def test_process_uploads_image_bytes_to_google_photos_uploads_api(
-    processor_with_valid_credentials, test_image_file
+    processor_with_valid_credentials, test_photo
 ):
     mock_successful_upload_response()
 
     with mock_successful_media_item_creation(processor_with_valid_credentials):
-        processor_with_valid_credentials.process(test_image_file, {})
+        processor_with_valid_credentials.process(test_photo)
 
         assert len(responses.calls) == 1
         upload_call = responses.calls[0]
@@ -355,21 +356,21 @@ def test_process_uploads_image_bytes_to_google_photos_uploads_api(
 
 
 @pytest.mark.parametrize(
-    "image_fixture,expected_mime_type",
+    "photo_fixture,expected_mime_type",
     [
-        ("test_image_file_png", "image/png"),
-        ("test_image_file", "image/jpeg"),
+        ("test_photo_png", "image/png"),
+        ("test_photo", "image/jpeg"),
     ],
 )
 @responses.activate
 def test_process_specifies_correct_image_mimetype_in_uploads_api_request(
-    processor_with_valid_credentials, image_fixture, expected_mime_type, request
+    processor_with_valid_credentials, photo_fixture, expected_mime_type, request
 ):
     mock_successful_upload_response()
-    image_path = request.getfixturevalue(image_fixture)
+    photo = request.getfixturevalue(photo_fixture)
 
     with mock_successful_media_item_creation(processor_with_valid_credentials):
-        processor_with_valid_credentials.process(image_path, {})
+        processor_with_valid_credentials.process(photo)
 
         upload_call = responses.calls[0]
         assert upload_call.request.headers is not None
@@ -381,14 +382,14 @@ def test_process_specifies_correct_image_mimetype_in_uploads_api_request(
 
 @responses.activate
 def test_successful_upload_process_creates_media_item_with_upload_token(
-    processor_with_valid_credentials, test_image_file
+    processor_with_valid_credentials, test_photo
 ):
     mock_successful_upload_response()
 
     with mock_successful_media_item_creation(
         processor_with_valid_credentials
     ) as mock_batch_create:
-        processor_with_valid_credentials.process(test_image_file, {})
+        processor_with_valid_credentials.process(test_photo)
 
         assert mock_batch_create.call_count == 1
         called_body = mock_batch_create.call_args.kwargs["body"]
@@ -396,7 +397,7 @@ def test_successful_upload_process_creates_media_item_with_upload_token(
             "newMediaItems": [
                 {
                     "simpleMediaItem": {
-                        "fileName": test_image_file.name,
+                        "fileName": test_photo.path.name,
                         "uploadToken": "upload-token-12345",
                     }
                 }
@@ -406,13 +407,13 @@ def test_successful_upload_process_creates_media_item_with_upload_token(
 
 @responses.activate
 def test_successful_upload_process_logs_uploaded_report_item(
-    processor_with_valid_credentials, test_image_file, caplog
+    processor_with_valid_credentials, test_photo, caplog
 ):
     mock_successful_upload_response()
 
     with mock_successful_media_item_creation(processor_with_valid_credentials):
         with caplog.at_level(logging.INFO):
-            processor_with_valid_credentials.process(test_image_file, {})
+            processor_with_valid_credentials.process(test_photo)
 
         log_entries = get_log_entries(
             caplog,
@@ -429,7 +430,7 @@ def test_successful_upload_process_logs_uploaded_report_item(
 
 @responses.activate
 def test_process_raises_exception_and_skips_upload_when_image_bytes_upload_fails(
-    processor_with_valid_credentials, test_image_file
+    processor_with_valid_credentials, test_photo
 ):
     mock_failed_upload_response()
 
@@ -437,7 +438,7 @@ def test_process_raises_exception_and_skips_upload_when_image_bytes_upload_fails
         with mock_successful_media_item_creation(
             processor_with_valid_credentials
         ) as createMediaItemMock:
-            processor_with_valid_credentials.process(test_image_file, {})
+            processor_with_valid_credentials.process(test_photo)
 
             assert len(responses.calls) == 1
             assert createMediaItemMock.call_count == 0
@@ -445,48 +446,48 @@ def test_process_raises_exception_and_skips_upload_when_image_bytes_upload_fails
 
 @responses.activate
 def test_process_raises_exception_and_skips_upload_when_service_not_initialized(
-    processor, test_image_file
+    processor, test_photo
 ):
     processor.service = None
 
     with pytest.raises(ProcessorSetupError):
-        processor.process(test_image_file, {})
+        processor.process(test_photo)
 
         assert len(responses.calls) == 0
 
 
 @responses.activate
 def test_process_logs_failed_upload_report_item_when_service_not_initialized(
-    processor, test_image_file
+    processor, test_photo
 ):
     processor.service = None
 
     with pytest.raises(ProcessorSetupError):
-        processor.process(test_image_file, {})
+        processor.process(test_photo)
 
         report_items = processor.report.get_report()
         failed_upload_items = [
             item for item in report_items if item.name() == "Failed Upload"
         ]
         assert len(failed_upload_items) == 1
-        assert failed_upload_items[0].source == str(test_image_file)
+        assert failed_upload_items[0].source == str(test_photo)
         assert "Google Photos service not initialized" in str(
             failed_upload_items[0].exception
         )
 
 
 @responses.activate
-def test_process_skips_upload_when_dry_run_enabled(processor_dry_run, test_image_file):
-    processor_dry_run.process(test_image_file, {})
+def test_process_skips_upload_when_dry_run_enabled(processor_dry_run, test_photo):
+    processor_dry_run.process(test_photo)
 
     assert len(responses.calls) == 0
 
 
 def test_process_logs_dry_run_uploaded_message_when_dry_run_enabled(
-    processor_dry_run, test_image_file, caplog
+    processor_dry_run, test_photo, caplog
 ):
     with caplog.at_level(logging.INFO):
-        processor_dry_run.process(test_image_file, {})
+        processor_dry_run.process(test_photo)
 
     log_entries = get_log_entries(
         caplog,
@@ -498,7 +499,7 @@ def test_process_logs_dry_run_uploaded_message_when_dry_run_enabled(
 
 @responses.activate
 def test_process_logs_failed_upload_exception_if_exception_occurs(
-    processor, secrets_dir, cached_credentials_valid, test_image_file
+    processor, secrets_dir, cached_credentials_valid, test_photo
 ):
     write_token(secrets_dir, cached_credentials_valid)
     processor.configure()
@@ -516,7 +517,7 @@ def test_process_logs_failed_upload_exception_if_exception_occurs(
     mock_successful_upload_response()
 
     with pytest.raises(Exception):
-        processor.process(test_image_file, {})
+        processor.process(test_photo)
 
         assert len(responses.calls) == 1
 

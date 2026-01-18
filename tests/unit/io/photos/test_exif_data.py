@@ -4,8 +4,17 @@ from pathlib import Path
 import piexif
 import pytest
 
+from fotura.domain.photo import Photo
 from fotura.io.photos.exif_data import ExifData
 from tests.helpers.helper import assert_exif_dates, temporary_images
+
+
+@pytest.fixture
+def photo(fs, input_path):
+    test_image_path = input_path / Path("test_image.jpg")
+    fs.create_file(test_image_path, contents=b"image")
+    return Photo(test_image_path)
+
 
 # extract_date
 
@@ -16,7 +25,8 @@ def test_extract_date_extracts_date_from_datetime_original():
         _,
         input_image_paths,
     ):
-        date = ExifData.extract_date(input_image_paths[0])
+        photo = Photo(input_image_paths[0])
+        date = ExifData.extract_date(photo)
         assert date == datetime.datetime(2008, 5, 30, 15, 56, 1)
 
 
@@ -26,7 +36,8 @@ def test_extract_date_extracts_date_from_datetime_digitized():
         _,
         input_image_paths,
     ):
-        date = ExifData.extract_date(input_image_paths[0])
+        photo = Photo(input_image_paths[0])
+        date = ExifData.extract_date(photo)
         assert date == datetime.datetime(2011, 12, 13, 14, 15, 16)
 
 
@@ -36,14 +47,16 @@ def test_extract_date_extracts_date_from_datetime():
         _,
         input_image_paths,
     ):
-        date = ExifData.extract_date(input_image_paths[0])
+        photo = Photo(input_image_paths[0])
+        date = ExifData.extract_date(photo)
         assert date == datetime.datetime(2011, 12, 13, 14, 15, 16)
 
 
 def test_extract_date_returns_none_if_file_not_found():
     non_existent_file = Path("foobar.jpg")
+    photo = Photo(non_existent_file)
 
-    date = ExifData.extract_date(non_existent_file)
+    date = ExifData.extract_date(photo)
 
     assert date is None
 
@@ -51,8 +64,9 @@ def test_extract_date_returns_none_if_file_not_found():
 def test_extract_date_returns_none_if_no_exif_data_found(tmp_path):
     image_path = tmp_path / "blank.jpg"
     image_path.write_bytes(b"foobar")
+    photo = Photo(image_path)
 
-    date = ExifData.extract_date(image_path)
+    date = ExifData.extract_date(photo)
 
     assert date is None
 
@@ -63,7 +77,8 @@ def test_extract_date_returns_none_if_invalid_date_format():
         exif["Exif"][piexif.ExifIFD.DateTimeOriginal] = b"invalid-date-format"
         piexif.insert(piexif.dump(exif), str(input_image_paths[0]))
 
-        date = ExifData.extract_date(input_image_paths[0])
+        photo = Photo(input_image_paths[0])
+        date = ExifData.extract_date(photo)
 
         assert date is None
 
@@ -88,7 +103,8 @@ def test_write_date_updates_all_exif_date_fields():
 
         new_date = datetime.datetime(2011, 12, 13, 14, 15, 16)
 
-        ExifData.write_date(input_image_paths[0], new_date)
+        photo = Photo(input_image_paths[0])
+        ExifData.write_date(photo, new_date)
 
         assert_exif_dates(input_image_paths[0], "2011:12:13 14:15:16")
 
@@ -96,5 +112,6 @@ def test_write_date_updates_all_exif_date_fields():
 def test_write_date_raises_FileNotFoundError_for_when_file_does_not_exist(tmp_path):
     non_existent_file = tmp_path / "missing.jpg"
 
+    photo = Photo(non_existent_file)
     with pytest.raises(FileNotFoundError):
-        ExifData.write_date(non_existent_file, datetime.datetime.now())
+        ExifData.write_date(photo, datetime.datetime.now())

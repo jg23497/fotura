@@ -1,6 +1,5 @@
 import logging
 import sys
-from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from fotura.domain.photo import Photo
@@ -39,23 +38,24 @@ class ProcessorOrchestrator:
 
     def run_preprocessors(self, photo: Photo) -> None:
         for preprocessor in self.preprocessors:
-            if preprocessor.can_handle(photo.path):
-                result = preprocessor.process(photo.path, photo.facts)
+            if preprocessor.can_handle(photo):
+                result = preprocessor.process(photo)
                 if result:
                     photo.facts.update(result)
 
     def run_postprocessors(
         self,
         photo: Photo,
-        target_path: Path,
     ):
         for postprocessor in self.postprocessors:
-            if not postprocessor.can_handle(target_path):
-                logger.warning(
-                    f"{postprocessor.__class__.__name__}: Skipping {target_path}"
+            if not postprocessor.can_handle(photo):
+                photo.log(
+                    logging.WARNING,
+                    "%s cannot handle file",
+                    postprocessor.__class__.__name__,
                 )
                 continue
-            result = postprocessor.process(target_path, photo.facts)
+            result = postprocessor.process(photo)
             if result:
                 photo.facts.update(result)
 

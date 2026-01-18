@@ -1,19 +1,17 @@
 from abc import ABC, abstractmethod
-from pathlib import Path
 from typing import Any, Dict, Optional
 
+from fotura.domain.photo import Photo
 from fotura.processors.fact_type import FactType
 
 
 class Postprocessor(ABC):
     @abstractmethod
-    def can_handle(self, image_path: Path) -> bool:
+    def can_handle(self, photo: Photo) -> bool:
         pass
 
     @abstractmethod
-    def process(
-        self, image_path: Path, facts: Dict[FactType, Any]
-    ) -> Optional[Dict[FactType, Any]]:
+    def process(self, photo: Photo) -> Optional[Dict[FactType, Any]]:
         pass
 
     def configure(self) -> None:

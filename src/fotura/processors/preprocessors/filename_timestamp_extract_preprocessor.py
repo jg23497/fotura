@@ -1,9 +1,9 @@
 import logging
 import re
 from datetime import datetime
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
+from fotura.domain.photo import Photo
 from fotura.io.photos.exif_data import ExifData
 from fotura.processors.context import Context
 from fotura.processors.fact_type import FactType
@@ -20,13 +20,11 @@ class FilenameTimestampExtractPreprocessor(Preprocessor):
     def __init__(self, context: Context) -> None:
         self.context = context
 
-    def can_handle(self, image_path: Path) -> bool:
-        return self.__get_handler(image_path.name) is not None
+    def can_handle(self, photo: Photo) -> bool:
+        return self.__get_handler(photo.path.name) is not None
 
-    def process(
-        self, image_path: Path, facts: Optional[Dict[FactType, Any]]
-    ) -> Optional[Dict[FactType, datetime]]:
-        filename = image_path.name
+    def process(self, photo: Photo) -> Optional[Dict[FactType, datetime]]:
+        filename = photo.path.name
         handler = self.__get_handler(filename)
         if not handler:
             return None
@@ -35,14 +33,14 @@ class FilenameTimestampExtractPreprocessor(Preprocessor):
         if not date:
             raise ValueError(f"Unable to extract timestamp from {filename}")
 
-        logger.info(
-            "Updated %s EXIF date fields to %s",
-            image_path,
+        photo.log(
+            logging.INFO,
+            "Updated EXIF date fields to %s",
             date.strftime("%Y/%m/%d %H:%M:%S"),
         )
 
         if not self.context.dry_run:
-            ExifData.write_date(image_path, date)
+            ExifData.write_date(photo, date)
 
         return {FactType.TAKEN_TIMESTAMP: date}
 

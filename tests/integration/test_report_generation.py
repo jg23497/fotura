@@ -47,7 +47,7 @@ def test_report_structure(report):
     general_section = None
     for section in details_sections:
         summary = section.find("summary")
-        if summary and "Log entries" in clean_text(summary):
+        if summary and "General logs" in clean_text(summary):
             general_section = section
             break
 

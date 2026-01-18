@@ -78,12 +78,12 @@ def test_get_target_path_returns_none_and_logs_when_no_date_found(
     log_entries = get_log_entries(
         caplog,
         lambda r: (
-            r.levelno == logging.WARNING and r.getMessage().startswith("Skipping photo")
+            r.levelno == logging.WARNING and r.getMessage().startswith("Skipping file")
         ),
     )
 
     assert len(log_entries) == 1
-    assert str(photo.path) in str(log_entries[0].photo)
+    assert str(photo.path) in str(log_entries[0].media_file)
 
 
 @pytest.mark.parametrize("resolver", [False], indirect=True)
@@ -152,8 +152,10 @@ def test_skipped_conflict_resolution_writes_skipped_log_entry(
 
     log_entries = get_log_entries(
         caplog,
-        lambda r: (r.levelno == logging.WARNING and "Skipping file" in r.getMessage()),
+        lambda r: r.levelno == logging.WARNING
+        and r.getMessage() == "Skipping due to conflict resolution strategy",
     )
 
     assert len(log_entries) == 1
-    assert str(photo.path) in str(log_entries[0].getMessage())
+
+    assert str(photo.path) in str(log_entries[0].media_file)
