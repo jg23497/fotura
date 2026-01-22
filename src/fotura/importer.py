@@ -24,8 +24,13 @@ class Importer:
         input_path: Path,
         target_root: Path,
         dry_run: bool = False,
-        enabled_preprocessors: Optional[List[Tuple[str, Dict[str, Any]]]] = None,
-        enabled_postprocessors: Optional[List[Tuple[str, Dict[str, Any]]]] = None,
+        enabled_before_each_processors: Optional[
+            List[Tuple[str, Dict[str, Any]]]
+        ] = None,
+        enabled_after_each_processors: Optional[
+            List[Tuple[str, Dict[str, Any]]]
+        ] = None,
+        enabled_after_all_processors: Optional[List[Tuple[str, Dict[str, Any]]]] = None,
         open_report: bool = False,
         conflict_resolution_strategy: str = "keep_both",
         target_path_format: str = "%Y/%Y-%m",
@@ -38,7 +43,10 @@ class Importer:
         self.tally = SynchronizedCounter({"errored": 0})
 
         self.__configure_dependencies(
-            conflict_resolution_strategy, enabled_preprocessors, enabled_postprocessors
+            conflict_resolution_strategy,
+            enabled_before_each_processors,
+            enabled_after_each_processors,
+            enabled_after_all_processors,
         )
 
     def process_photos(self):
@@ -51,34 +59,43 @@ class Importer:
 
         self.files.has_read_write_permissions(self.input_path)
 
+        processed_photos = []
+
         try:
             for photo in self.media_finder.find():
                 try:
-                    self.__process_photo(photo)
+                    if self.__process_photo(photo):
+                        processed_photos.append(photo)
                 except Exception:
                     photo.log(logging.ERROR, "Failed to import", exc_info=True)
                     self.tally.increment("errored")
                     break
+
+            if processed_photos:
+                self.processor_orchestrator.run_after_all_processors(processed_photos)
         finally:
             self.__close_report()
 
-    def __process_photo(self, photo):
+    def __process_photo(self, photo) -> bool:
         self.files.ensure_writable(photo)
-        self.processor_orchestrator.run_preprocessors(photo)
+        self.processor_orchestrator.run_before_each_processors(photo)
         target_path = self.path_resolver.get_target_path(photo)
 
         if target_path is not None:
             self.files.move(photo, target_path)
             self.tally.increment("moved")
-            self.processor_orchestrator.run_postprocessors(photo)
+            self.processor_orchestrator.run_after_each_processors(photo)
+            return True
         else:
             self.tally.increment("skipped")
+            return False
 
     def __configure_dependencies(
         self,
         conflict_resolution_strategy,
-        enabled_preprocessors,
-        enabled_postprocessors,
+        enabled_before_each_processors,
+        enabled_after_each_processors,
+        enabled_after_all_processors,
     ):
         self.user_config_path = Path(user_config_dir("fotura"))
         self.user_data_path = Path(user_data_dir("fotura"))
@@ -104,7 +121,10 @@ class Importer:
         )
 
         self.processor_orchestrator = ProcessorOrchestrator(
-            processor_context, enabled_preprocessors, enabled_postprocessors
+            processor_context,
+            enabled_before_each_processors,
+            enabled_after_each_processors,
+            enabled_after_all_processors,
         )
 
     def __setup_report(self):

@@ -8,12 +8,12 @@ from fotura.io.photos.exif_data import ExifData
 from fotura.processors.context import Context
 from fotura.processors.fact_type import FactType
 
-from .preprocessor import Preprocessor
+from .before_each_processor import BeforeEachProcessor
 
 logger = logging.getLogger(__name__)
 
 
-class FilenameTimestampExtractPreprocessor(Preprocessor):
+class FilenameTimestampExtractBeforeEachProcessor(BeforeEachProcessor):
     _WHATSAPP_REGEX = re.compile(r"^IMG-(\d{4})(\d{2})(\d{2})-WA\d{4}.*")
     _ANDROID_REGEX = re.compile(r"^IMG_(\d{8})_(\d{6})")
 

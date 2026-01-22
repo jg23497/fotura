@@ -3,7 +3,7 @@ from unittest.mock import Mock
 from fotura.processors.context import Context
 
 
-class DummyPreprocessor:
+class DummyBeforeEachProcessor:
     def __init__(
         self,
         context: Context,
@@ -14,7 +14,7 @@ class DummyPreprocessor:
         self.process: Mock = Mock(return_value={})
 
 
-class ComplexDummyPreprocessor:
+class ComplexDummyBeforeEachProcessor:
     def __init__(
         self,
         *,
@@ -30,7 +30,7 @@ class ComplexDummyPreprocessor:
         self.should_do_something = should_do_something
 
 
-class DummyPostprocessor:
+class DummyAfterEachProcessor:
     def __init__(
         self,
         context: Context,
@@ -41,7 +41,7 @@ class DummyPostprocessor:
         self.process: Mock = Mock()
 
 
-class ComplexDummyPostprocessor:
+class ComplexDummyAfterEachProcessor:
     def __init__(
         self,
         context: Context,
@@ -54,3 +54,13 @@ class ComplexDummyPostprocessor:
         self.process: Mock = Mock()
         self.max_size = max_size
         self.should_do_something = should_do_something
+
+
+class DummyAfterAllProcessor:
+    def __init__(
+        self,
+        context: Context,
+    ) -> None:
+        self.context = context
+        self.configure = Mock()
+        self.process: Mock = Mock(return_value=None)

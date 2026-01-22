@@ -12,7 +12,7 @@ def test_photo_sorting():
         importer = Importer(
             Path(input_path),
             Path(target_root),
-            enabled_preprocessors=[("filename_timestamp_extract", {})],
+            enabled_before_each_processors=[("filename_timestamp_extract", {})],
         )
 
         importer.process_photos()
@@ -53,7 +53,7 @@ def test_tally_counts():
         importer = Importer(
             Path(input_path),
             Path(target_root),
-            enabled_preprocessors=[("filename_timestamp_extract", {})],
+            enabled_before_each_processors=[("filename_timestamp_extract", {})],
         )
 
         importer.process_photos()

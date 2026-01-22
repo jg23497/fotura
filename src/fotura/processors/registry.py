@@ -1,12 +1,16 @@
-from fotura.processors.postprocessors.google_photos_upload_postprocessor import (
-    GooglePhotosUploadPostprocessor,
+from fotura.processors.after_each_processors.google_photos_upload_after_each_processor import (
+    GooglePhotosUploadAfterEachProcessor,
 )
-from fotura.processors.preprocessors.filename_timestamp_extract_preprocessor import (
-    FilenameTimestampExtractPreprocessor,
+from fotura.processors.before_each_processors.filename_timestamp_extract_before_each_processor import (
+    FilenameTimestampExtractBeforeEachProcessor,
 )
 
-PREPROCESSOR_MAP = {
-    "filename_timestamp_extract": FilenameTimestampExtractPreprocessor,
+BEFORE_EACH_PROCESSOR_MAP = {
+    "filename_timestamp_extract": FilenameTimestampExtractBeforeEachProcessor,
 }
 
-POSTPROCESSOR_MAP = {"google_photos_upload": GooglePhotosUploadPostprocessor}
+AFTER_EACH_PROCESSOR_MAP = {
+    "google_photos_upload": GooglePhotosUploadAfterEachProcessor
+}
+
+AFTER_ALL_PROCESSOR_MAP = {}

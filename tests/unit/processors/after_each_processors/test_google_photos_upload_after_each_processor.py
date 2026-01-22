@@ -14,8 +14,8 @@ from google.oauth2.credentials import Credentials
 from fotura.domain.photo import Photo
 from fotura.importing.synchronized_counter import SynchronizedCounter
 from fotura.processors.context import Context
-from fotura.processors.postprocessors.google_photos_upload_postprocessor import (
-    GooglePhotosUploadPostprocessor,
+from fotura.processors.after_each_processors.google_photos_upload_after_each_processor import (
+    GooglePhotosUploadAfterEachProcessor,
 )
 from fotura.processors.processor_setup_error import ProcessorSetupError
 from tests.helpers.helper import get_log_entries
@@ -128,7 +128,7 @@ def tally():
 @pytest.fixture(autouse=True)
 def mock_photoslibrary_service():
     with patch(
-        "fotura.processors.postprocessors.google_photos_upload_postprocessor.build"
+        "fotura.processors.after_each_processors.google_photos_upload_after_each_processor.build"
     ) as mock_build:
         mock_service = MagicMock()
         mock_service._http = MagicMock(
@@ -163,13 +163,13 @@ def secrets_dir(fs):
 @pytest.fixture
 def processor(secrets_dir, tally):
     context = Context(user_config_path=secrets_dir, tally=tally, dry_run=False)
-    return GooglePhotosUploadPostprocessor(context)
+    return GooglePhotosUploadAfterEachProcessor(context)
 
 
 @pytest.fixture
 def processor_dry_run(secrets_dir, tally):
     context = Context(user_config_path=secrets_dir, tally=tally, dry_run=True)
-    return GooglePhotosUploadPostprocessor(context)
+    return GooglePhotosUploadAfterEachProcessor(context)
 
 
 @pytest.fixture

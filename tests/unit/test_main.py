@@ -1,3 +1,4 @@
+import re
 from importlib import reload
 from unittest.mock import patch
 
@@ -7,10 +8,10 @@ from click.testing import CliRunner
 from fotura import importer, main
 from tests.helpers.helper import temporary_images
 from tests.helpers.processors import (
-    ComplexDummyPostprocessor,
-    ComplexDummyPreprocessor,
-    DummyPostprocessor,
-    DummyPreprocessor,
+    ComplexDummyAfterEachProcessor,
+    ComplexDummyBeforeEachProcessor,
+    DummyAfterEachProcessor,
+    DummyBeforeEachProcessor,
 )
 
 
@@ -26,7 +27,7 @@ def test_main_tidies_image_files():
                 "import",
                 str(input_path),
                 str(target_root),
-                "--preprocessors",
+                "--before-each",
                 "filename_timestamp_extract",
             ],
         )
@@ -38,13 +39,13 @@ def test_main_tidies_image_files():
 
 
 @patch(
-    "fotura.processors.registry.PREPROCESSOR_MAP",
+    "fotura.processors.registry.BEFORE_EACH_PROCESSOR_MAP",
     {
-        "complex_preprocessor": ComplexDummyPreprocessor,
-        "other_preprocessor": DummyPreprocessor,
+        "complex_before_each_processor": ComplexDummyBeforeEachProcessor,
+        "other_before_each_processor": DummyBeforeEachProcessor,
     },
 )
-def test_help_lists_available_preprocessors():
+def test_help_lists_available_before_each_processors():
     reload(main)
 
     result = CliRunner().invoke(
@@ -52,22 +53,22 @@ def test_help_lists_available_preprocessors():
         ["import", "--help"],
     )
 
-    stdout = result.stdout.replace("  ", "")
+    stdout = normalize_whitespace(result.stdout)
 
-    assert "- other_preprocessor: no parameters" in stdout
+    assert "- other_before_each_processor: no parameters" in stdout
     assert (
-        "- complex_preprocessor: max_size(int),\nshould_do_something(bool)\n\n"
+        "- complex_before_each_processor: max_size(int), should_do_something(bool)"
         in stdout
     )
 
 
 @patch(
-    "fotura.processors.registry.PREPROCESSOR_MAP",
+    "fotura.processors.registry.BEFORE_EACH_PROCESSOR_MAP",
     {
-        "other_preprocessor": DummyPreprocessor,
+        "other_before_each_processor": DummyBeforeEachProcessor,
     },
 )
-def test_fails_when_unknown_preprocessor_specified():
+def test_fails_when_unknown_before_each_processor_specified():
     reload(main)
 
     with temporary_images(["Canon_40D.jpg"]) as (
@@ -81,7 +82,7 @@ def test_fails_when_unknown_preprocessor_specified():
                 "import",
                 str(input_path),
                 str(target_root),
-                "--preprocessors",
+                "--before-each",
                 "filename_timestamp_extract",
             ],
         )
@@ -90,12 +91,12 @@ def test_fails_when_unknown_preprocessor_specified():
 
 
 @patch(
-    "fotura.processors.registry.PREPROCESSOR_MAP",
+    "fotura.processors.registry.BEFORE_EACH_PROCESSOR_MAP",
     {
-        "complex_preprocessor": ComplexDummyPreprocessor,
+        "complex_before_each_processor": ComplexDummyBeforeEachProcessor,
     },
 )
-def test_passes_command_line_arguments_to_preprocessors():
+def test_passes_command_line_arguments_to_before_each_processors():
     reload(main)
 
     with temporary_images(["Canon_40D.jpg"]) as (
@@ -113,8 +114,8 @@ def test_passes_command_line_arguments_to_preprocessors():
                     "import",
                     str(input_path),
                     str(target_root),
-                    "--preprocessors",
-                    "complex_preprocessor:max_size=1,should_do_something=true",
+                    "--before-each",
+                    "complex_before_each_processor:max_size=1,should_do_something=true",
                 ],
             )
 
@@ -123,18 +124,21 @@ def test_passes_command_line_arguments_to_preprocessors():
             mock_init.assert_called_once()
             _, kwargs = mock_init.call_args
 
-            assert kwargs["enabled_preprocessors"] == [
-                ("complex_preprocessor", {"max_size": 1, "should_do_something": True})
+            assert kwargs["enabled_before_each_processors"] == [
+                (
+                    "complex_before_each_processor",
+                    {"max_size": 1, "should_do_something": True},
+                )
             ]
 
 
 @patch(
-    "fotura.processors.registry.PREPROCESSOR_MAP",
+    "fotura.processors.registry.BEFORE_EACH_PROCESSOR_MAP",
     {
-        "complex_preprocessor": ComplexDummyPreprocessor,
+        "complex_before_each_processor": ComplexDummyBeforeEachProcessor,
     },
 )
-def test_main_invalid_preprocessor_argument_type():
+def test_main_invalid_before_each_processor_argument_type():
     reload(main)
 
     with temporary_images(["Canon_40D.jpg"]) as (
@@ -148,8 +152,8 @@ def test_main_invalid_preprocessor_argument_type():
                 "import",
                 str(input_path),
                 str(target_root),
-                "--preprocessors",
-                "complex_preprocessor:max_size=foo",
+                "--before-each",
+                "complex_before_each_processor:max_size=foo",
             ],
         )
 
@@ -159,13 +163,13 @@ def test_main_invalid_preprocessor_argument_type():
 
 
 @patch(
-    "fotura.processors.registry.POSTPROCESSOR_MAP",
+    "fotura.processors.registry.AFTER_EACH_PROCESSOR_MAP",
     {
-        "complex_postprocessor": ComplexDummyPreprocessor,
-        "other_postprocessor": DummyPostprocessor,
+        "complex_after_each_processor": ComplexDummyBeforeEachProcessor,
+        "other_after_each_processor": DummyAfterEachProcessor,
     },
 )
-def test_help_lists_available_postprocessors():
+def test_help_lists_available_after_each_processors():
     reload(main)
 
     result = CliRunner().invoke(
@@ -173,22 +177,22 @@ def test_help_lists_available_postprocessors():
         ["import", "--help"],
     )
 
-    stdout = result.stdout.replace("  ", "")
+    stdout = normalize_whitespace(result.stdout)
 
-    assert "- other_postprocessor: no parameters" in stdout
+    assert "- other_after_each_processor: no parameters" in stdout
     assert (
-        "- complex_postprocessor: max_size(int),\nshould_do_something(bool)\n\n"
+        "- complex_after_each_processor: max_size(int), should_do_something(bool)"
         in stdout
     )
 
 
 @patch(
-    "fotura.processors.registry.POSTPROCESSOR_MAP",
+    "fotura.processors.registry.AFTER_EACH_PROCESSOR_MAP",
     {
-        "other_postprocessor": DummyPostprocessor,
+        "other_after_each_processor": DummyAfterEachProcessor,
     },
 )
-def test_fails_when_unknown_postprocessor_specified():
+def test_fails_when_unknown_after_each_processor_specified():
     reload(main)
 
     with temporary_images(["Canon_40D.jpg"]) as (
@@ -202,7 +206,7 @@ def test_fails_when_unknown_postprocessor_specified():
                 "import",
                 str(input_path),
                 str(target_root),
-                "--postprocessors",
+                "--after-each",
                 "foo",
             ],
         )
@@ -211,12 +215,12 @@ def test_fails_when_unknown_postprocessor_specified():
 
 
 @patch(
-    "fotura.processors.registry.POSTPROCESSOR_MAP",
+    "fotura.processors.registry.AFTER_EACH_PROCESSOR_MAP",
     {
-        "complex_postprocessor": ComplexDummyPostprocessor,
+        "complex_after_each_processor": ComplexDummyAfterEachProcessor,
     },
 )
-def test_passes_command_line_arguments_to_postprocessors():
+def test_passes_command_line_arguments_to_after_each_processors():
     reload(main)
 
     with temporary_images(["Canon_40D.jpg"]) as (
@@ -234,8 +238,8 @@ def test_passes_command_line_arguments_to_postprocessors():
                     "import",
                     str(input_path),
                     str(target_root),
-                    "--postprocessors",
-                    "complex_postprocessor:max_size=1,should_do_something=true",
+                    "--after-each",
+                    "complex_after_each_processor:max_size=1,should_do_something=true",
                 ],
             )
 
@@ -244,18 +248,21 @@ def test_passes_command_line_arguments_to_postprocessors():
             mock_init.assert_called_once()
             _, kwargs = mock_init.call_args
 
-            assert kwargs["enabled_postprocessors"] == [
-                ("complex_postprocessor", {"max_size": 1, "should_do_something": True})
+            assert kwargs["enabled_after_each_processors"] == [
+                (
+                    "complex_after_each_processor",
+                    {"max_size": 1, "should_do_something": True},
+                )
             ]
 
 
 @patch(
-    "fotura.processors.registry.POSTPROCESSOR_MAP",
+    "fotura.processors.registry.AFTER_EACH_PROCESSOR_MAP",
     {
-        "complex_postprocessor": ComplexDummyPostprocessor,
+        "complex_after_each_processor": ComplexDummyAfterEachProcessor,
     },
 )
-def test_main_invalid_postprocessor_argument_type():
+def test_main_invalid_after_each_processor_argument_type():
     reload(main)
 
     with temporary_images(["Canon_40D.jpg"]) as (
@@ -269,8 +276,8 @@ def test_main_invalid_postprocessor_argument_type():
                 "import",
                 str(input_path),
                 str(target_root),
-                "--postprocessors",
-                "complex_postprocessor:max_size=foo",
+                "--after-each",
+                "complex_after_each_processor:max_size=foo",
             ],
         )
 
@@ -326,3 +333,7 @@ def test_uses_custom_path_format_when_provided():
         assert not input_image_paths[0].exists()
         assert new_image_path.exists()
         assert result.exit_code == 0, result.output
+
+
+def normalize_whitespace(text: str) -> str:
+    return re.sub(r"\s+", " ", text)

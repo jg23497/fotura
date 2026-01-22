@@ -10,7 +10,11 @@ import click
 from fotura.importer import Importer
 from fotura.importing.conflict_resolution.registry import STRATEGIES
 from fotura.io.path_format import PathFormat
-from fotura.processors.registry import POSTPROCESSOR_MAP, PREPROCESSOR_MAP
+from fotura.processors.registry import (
+    AFTER_ALL_PROCESSOR_MAP,
+    AFTER_EACH_PROCESSOR_MAP,
+    BEFORE_EACH_PROCESSOR_MAP,
+)
 from fotura.reporting.logging_config import setup_logging
 
 setup_logging(level=logging.INFO)
@@ -38,19 +42,19 @@ def __get_processor_params(klass: Type) -> Dict[str, Type]:
     return params
 
 
-def __build_processor_help(processor_map: Dict[str, Type]) -> str:
+def __build_processor_help(processor_map: Dict[str, Type], processor_type: str) -> str:
     """
     Generate a help string listing all available processors and their parameters.
 
     Args:
         processor_map: Mapping of processor names to processor classes.
+        processor_type: Type of processor for help text (e.g., "before-each", "after-each").
 
     Returns:
         Formatted help text describing each processor and its parameters.
     """
     lines = [
-        "Add a processor with optional parameters. Pre-processors execute before file moves",
-        "and post-processors execute afterwards.",
+        f"Add a {processor_type} processor with optional parameters.",
         "Format: name or name:option=value",
         "",
         "Available processors:",
@@ -70,8 +74,9 @@ def run_import(
     target_root: Path,
     dry_run: bool,
     open_report: bool,
-    preprocessors: Tuple[str, ...],
-    postprocessors: Tuple[str, ...],
+    before_each_processors: Tuple[str, ...],
+    after_each_processors: Tuple[str, ...],
+    after_all_processors: Tuple[str, ...],
     conflict_strategy: str,
     target_path_format: str,
 ) -> None:
@@ -79,16 +84,18 @@ def run_import(
     Execute the import operation.
 
     Imports photos from a source directory into a target directory hierarchy,
-    optionally applying pre and post-processors to the photos.
+    optionally applying processors to the photos.
 
     Args:
         directory: Source directory containing photos.
         target_root: Target root directory for organized photos.
         dry_run: If True, no actual file operations are performed.
         open_report: If True, opens the generated HTML report.
-        preprocessors: Preprocessor specifications in the form
+        before_each_processors: Before-each processor specifications in the form
             "name" or "name:param=value,...".
-        postprocessors: Postprocessor specifications in the form
+        after_each_processors: After-each processor specifications in the form
+            "name" or "name:param=value,...".
+        after_all_processors: After-all processor specifications in the form
             "name" or "name:param=value,...".
         conflict_strategy: Strategy for resolving filename conflicts in the
             target directory.
@@ -101,18 +108,25 @@ def run_import(
     if dry_run:
         logger.warning("Running in dry-run mode - no files will be moved")
 
-    enabled_preprocessors = []
-    if preprocessors:
-        enabled_preprocessors = [
-            __parse_processor_arguments(p.strip(), PREPROCESSOR_MAP)
-            for p in preprocessors
+    enabled_before_each_processors = []
+    if before_each_processors:
+        enabled_before_each_processors = [
+            __parse_processor_arguments(p.strip(), BEFORE_EACH_PROCESSOR_MAP)
+            for p in before_each_processors
         ]
 
-    enabled_postprocessors = []
-    if postprocessors:
-        enabled_postprocessors = [
-            __parse_processor_arguments(p.strip(), POSTPROCESSOR_MAP)
-            for p in postprocessors
+    enabled_after_each_processors = []
+    if after_each_processors:
+        enabled_after_each_processors = [
+            __parse_processor_arguments(p.strip(), AFTER_EACH_PROCESSOR_MAP)
+            for p in after_each_processors
+        ]
+
+    enabled_after_all_processors = []
+    if after_all_processors:
+        enabled_after_all_processors = [
+            __parse_processor_arguments(p.strip(), AFTER_ALL_PROCESSOR_MAP)
+            for p in after_all_processors
         ]
 
     importer = Importer(
@@ -120,8 +134,9 @@ def run_import(
         target_root,
         dry_run=dry_run,
         open_report=open_report,
-        enabled_preprocessors=enabled_preprocessors,
-        enabled_postprocessors=enabled_postprocessors,
+        enabled_before_each_processors=enabled_before_each_processors,
+        enabled_after_each_processors=enabled_after_each_processors,
+        enabled_after_all_processors=enabled_after_all_processors,
         conflict_resolution_strategy=conflict_strategy,
         target_path_format=target_path_format,
     )
@@ -145,14 +160,22 @@ def cli() -> None:
     help="Open the report in your web browser after completion",
 )
 @click.option(
-    "--preprocessors",
+    "--before-each",
+    "before_each_processors",
     multiple=True,
-    help=__build_processor_help(PREPROCESSOR_MAP),
+    help=__build_processor_help(BEFORE_EACH_PROCESSOR_MAP, "before-each"),
 )
 @click.option(
-    "--postprocessors",
+    "--after-each",
+    "after_each_processors",
     multiple=True,
-    help=__build_processor_help(POSTPROCESSOR_MAP),
+    help=__build_processor_help(AFTER_EACH_PROCESSOR_MAP, "after-each"),
+)
+@click.option(
+    "--after-all",
+    "after_all_processors",
+    multiple=True,
+    help=__build_processor_help(AFTER_ALL_PROCESSOR_MAP, "after-all"),
 )
 @click.option(
     "--conflict-strategy",
@@ -172,8 +195,9 @@ def import_cmd(
     target_root: Path,
     dry_run: bool,
     open_report: bool,
-    preprocessors: Tuple[str, ...],
-    postprocessors: Tuple[str, ...],
+    before_each_processors: Tuple[str, ...],
+    after_each_processors: Tuple[str, ...],
+    after_all_processors: Tuple[str, ...],
     conflict_strategy: str,
     target_path_format: str,
 ) -> None:
@@ -182,8 +206,9 @@ def import_cmd(
         target_root=target_root,
         dry_run=dry_run,
         open_report=open_report,
-        preprocessors=preprocessors,
-        postprocessors=postprocessors,
+        before_each_processors=before_each_processors,
+        after_each_processors=after_each_processors,
+        after_all_processors=after_all_processors,
         conflict_strategy=conflict_strategy,
         target_path_format=target_path_format,
     )

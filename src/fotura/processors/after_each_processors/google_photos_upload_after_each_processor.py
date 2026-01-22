@@ -12,9 +12,11 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 
 from fotura.domain.photo import Photo
+from fotura.processors.after_each_processors.after_each_processor import (
+    AfterEachProcessor,
+)
 from fotura.processors.context import Context
 from fotura.processors.fact_type import FactType
-from fotura.processors.postprocessors.postprocessor import Postprocessor
 from fotura.processors.processor_setup_error import ProcessorSetupError
 
 logger = logging.getLogger(__name__)
@@ -23,7 +25,7 @@ SCOPES = ["https://www.googleapis.com/auth/photoslibrary.appendonly"]
 TALLY_KEY = "uploaded to google photos"
 
 
-class GooglePhotosUploadPostprocessor(Postprocessor):
+class GooglePhotosUploadAfterEachProcessor(AfterEachProcessor):
     def __init__(self, context: Context) -> None:
         self.context = context
         self.dry_run = context.dry_run

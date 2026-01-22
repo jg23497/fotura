@@ -1,6 +1,6 @@
-# Google Photos Upload Postprocessor
+# Google Photos Upload After-each Processor
 
-This post-processor automates the uploading of images to a user's Google Photos library.
+This after-each processor automates the uploading of images to a user's Google Photos library.
 
 ## Features
 
@@ -11,11 +11,11 @@ This post-processor automates the uploading of images to a user's Google Photos 
 
 ## Usage
 
-`--postprocessors "google_photos_upload"`
+`--after-each "google_photos_upload"`
 
 ## Configuration
 
-To use this post-processor, you must configure a Google Cloud project and enable the Google Photos Library API.
+To use this after-each processor, you must configure a Google Cloud project and enable the Google Photos Library API.
 
 ### Step 1: Obtain your personal Google Photos API credentials
 
@@ -37,9 +37,9 @@ Note: Using the [Google Auth Platform - Audience](https://console.cloud.google.c
 
    Or attempt to use the processor without providing the file and check the path it provides in its error message.
 
-### Step 3: Run the post-processor
+### Step 3: Run the after-each processor
 
-1. The first time you run the post-processor, it will initiate the OAuth authentication flow.
+1. The first time you run the after-each processor, it will initiate the OAuth authentication flow.
 2. A browser window will open, prompting you to sign in to your Google account and grant Fotura permission to upload photos.
 3. After you approve the permissions, the application will receive a token. This token is securely saved as `token.json` in the user config directory.
 4. Subsequent runs will use this cached token for authentication, so you will not need to re-authenticate unless the token expires or is manually revoked.

@@ -18,9 +18,9 @@ from tests.helpers.helper import (
     temporary_images,
 )
 from tests.helpers.processors import (
-    ComplexDummyPostprocessor,
-    DummyPostprocessor,
-    DummyPreprocessor,
+    ComplexDummyAfterEachProcessor,
+    DummyAfterEachProcessor,
+    DummyBeforeEachProcessor,
 )
 
 # Fixtures
@@ -46,79 +46,87 @@ def stub_report_template():
 
 
 @patch(
-    "fotura.processors.processor_orchestrator.PREPROCESSOR_MAP",
-    {"dummy_preprocessor": DummyPreprocessor},
+    "fotura.processors.processor_orchestrator.BEFORE_EACH_PROCESSOR_MAP",
+    {"dummy_before_each_processor": DummyBeforeEachProcessor},
 )
 @pytest.mark.parametrize("dry_run", [True, False])
-def test_initializes_preprocessors(input_dir, target_root, dry_run):
+def test_initializes_before_each_processors(input_dir, target_root, dry_run):
     importer = Importer(
         input_path=input_dir,
         target_root=target_root,
         dry_run=dry_run,
-        enabled_preprocessors=[("dummy_preprocessor", {})],
+        enabled_before_each_processors=[("dummy_before_each_processor", {})],
     )
 
-    assert len(importer.processor_orchestrator.preprocessors) == 1
+    assert len(importer.processor_orchestrator.before_each_processors) == 1
     assert isinstance(
-        importer.processor_orchestrator.preprocessors[0], DummyPreprocessor
+        importer.processor_orchestrator.before_each_processors[0],
+        DummyBeforeEachProcessor,
     )
-    assert importer.processor_orchestrator.preprocessors[0].context.dry_run is dry_run
+    assert (
+        importer.processor_orchestrator.before_each_processors[0].context.dry_run
+        is dry_run
+    )
 
 
 @patch(
-    "fotura.processors.processor_orchestrator.POSTPROCESSOR_MAP",
-    {"dummy_postprocessor": DummyPostprocessor},
+    "fotura.processors.processor_orchestrator.AFTER_EACH_PROCESSOR_MAP",
+    {"dummy_after_each_processor": DummyAfterEachProcessor},
 )
 @pytest.mark.parametrize("dry_run", [True, False])
-def test_initializes_postprocessors(input_dir, target_root, dry_run):
+def test_initializes_after_each_processors(input_dir, target_root, dry_run):
     importer = Importer(
         input_path=input_dir,
         target_root=target_root,
         dry_run=dry_run,
-        enabled_postprocessors=[("dummy_postprocessor", {})],
+        enabled_after_each_processors=[("dummy_after_each_processor", {})],
     )
 
-    assert len(importer.processor_orchestrator.postprocessors) == 1
+    assert len(importer.processor_orchestrator.after_each_processors) == 1
     assert isinstance(
-        importer.processor_orchestrator.postprocessors[0], DummyPostprocessor
+        importer.processor_orchestrator.after_each_processors[0],
+        DummyAfterEachProcessor,
     )
-    assert importer.processor_orchestrator.postprocessors[0].context.dry_run is dry_run
+    assert (
+        importer.processor_orchestrator.after_each_processors[0].context.dry_run
+        is dry_run
+    )
 
 
 @patch(
-    "fotura.processors.processor_orchestrator.POSTPROCESSOR_MAP",
-    {"dummy_postprocessor": DummyPostprocessor},
+    "fotura.processors.processor_orchestrator.AFTER_EACH_PROCESSOR_MAP",
+    {"dummy_after_each_processor": DummyAfterEachProcessor},
 )
-def test_calls_configure_on_postprocessors(input_dir, target_root):
+def test_calls_configure_on_after_each_processors(input_dir, target_root):
     importer = Importer(
         input_path=input_dir,
         target_root=target_root,
-        enabled_preprocessors=[],
-        enabled_postprocessors=[("dummy_postprocessor", {})],
+        enabled_before_each_processors=[],
+        enabled_after_each_processors=[("dummy_after_each_processor", {})],
     )
 
-    assert importer.processor_orchestrator.postprocessors[0].configure.called
+    assert importer.processor_orchestrator.after_each_processors[0].configure.called
 
 
-@patch("fotura.processors.processor_orchestrator.PREPROCESSOR_MAP", {})
-@patch("fotura.processors.processor_orchestrator.POSTPROCESSOR_MAP", {})
-def test_exits_when_unknown_preprocessor_is_specified(input_dir, target_root):
+@patch("fotura.processors.processor_orchestrator.BEFORE_EACH_PROCESSOR_MAP", {})
+@patch("fotura.processors.processor_orchestrator.AFTER_EACH_PROCESSOR_MAP", {})
+def test_exits_when_unknown_before_each_processor_is_specified(input_dir, target_root):
     with pytest.raises(SystemExit):
         Importer(
             input_path=input_dir,
             target_root=target_root,
-            enabled_preprocessors=[("foobar", {})],
+            enabled_before_each_processors=[("foobar", {})],
         )
 
 
-@patch("fotura.processors.processor_orchestrator.PREPROCESSOR_MAP", {})
-@patch("fotura.processors.processor_orchestrator.POSTPROCESSOR_MAP", {})
-def test_exits_when_unknown_postprocessor_is_specified(input_dir, target_root):
+@patch("fotura.processors.processor_orchestrator.BEFORE_EACH_PROCESSOR_MAP", {})
+@patch("fotura.processors.processor_orchestrator.AFTER_EACH_PROCESSOR_MAP", {})
+def test_exits_when_unknown_after_each_processor_is_specified(input_dir, target_root):
     with pytest.raises(SystemExit):
         Importer(
             input_path=input_dir,
             target_root=target_root,
-            enabled_postprocessors=[("foobar", {})],
+            enabled_after_each_processors=[("foobar", {})],
         )
 
 
@@ -126,26 +134,26 @@ def test_exits_when_unknown_postprocessor_is_specified(input_dir, target_root):
 
 
 @patch(
-    "fotura.processors.processor_orchestrator.PREPROCESSOR_MAP",
-    {"foo": DummyPreprocessor, "bar": DummyPreprocessor},
+    "fotura.processors.processor_orchestrator.BEFORE_EACH_PROCESSOR_MAP",
+    {"foo": DummyBeforeEachProcessor, "bar": DummyBeforeEachProcessor},
 )
-def test_last_preprocessor_fact_takes_precedence(input_dir, target_root):
+def test_last_before_each_processor_fact_takes_precedence(input_dir, target_root):
     image_path = input_dir / "img.jpg"
     image_path.write_bytes(b"foo")
 
     importer = Importer(
         input_path=input_dir,
         target_root=target_root,
-        enabled_preprocessors=[
+        enabled_before_each_processors=[
             ("foo", {}),
             ("bar", {}),
         ],
     )
 
-    importer.processor_orchestrator.preprocessors[0].process.return_value = {
+    importer.processor_orchestrator.before_each_processors[0].process.return_value = {
         FactType.TAKEN_TIMESTAMP: datetime(2021, 1, 2, 3, 4, 5)
     }
-    importer.processor_orchestrator.preprocessors[1].process.return_value = {
+    importer.processor_orchestrator.before_each_processors[1].process.return_value = {
         FactType.TAKEN_TIMESTAMP: datetime(2020, 1, 2, 3, 4, 5)
     }
 
@@ -158,8 +166,8 @@ def test_last_preprocessor_fact_takes_precedence(input_dir, target_root):
 
 
 @patch(
-    "fotura.processors.processor_orchestrator.PREPROCESSOR_MAP",
-    {"processor": DummyPreprocessor},
+    "fotura.processors.processor_orchestrator.BEFORE_EACH_PROCESSOR_MAP",
+    {"processor": DummyBeforeEachProcessor},
 )
 def test_process_photos_ignores_exif_data_when_processor_sourced_timestamp_is_obtained():
     with temporary_images(["IMG_20100102_030405.jpg"]) as (
@@ -170,12 +178,14 @@ def test_process_photos_ignores_exif_data_when_processor_sourced_timestamp_is_ob
         importer = Importer(
             input_path=input_path,
             target_root=target_root,
-            enabled_preprocessors=[
+            enabled_before_each_processors=[
                 ("processor", {}),
             ],
         )
 
-        importer.processor_orchestrator.preprocessors[0].process.return_value = {
+        importer.processor_orchestrator.before_each_processors[
+            0
+        ].process.return_value = {
             FactType.TAKEN_TIMESTAMP: datetime(2010, 1, 2, 3, 4, 5)
         }
 
@@ -242,7 +252,7 @@ def test_process_photos_moves_files():
             input_path=input_path,
             target_root=target_root,
             dry_run=False,
-            enabled_preprocessors=[("filename_timestamp_extract", {})],
+            enabled_before_each_processors=[("filename_timestamp_extract", {})],
         )
 
         importer.process_photos()
@@ -264,7 +274,7 @@ def test_process_photos_increments_moved_tally_when_photo_moved():
             input_path=input_path,
             target_root=target_root,
             dry_run=False,
-            enabled_preprocessors=[("filename_timestamp_extract", {})],
+            enabled_before_each_processors=[("filename_timestamp_extract", {})],
         )
 
         importer.process_photos()
@@ -322,10 +332,10 @@ def test_process_photos_logs_file_moves_to_report(dry_run, caplog):
 
 
 @patch(
-    "fotura.processors.processor_orchestrator.POSTPROCESSOR_MAP",
-    {"dummy_postprocessor": DummyPostprocessor},
+    "fotura.processors.processor_orchestrator.AFTER_EACH_PROCESSOR_MAP",
+    {"dummy_after_each_processor": DummyAfterEachProcessor},
 )
-def test_process_executes_postprocessors_for_files_that_can_be_handled():
+def test_process_executes_after_each_processors_for_files_that_can_be_handled():
     with temporary_images(["Canon_40D.jpg"]) as (
         input_path,
         target_root,
@@ -335,18 +345,18 @@ def test_process_executes_postprocessors_for_files_that_can_be_handled():
             input_path=input_path,
             target_root=target_root,
             dry_run=False,
-            enabled_postprocessors=[("dummy_postprocessor", {})],
+            enabled_after_each_processors=[("dummy_after_each_processor", {})],
         )
         importer.process_photos()
 
-        importer.processor_orchestrator.postprocessors[0].process.assert_called()
+        importer.processor_orchestrator.after_each_processors[0].process.assert_called()
 
 
 @patch(
-    "fotura.processors.processor_orchestrator.POSTPROCESSOR_MAP",
-    {"dummy_postprocessor": DummyPostprocessor},
+    "fotura.processors.processor_orchestrator.AFTER_EACH_PROCESSOR_MAP",
+    {"dummy_after_each_processor": DummyAfterEachProcessor},
 )
-def test_process_skips_postprocessor_execution_for_files_that_cannot_be_handled():
+def test_process_skips_after_each_processor_execution_for_files_that_cannot_be_handled():
     with temporary_images(["Canon_40D.jpg"]) as (
         input_path,
         target_root,
@@ -356,15 +366,17 @@ def test_process_skips_postprocessor_execution_for_files_that_cannot_be_handled(
             input_path=input_path,
             target_root=target_root,
             dry_run=False,
-            enabled_postprocessors=[("dummy_postprocessor", {})],
+            enabled_after_each_processors=[("dummy_after_each_processor", {})],
         )
 
-        importer.processor_orchestrator.postprocessors[
+        importer.processor_orchestrator.after_each_processors[
             0
         ].can_handle.return_value = False
         importer.process_photos()
 
-        importer.processor_orchestrator.postprocessors[0].process.assert_not_called()
+        importer.processor_orchestrator.after_each_processors[
+            0
+        ].process.assert_not_called()
 
 
 def test_process_photos_skips_when_a_timestamp_cannot_be_obtained(caplog):
@@ -376,7 +388,7 @@ def test_process_photos_skips_when_a_timestamp_cannot_be_obtained(caplog):
         importer = Importer(
             input_path=input_path,
             target_root=target_root,
-            enabled_preprocessors=[("filename_timestamp_extract", {})],
+            enabled_before_each_processors=[("filename_timestamp_extract", {})],
         )
 
         with caplog.at_level(logging.INFO):
@@ -401,7 +413,7 @@ def test_process_photos_increments_skipped_tally_when_photo_skipped():
         importer = Importer(
             input_path=input_path,
             target_root=target_root,
-            enabled_preprocessors=[("filename_timestamp_extract", {})],
+            enabled_before_each_processors=[("filename_timestamp_extract", {})],
         )
 
         importer.process_photos()
@@ -659,14 +671,14 @@ def test_process_photos_makes_read_only_files_writable(stub_user_dirs):
 
 
 @patch(
-    "fotura.processors.processor_orchestrator.PREPROCESSOR_MAP",
-    {"dummy_preprocessor": DummyPreprocessor},
+    "fotura.processors.processor_orchestrator.BEFORE_EACH_PROCESSOR_MAP",
+    {"dummy_before_each_processor": DummyBeforeEachProcessor},
 )
 @patch(
-    "fotura.processors.processor_orchestrator.POSTPROCESSOR_MAP",
+    "fotura.processors.processor_orchestrator.AFTER_EACH_PROCESSOR_MAP",
     {
-        "dummy_postprocessor": DummyPostprocessor,
-        "complex_dummy_postprocessor": ComplexDummyPostprocessor,
+        "dummy_after_each_processor": DummyAfterEachProcessor,
+        "complex_dummy_after_each_processor": ComplexDummyAfterEachProcessor,
     },
 )
 def test_processor_facts_are_accumulated_through_processor_calls():
@@ -679,37 +691,49 @@ def test_processor_facts_are_accumulated_through_processor_calls():
             input_path=input_path,
             target_root=target_root,
             dry_run=False,
-            enabled_preprocessors=[("dummy_preprocessor", {})],
-            enabled_postprocessors=[
-                ("dummy_postprocessor", {}),
-                ("complex_dummy_postprocessor", {"max_size": 100}),
+            enabled_before_each_processors=[("dummy_before_each_processor", {})],
+            enabled_after_each_processors=[
+                ("dummy_after_each_processor", {}),
+                ("complex_dummy_after_each_processor", {"max_size": 100}),
             ],
         )
 
-        importer.processor_orchestrator.preprocessors[0].process.return_value = {
-            "preprocessor_fact": "preprocessor_value",
+        importer.processor_orchestrator.before_each_processors[
+            0
+        ].process.return_value = {
+            "before_each_processor_fact": "before_each_processor_value",
         }
-        importer.processor_orchestrator.postprocessors[0].process.return_value = {
-            "postprocessor_fact": "postprocessor_value",
+        importer.processor_orchestrator.after_each_processors[
+            0
+        ].process.return_value = {
+            "after_each_processor_fact": "after_each_processor_value",
         }
-        importer.processor_orchestrator.postprocessors[1].process.return_value = {
-            "complex_postprocessor_fact": "complex_postprocessor_value",
+        importer.processor_orchestrator.after_each_processors[
+            1
+        ].process.return_value = {
+            "complex_after_each_processor_fact": "complex_after_each_processor_value",
         }
 
         importer.process_photos()
 
-        importer.processor_orchestrator.preprocessors[0].process.assert_called_once()
-        importer.processor_orchestrator.postprocessors[0].process.assert_called_once()
-        importer.processor_orchestrator.postprocessors[1].process.assert_called_once()
+        importer.processor_orchestrator.before_each_processors[
+            0
+        ].process.assert_called_once()
+        importer.processor_orchestrator.after_each_processors[
+            0
+        ].process.assert_called_once()
+        importer.processor_orchestrator.after_each_processors[
+            1
+        ].process.assert_called_once()
 
         # Verify final state contains all three accumulated facts
-        photo = importer.processor_orchestrator.postprocessors[1].process.call_args[0][
-            0
-        ]
+        photo = importer.processor_orchestrator.after_each_processors[
+            1
+        ].process.call_args[0][0]
 
         expected_facts = {
-            "preprocessor_fact": "preprocessor_value",
-            "postprocessor_fact": "postprocessor_value",
-            "complex_postprocessor_fact": "complex_postprocessor_value",
+            "before_each_processor_fact": "before_each_processor_value",
+            "after_each_processor_fact": "after_each_processor_value",
+            "complex_after_each_processor_fact": "complex_after_each_processor_value",
         }
         assert photo.facts == expected_facts

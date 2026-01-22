@@ -15,7 +15,7 @@
 ### Architecture
 
 - Design for extensibility so that functionality can be plugged in without requiring significant changes to core
-  classes (e.g. see the `conflict_resolution`, `preprocessors` and `postprocessors` modules).
+  classes (e.g. see the `conflict_resolution`, `before_each_processors` and `after_each_processors` modules).
 
 ### Processing
 

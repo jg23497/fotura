@@ -4,7 +4,11 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from fotura.domain.photo import Photo
 from fotura.processors.context import Context
-from fotura.processors.registry import POSTPROCESSOR_MAP, PREPROCESSOR_MAP
+from fotura.processors.registry import (
+    AFTER_ALL_PROCESSOR_MAP,
+    AFTER_EACH_PROCESSOR_MAP,
+    BEFORE_EACH_PROCESSOR_MAP,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -13,51 +17,80 @@ class ProcessorOrchestrator:
     def __init__(
         self,
         processor_context: Context,
-        enabled_preprocessors: Optional[List[Tuple[str, Dict[str, Any]]]] = None,
-        enabled_postprocessors: Optional[List[Tuple[str, Dict[str, Any]]]] = None,
+        enabled_before_each_processors: Optional[
+            List[Tuple[str, Dict[str, Any]]]
+        ] = None,
+        enabled_after_each_processors: Optional[
+            List[Tuple[str, Dict[str, Any]]]
+        ] = None,
+        enabled_after_all_processors: Optional[List[Tuple[str, Dict[str, Any]]]] = None,
     ):
         self.processor_context = processor_context
-        self.preprocessors = []
-        self.postprocessors = []
+        self.before_each_processors = []
+        self.after_each_processors = []
+        self.after_all_processors = []
 
-        self.configure_processors(enabled_preprocessors, enabled_postprocessors)
+        self.configure_processors(
+            enabled_before_each_processors,
+            enabled_after_each_processors,
+            enabled_after_all_processors,
+        )
 
     def configure_processors(
         self,
-        enabled_preprocessors: Optional[List[Tuple[str, Dict[str, Any]]]] = None,
-        enabled_postprocessors: Optional[List[Tuple[str, Dict[str, Any]]]] = None,
+        enabled_before_each_processors: Optional[
+            List[Tuple[str, Dict[str, Any]]]
+        ] = None,
+        enabled_after_each_processors: Optional[
+            List[Tuple[str, Dict[str, Any]]]
+        ] = None,
+        enabled_after_all_processors: Optional[List[Tuple[str, Dict[str, Any]]]] = None,
     ) -> None:
-        if enabled_preprocessors:
+        if enabled_before_each_processors:
             self.__configure_processors_list(
-                PREPROCESSOR_MAP, enabled_preprocessors, self.preprocessors
+                BEFORE_EACH_PROCESSOR_MAP,
+                enabled_before_each_processors,
+                self.before_each_processors,
             )
-        if enabled_postprocessors:
+        if enabled_after_each_processors:
             self.__configure_processors_list(
-                POSTPROCESSOR_MAP, enabled_postprocessors, self.postprocessors
+                AFTER_EACH_PROCESSOR_MAP,
+                enabled_after_each_processors,
+                self.after_each_processors,
+            )
+        if enabled_after_all_processors:
+            self.__configure_processors_list(
+                AFTER_ALL_PROCESSOR_MAP,
+                enabled_after_all_processors,
+                self.after_all_processors,
             )
 
-    def run_preprocessors(self, photo: Photo) -> None:
-        for preprocessor in self.preprocessors:
-            if preprocessor.can_handle(photo):
-                result = preprocessor.process(photo)
+    def run_before_each_processors(self, photo: Photo) -> None:
+        for processor in self.before_each_processors:
+            if processor.can_handle(photo):
+                result = processor.process(photo)
                 if result:
                     photo.facts.update(result)
 
-    def run_postprocessors(
-        self,
-        photo: Photo,
-    ):
-        for postprocessor in self.postprocessors:
-            if not postprocessor.can_handle(photo):
+    def run_after_each_processors(self, photo: Photo) -> None:
+        for processor in self.after_each_processors:
+            if not processor.can_handle(photo):
                 photo.log(
                     logging.WARNING,
                     "%s cannot handle file",
-                    postprocessor.__class__.__name__,
+                    processor.__class__.__name__,
                 )
                 continue
-            result = postprocessor.process(photo)
+            result = processor.process(photo)
             if result:
                 photo.facts.update(result)
+
+    def run_after_all_processors(self, photos: List[Photo]) -> None:
+        for processor in self.after_all_processors:
+            result = processor.process(photos)
+            if result:
+                for photo, facts in result.items():
+                    photo.facts.update(facts)
 
     def __configure_processors_list(
         self, processor_map, enabled_processors, processor_instances

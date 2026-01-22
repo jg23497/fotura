@@ -12,7 +12,7 @@
 - **Supports multiple timestamp extraction methods**:
   - EXIF metadata extraction
   - WhatsApp and Android filename parsing
-- **Google Photos Uploads**: Using the extensible processors framework (actions that run before or after an import) to upload your photos via the Google Photos API.
+- **Google Photos Uploads**: Using the extensible processors framework to upload your photos via the Google Photos API.
 - **Dry-run mode**: Fully preview changes without moving or modifying your files.
 - **Conflict resolution**: Automatically handle filename conflicts using configurable strategies.
 
@@ -58,8 +58,9 @@ fotura import [OPTIONS] DIRECTORY TARGET_ROOT
 **Options:**
 
 - `--dry-run`: Show what would be done without making changes
-- `--preprocessors`: List of preprocessors to enable
-- `--postprocessors`: List of postprocessors to enable
+- `--before-each`: List of before-each processors to enable (run for each photo before moving)
+- `--after-each`: List of after-each processors to enable (run for each photo after moving)
+- `--after-all`: List of after-all processors to enable (run once after all photos are processed)
 - `--open-report`: Optionally open the report once processing completes
 - `--conflict-strategy`: How to resolve conflicts in the target directory
 - `--target-path-format`: Target path format
@@ -91,18 +92,18 @@ fotura import ~/Pictures/unsorted ~/Pictures/organized --dry-run --open-report
 
 #### Processors
 
-You can specify multiple pre and post-processors like: `--preprocessors "foo" --preprocessors "bar"` to use the `foo` and `bar` processors:
+You can specify multiple before-each and after-each processors like: `--before-each "foo" --before-each "bar"` to use the `foo` and `bar` processors:
 
-**Enable FilenameTimestampExtract pre-processor:**
+**Enable FilenameTimestampExtract before-each processor:**
 
 ```bash
-fotura import --preprocessors "filename_timestamp_extract" ~/Pictures/unsorted ~/Pictures/organized
+fotura import --before-each "filename_timestamp_extract" ~/Pictures/unsorted ~/Pictures/organized
 ```
 
-**Enable the Google Photos Upload post-processor:**
+**Enable the Google Photos Upload after-each processor:**
 
 ```bash
-fotura import --preprocessors "filename_timestamp_extract" --postprocessors "google_photos_upload" ~/Pictures/unsorted ~/Pictures/organized
+fotura import --before-each "filename_timestamp_extract" --after-each "google_photos_upload" ~/Pictures/unsorted ~/Pictures/organized
 ```
 
 **Override the default path format:**
@@ -157,13 +158,19 @@ Example:
 fotura import ~/Pictures/unsorted ~/Pictures/organized --dry-run --open-report --conflict-strategy 'keep_both'
 ```
 
-## Pre-processors
+## Before-each Processors
 
-- **FilenameTimestampExtract Preprocessor**: Extract image timestamp data from WhatsApp or Android photos and updates EXIF metadata (`--preprocessors "filename_timestamp_extract"`)
+- **FilenameTimestampExtract**: Extract image timestamp data from WhatsApp or Android photos and updates EXIF metadata (`--before-each "filename_timestamp_extract"`)
 
-## Post-processors
+## After-each Processors
 
-- **[Google Photos Upload Processor](./docs/postprocessors/google_photos_upload_postprocessor/google_photos_upload_postprocessor.md)**: Uploads photos to the Google Photos API (`--postprocessors "google_photos_upload"`).
+- **[Google Photos Upload Processor](./docs/after_each_processors/google_photos_upload_after_each_processor/google_photos_upload_after_each_processor.md)**: Uploads photos to the Google Photos API (`--after-each "google_photos_upload"`).
+
+## After-all Processors
+
+After-all processors run once after all photos have been processed. They receive the complete list of processed photos and can perform batch operations.
+
+_No after-all processors are currently available._
 
 ## Future features
 

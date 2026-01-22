@@ -5,7 +5,7 @@ from fotura.domain.photo import Photo
 from fotura.processors.fact_type import FactType
 
 
-class Preprocessor(ABC):
+class BeforeEachProcessor(ABC):
     @abstractmethod
     def can_handle(self, photo: Photo) -> bool:
         pass

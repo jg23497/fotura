@@ -10,8 +10,8 @@ from fotura.importing.synchronized_counter import SynchronizedCounter
 from fotura.io.photos.exif_data import ExifData
 from fotura.processors.context import Context
 from fotura.processors.fact_type import FactType
-from fotura.processors.preprocessors.filename_timestamp_extract_preprocessor import (
-    FilenameTimestampExtractPreprocessor,
+from fotura.processors.before_each_processors.filename_timestamp_extract_before_each_processor import (
+    FilenameTimestampExtractBeforeEachProcessor,
 )
 
 # Fixtures
@@ -27,7 +27,7 @@ def processor(tally):
     context = Context(
         user_config_path=Path(tempfile.mkdtemp()), tally=tally, dry_run=False
     )
-    return FilenameTimestampExtractPreprocessor(context)
+    return FilenameTimestampExtractBeforeEachProcessor(context)
 
 
 @pytest.fixture
@@ -35,7 +35,7 @@ def processor_dry_run(tally):
     context = Context(
         user_config_path=Path(tempfile.mkdtemp()), tally=tally, dry_run=True
     )
-    return FilenameTimestampExtractPreprocessor(context)
+    return FilenameTimestampExtractBeforeEachProcessor(context)
 
 
 # can_handle
