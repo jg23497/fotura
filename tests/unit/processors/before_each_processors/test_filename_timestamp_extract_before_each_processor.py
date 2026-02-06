@@ -6,13 +6,13 @@ from unittest.mock import ANY, patch
 import pytest
 
 from fotura.domain.photo import Photo
-from fotura.importing.synchronized_counter import SynchronizedCounter
 from fotura.io.photos.exif_data import ExifData
-from fotura.processors.context import Context
-from fotura.processors.fact_type import FactType
 from fotura.processors.before_each_processors.filename_timestamp_extract_before_each_processor import (
     FilenameTimestampExtractBeforeEachProcessor,
 )
+from fotura.processors.context import Context
+from fotura.processors.fact_type import FactType
+from fotura.utils.synchronized_counter import SynchronizedCounter
 
 # Fixtures
 

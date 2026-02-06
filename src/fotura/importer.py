@@ -8,12 +8,12 @@ from platformdirs import user_config_dir, user_data_dir
 
 from fotura.importing.conflict_resolution import registry
 from fotura.importing.media_finder import MediaFinder
-from fotura.importing.synchronized_counter import SynchronizedCounter
 from fotura.io.files import Files
 from fotura.io.path_resolver import PathResolver
 from fotura.processors.context import Context
 from fotura.processors.processor_orchestrator import ProcessorOrchestrator
 from fotura.reporting.logging_config import configure_report
+from fotura.utils.synchronized_counter import SynchronizedCounter
 
 logger = logging.getLogger(__name__)
 

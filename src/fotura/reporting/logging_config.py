@@ -6,7 +6,7 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 from rich.console import Console
 from rich.logging import RichHandler
 
-from fotura.importing.synchronized_counter import SynchronizedCounter
+from fotura.utils.synchronized_counter import SynchronizedCounter
 
 
 class PhotoPrefixFilter(logging.Filter):

@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from fotura.importing.synchronized_counter import SynchronizedCounter
+from fotura.utils.synchronized_counter import SynchronizedCounter
 
 
 class Context:

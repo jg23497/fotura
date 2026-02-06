@@ -12,12 +12,12 @@ from google.auth.exceptions import RefreshError
 from google.oauth2.credentials import Credentials
 
 from fotura.domain.photo import Photo
-from fotura.importing.synchronized_counter import SynchronizedCounter
-from fotura.processors.context import Context
 from fotura.processors.after_each_processors.google_photos_upload_after_each_processor import (
     GooglePhotosUploadAfterEachProcessor,
 )
+from fotura.processors.context import Context
 from fotura.processors.processor_setup_error import ProcessorSetupError
+from fotura.utils.synchronized_counter import SynchronizedCounter
 from tests.helpers.helper import get_log_entries
 
 # Test helper methods

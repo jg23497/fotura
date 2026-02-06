@@ -1,6 +1,6 @@
 import pytest
 
-from fotura.importing.synchronized_counter import SynchronizedCounter
+from fotura.utils.synchronized_counter import SynchronizedCounter
 
 # Fixtures
 
