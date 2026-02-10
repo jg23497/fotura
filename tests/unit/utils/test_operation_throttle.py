@@ -1,9 +1,27 @@
 from unittest.mock import patch
 
+import pytest
+
 from fotura.utils.operation_throttle import OperationThrottle
 
 
 class TestOperationThrottle:
+    def test_raises_value_error_when_max_operations_is_zero(self):
+        with pytest.raises(ValueError, match="positive integer"):
+            OperationThrottle(max_operations=0, window_seconds=1.0)
+
+    def test_raises_value_error_when_max_operations_is_negative(self):
+        with pytest.raises(ValueError, match="positive integer"):
+            OperationThrottle(max_operations=-1, window_seconds=1.0)
+
+    def test_raises_value_error_when_window_seconds_is_zero(self):
+        with pytest.raises(ValueError, match="positive float"):
+            OperationThrottle(max_operations=1, window_seconds=0.0)
+
+    def test_raises_value_error_when_window_seconds_is_negative(self):
+        with pytest.raises(ValueError, match="positive float"):
+            OperationThrottle(max_operations=1, window_seconds=-1.0)
+
     def test_allows_operations_within_limit(self):
         result = 0
 

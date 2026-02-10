@@ -18,6 +18,7 @@ class OperationThrottle:
         self.window_seconds = window_seconds
         self.__timestamps: Deque[float] = deque()
         self.__lock = threading.Lock()
+        self.__validate()
 
     def __enter__(self):
         self.acquire()
@@ -56,3 +57,10 @@ class OperationThrottle:
 
     def __append_current_time(self) -> None:
         self.__timestamps.append(time.monotonic())
+
+    def __validate(self):
+        if self.max_operations <= 0:
+            raise ValueError("max_operations must be a positive integer")
+
+        if self.window_seconds <= 0.0:
+            raise ValueError("window_seconds must be a positive float")
