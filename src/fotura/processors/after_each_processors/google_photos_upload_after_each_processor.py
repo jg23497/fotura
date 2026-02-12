@@ -1,17 +1,11 @@
 import logging
-import mimetypes
-import os
-from pathlib import Path
 from typing import Any, Dict, Optional
 
-import requests
-from google.auth.exceptions import RefreshError
-from google.auth.transport.requests import Request
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
-from googleapiclient.discovery import build
+from tenacity import Retrying, before_sleep_log, stop_after_attempt, wait_exponential
 
 from fotura.domain.photo import Photo
+from fotura.integrations.google_photos import GooglePhotosClient
+from fotura.integrations.google_photos.client import SUPPORTED_EXTENSIONS, TALLY_KEY
 from fotura.processors.after_each_processors.after_each_processor import (
     AfterEachProcessor,
 )
@@ -21,155 +15,47 @@ from fotura.processors.processor_setup_error import ProcessorSetupError
 
 logger = logging.getLogger(__name__)
 
-SCOPES = ["https://www.googleapis.com/auth/photoslibrary.appendonly"]
-TALLY_KEY = "uploaded to google photos"
-
 
 class GooglePhotosUploadAfterEachProcessor(AfterEachProcessor):
     def __init__(self, context: Context) -> None:
         self.context = context
         self.dry_run = context.dry_run
-        self.service = None
+        self.__client = GooglePhotosClient(context.user_config_path)
 
     def configure(self) -> None:
-        credentials = self.__obtain_credentials()
-        self.service = build(
-            "photoslibrary", "v1", credentials=credentials, static_discovery=False
-        )
+        self.__client.configure()
 
     def can_handle(self, photo: Photo) -> bool:
-        return photo.path.suffix.lower() in {".jpg", ".jpeg", ".png"}
+        return photo.path.suffix.lower() in SUPPORTED_EXTENSIONS
 
     def process(self, photo: Photo) -> Optional[Dict[FactType, Any]]:
         if self.dry_run:
             photo.log(logging.INFO, "Uploaded to Google Photos")
             self.context.tally.increment(TALLY_KEY)
-            return
-        try:
-            if not self.service:
-                raise ProcessorSetupError(
-                    "Google Photos service not initialized. Skipping upload."
-                )
+            return None
 
-            image_path = photo.path
-            upload_token = self.__upload_bytes(str(image_path))
-            response = self.__create_media_item(upload_token, image_path.name)
+        if not self.__client.service:
+            raise ProcessorSetupError(
+                "Google Photos service not initialized. Skipping upload."
+            )
+
+        try:
+            for attempt in Retrying(
+                stop=stop_after_attempt(3),
+                wait=wait_exponential(multiplier=1, min=1, max=4),
+                before_sleep=before_sleep_log(logger, logging.WARNING),
+                reraise=True,
+            ):
+                with attempt:
+                    upload_token = self.__client.upload_bytes(str(photo.path))
+
+            response = self.__client.create_media_item(upload_token, photo.path.name)
             library_url = response["newMediaItemResults"][0]["mediaItem"]["productUrl"]
+
             photo.log(logging.INFO, "Uploaded to Google Photos: %s", library_url)
             self.context.tally.increment(TALLY_KEY)
         except Exception:
             photo.log(logging.ERROR, "Failed to upload to Google Photos", exc_info=True)
             raise
 
-    def __get_credentials_directory_path(self) -> Path:
-        path = self.context.user_config_path / "integrations" / "google_photos"
-        path.mkdir(parents=True, exist_ok=True)
-        return path
-
-    def __get_credentials_file_path(self) -> Path:
-        path = self.__get_credentials_directory_path() / "client_secret.json"
-        return path
-
-    def __get_token_file_path(self) -> Path:
-        path = self.__get_credentials_directory_path() / "token.json"
-        return path
-
-    def __upload_bytes(self, file_path: str) -> Optional[str]:
-        headers = self.__get_file_upload_headers(file_path)
-        with open(file_path, "rb") as f:
-            data = f.read()
-        response = requests.post(
-            "https://photoslibrary.googleapis.com/v1/uploads",
-            headers=headers,
-            data=data,
-        )
-        if response.status_code == 200:
-            return response.text
-        raise RuntimeError(
-            f"Upload request to Photos Library API failed: {response.status_code} {response.text}"
-        )
-
-    def __get_file_upload_headers(self, file_path: str):
-        credentials = self.service._http.credentials
-        mime_type, _ = mimetypes.guess_type(file_path)
-        return {
-            "Authorization": f"Bearer {credentials.token}",
-            "Content-type": "application/octet-stream",
-            "X-Goog-Upload-Content-Type": mime_type,
-            "X-Goog-Upload-Protocol": "raw",
-        }
-
-    def __create_media_item(self, upload_token: str, filename: str) -> dict[str, Any]:
-        body = {
-            "newMediaItems": [
-                {
-                    "simpleMediaItem": {
-                        "fileName": filename,
-                        "uploadToken": upload_token,
-                    },
-                }
-            ]
-        }
-        return self.service.mediaItems().batchCreate(body=body).execute()
-
-    def __load_cached_credentials(self) -> Optional[Credentials]:
-        token_file_path = self.__get_token_file_path()
-        if not os.path.exists(token_file_path):
-            return None
-        try:
-            return Credentials.from_authorized_user_file(token_file_path, SCOPES)
-        except (ValueError, OSError):
-            return None
-
-    def __save_credentials(self, credentials: Credentials) -> None:
-        with open(self.__get_token_file_path(), "w") as token:
-            token.write(credentials.to_json())
-
-    def __initiate_oauth_flow(self) -> Credentials:
-        credentials_file_path = self.__get_credentials_file_path()
-        try:
-            flow = InstalledAppFlow.from_client_secrets_file(
-                credentials_file_path, SCOPES
-            )
-            return flow.run_local_server(port=0)
-        except FileNotFoundError as e:
-            raise ProcessorSetupError(
-                f"Google credentials file not found at {credentials_file_path}.", e
-            )
-
-    def __refresh_credentials_or_initiate_oauth(
-        self, credentials: Credentials
-    ) -> Optional[Credentials]:
-        if credentials and credentials.expired and credentials.refresh_token:
-            try:
-                credentials.refresh(Request())
-                return credentials
-            except RefreshError:
-                # The refresh token has expired
-                pass
-        return self.__initiate_oauth_flow()
-
-    def __obtain_credentials(self) -> Optional[Credentials]:
-        """
-        Obtain and manage Google OAuth credentials for the Google Photos API.
-
-        This method implements a complete OAuth 2.0 credential lifecycle:
-        1. First attempts to load cached credentials from the token file
-        2. If cached credentials exist but are expired, attempts to refresh them
-        3. If no valid credentials exist or the refresh fails, initiates a new OAuth flow
-        4. Saves the credentials for future use
-
-        Returns:
-            Credentials: Valid Google OAuth credentials for Photos API access
-
-        Raises:
-            ProcessorSetupError: If the credentials file is not found during
-                               OAuth flow initiation
-        """
-        credentials = self.__load_cached_credentials()
-
-        if not credentials or not credentials.valid:
-            credentials = self.__refresh_credentials_or_initiate_oauth(credentials)
-            self.__save_credentials(credentials)
-
-        return credentials
+        return None

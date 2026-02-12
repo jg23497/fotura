@@ -83,7 +83,7 @@ def mock_installed_app_flow(flow):
 
 @contextlib.contextmanager
 def mock_successful_media_item_creation(processor):
-    with patch.object(processor.service, "mediaItems") as mock_media_items:
+    with patch.object(get_client_service(processor), "mediaItems") as mock_media_items:
         mock_batch_create = Mock()
         mock_batch_create.return_value.execute.return_value = {
             "newMediaItemResults": [
@@ -117,6 +117,10 @@ def mock_failed_upload_response():
     )
 
 
+def get_client_service(processor):
+    return processor._GooglePhotosUploadAfterEachProcessor__client.service
+
+
 # Fixtures
 
 
@@ -127,9 +131,7 @@ def tally():
 
 @pytest.fixture(autouse=True)
 def mock_photoslibrary_service():
-    with patch(
-        "fotura.processors.after_each_processors.google_photos_upload_after_each_processor.build"
-    ) as mock_build:
+    with patch("fotura.integrations.google_photos.client.build") as mock_build:
         mock_service = MagicMock()
         mock_service._http = MagicMock(
             credentials=MagicMock(token="ya29.default-token")
@@ -224,7 +226,9 @@ def test_uses_oauth_flow_and_caches_credentials_if_no_cached_credentials_exist(
     with mock_installed_app_flow(flow):
         processor.configure()
 
-        assert processor.service is not None, "Processor service should be initialized"
+        assert get_client_service(processor) is not None, (
+            "Processor service should be initialized"
+        )
         credentials = read_token()
         assert "ya29.valid-token" in credentials.token
 
@@ -250,7 +254,7 @@ def test_reuses_valid_cached_token(secrets_dir, cached_credentials_valid, proces
 
     processor.configure()
 
-    service = processor.service
+    service = get_client_service(processor)
     assert service is not None
     assert hasattr(service, "mediaItems")
 
@@ -271,7 +275,7 @@ def test_refreshes_cached_credentials_if_token_has_expired_and_refresh_token_is_
 
     processor.configure()
 
-    service = processor.service
+    service = get_client_service(processor)
     assert service is not None
 
     credentials = read_token()
@@ -300,7 +304,9 @@ def test_uses_oauth_flow_if_token_has_expired_and_no_refresh_token_is_present(
         credentials = read_token()
         assert "ya29.valid-token" in credentials.token
         assert "refresh-token" in credentials.refresh_token
-        assert processor.service is not None, "Processor service should be initialized"
+        assert get_client_service(processor) is not None, (
+            "Processor service should be initialized"
+        )
 
 
 def test_uses_oauth_flow_if_token_has_expired_and_refresh_token_is_present_but_expired(
@@ -328,7 +334,7 @@ def test_uses_oauth_flow_if_token_has_expired_and_refresh_token_is_present_but_e
             credentials = read_token()
             assert "ya29.valid-token" in credentials.token
             assert "refresh-token" in credentials.refresh_token
-            assert processor.service is not None, (
+            assert get_client_service(processor) is not None, (
                 "Processor service should be initialized"
             )
 
@@ -423,8 +429,9 @@ def test_successful_upload_process_logs_uploaded_report_item(
 
         log_entries = get_log_entries(
             caplog,
-            lambda r: r.levelno == logging.INFO
-            and r.getMessage().startswith("Uploaded"),
+            lambda r: (
+                r.levelno == logging.INFO and r.getMessage().startswith("Uploaded")
+            ),
         )
 
         assert len(log_entries) == 1
@@ -454,8 +461,6 @@ def test_process_raises_exception_and_skips_upload_when_image_bytes_upload_fails
 def test_process_raises_exception_and_skips_upload_when_service_not_initialized(
     processor, test_photo
 ):
-    processor.service = None
-
     with pytest.raises(ProcessorSetupError):
         processor.process(test_photo)
 
@@ -466,8 +471,6 @@ def test_process_raises_exception_and_skips_upload_when_service_not_initialized(
 def test_process_logs_failed_upload_report_item_when_service_not_initialized(
     processor, test_photo
 ):
-    processor.service = None
-
     with pytest.raises(ProcessorSetupError):
         processor.process(test_photo)
 
@@ -538,8 +541,8 @@ def test_process_logs_failed_upload_exception_if_exception_occurs(
         raise Exception("API Error")
 
     mock_http.request = mock_request_that_fails
-    assert processor.service is not None
-    processor.service._http = mock_http
+    assert get_client_service(processor) is not None
+    get_client_service(processor)._http = mock_http
 
     mock_successful_upload_response()
 
@@ -563,6 +566,82 @@ def test_process_does_not_increment_tally_when_exception_occurs(
 
     with pytest.raises(RuntimeError):
         processor_with_valid_credentials.process(test_photo)
+
+    tally_snapshot = tally.get_snapshot()
+    assert tally_snapshot.get("uploaded to google photos") is None
+
+
+## Retry behaviour tests
+
+
+@responses.activate
+def test_process_retries_upload_on_transient_failure(
+    processor_with_valid_credentials, test_photo
+):
+    # First two calls fail, third succeeds
+    responses.add(
+        responses.POST,
+        "https://photoslibrary.googleapis.com/v1/uploads",
+        json={"error": {"message": "Upload failed"}},
+        status=500,
+    )
+    responses.add(
+        responses.POST,
+        "https://photoslibrary.googleapis.com/v1/uploads",
+        json={"error": {"message": "Upload failed"}},
+        status=500,
+    )
+    responses.add(
+        responses.POST,
+        "https://photoslibrary.googleapis.com/v1/uploads",
+        body="upload-token-12345",
+        status=200,
+        content_type="text/plain",
+    )
+
+    with mock_successful_media_item_creation(processor_with_valid_credentials):
+        with patch("time.sleep"):  # Avoid actually sleeping
+            processor_with_valid_credentials.process(test_photo)
+
+    assert len(responses.calls) == 3
+
+
+@responses.activate
+def test_process_succeeds_after_retry(
+    processor_with_valid_credentials, test_photo, tally
+):
+    # First call fails, second succeeds
+    responses.add(
+        responses.POST,
+        "https://photoslibrary.googleapis.com/v1/uploads",
+        json={"error": {"message": "Upload failed"}},
+        status=500,
+    )
+    mock_successful_upload_response()
+
+    with mock_successful_media_item_creation(processor_with_valid_credentials):
+        with patch("time.sleep"):  # Avoid actually sleeping
+            processor_with_valid_credentials.process(test_photo)
+
+    tally_snapshot = tally.get_snapshot()
+    assert tally_snapshot.get("uploaded to google photos") == 1
+
+
+@responses.activate
+def test_process_raises_after_max_retries_exhausted(
+    processor_with_valid_credentials, test_photo, tally
+):
+    for _ in range(3):
+        responses.add(
+            responses.POST,
+            "https://photoslibrary.googleapis.com/v1/uploads",
+            json={"error": {"message": "Upload failed"}},
+            status=500,
+        )
+
+    with pytest.raises(RuntimeError):
+        with patch("time.sleep"):  # Avoid actually sleeping
+            processor_with_valid_credentials.process(test_photo)
 
     tally_snapshot = tally.get_snapshot()
     assert tally_snapshot.get("uploaded to google photos") is None
