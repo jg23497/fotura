@@ -12,6 +12,7 @@ from fotura.processors.after_each_processors.after_each_processor import (
 from fotura.processors.context import Context
 from fotura.processors.fact_type import FactType
 from fotura.processors.processor_setup_error import ProcessorSetupError
+from fotura.utils.operation_throttle import OperationThrottle
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +22,9 @@ class GooglePhotosUploadAfterEachProcessor(AfterEachProcessor):
         self.context = context
         self.dry_run = context.dry_run
         self.__client = GooglePhotosClient(context.user_config_path)
+        self.__batch_create_throttle = OperationThrottle(
+            max_operations=50, window_seconds=60
+        )
 
     def configure(self) -> None:
         self.__client.configure()
@@ -49,7 +53,11 @@ class GooglePhotosUploadAfterEachProcessor(AfterEachProcessor):
                 with attempt:
                     upload_token = self.__client.upload_bytes(str(photo.path))
 
-            response = self.__client.create_media_item(upload_token, photo.path.name)
+            with self.__batch_create_throttle:
+                response = self.__client.create_media_item(
+                    upload_token, photo.path.name
+                )
+
             library_url = response["newMediaItemResults"][0]["mediaItem"]["productUrl"]
 
             photo.log(logging.INFO, "Uploaded to Google Photos: %s", library_url)

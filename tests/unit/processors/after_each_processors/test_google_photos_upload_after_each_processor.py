@@ -451,7 +451,8 @@ def test_process_raises_exception_and_skips_upload_when_image_bytes_upload_fails
         with mock_successful_media_item_creation(
             processor_with_valid_credentials
         ) as createMediaItemMock:
-            processor_with_valid_credentials.process(test_photo)
+            with patch("time.sleep"):
+                processor_with_valid_credentials.process(test_photo)
 
             assert len(responses.calls) == 1
             assert createMediaItemMock.call_count == 0
@@ -565,7 +566,8 @@ def test_process_does_not_increment_tally_when_exception_occurs(
     mock_failed_upload_response()
 
     with pytest.raises(RuntimeError):
-        processor_with_valid_credentials.process(test_photo)
+        with patch("time.sleep"):
+            processor_with_valid_credentials.process(test_photo)
 
     tally_snapshot = tally.get_snapshot()
     assert tally_snapshot.get("uploaded to google photos") is None
@@ -645,3 +647,21 @@ def test_process_raises_after_max_retries_exhausted(
 
     tally_snapshot = tally.get_snapshot()
     assert tally_snapshot.get("uploaded to google photos") is None
+
+
+## Throttle behaviour tests
+
+
+@responses.activate
+def test_process_acquires_throttle_before_creating_media_item(
+    processor_with_valid_credentials, test_photo
+):
+    mock_successful_upload_response()
+
+    throttle = processor_with_valid_credentials._GooglePhotosUploadAfterEachProcessor__batch_create_throttle
+
+    with mock_successful_media_item_creation(processor_with_valid_credentials):
+        with patch.object(throttle, "acquire", wraps=throttle.acquire) as mock_acquire:
+            processor_with_valid_credentials.process(test_photo)
+
+            assert mock_acquire.call_count == 1
