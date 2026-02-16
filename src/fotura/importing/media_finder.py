@@ -14,7 +14,7 @@ class MediaFinder:
         self.input_path = input_path
 
     def find(self) -> Iterator[Path]:
-        for file_path in self.input_path.rglob("*"):
+        for file_path in sorted(self.input_path.rglob("*")):
             if not file_path.is_file():
                 continue
 
