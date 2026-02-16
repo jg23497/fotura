@@ -358,6 +358,28 @@ def test_process_raises_error_when_service_not_initialized(processor, test_photo
 
 
 @responses.activate
+def test_process_skips_files_over_the_size_limit(
+    processor_with_valid_credentials, caplog, fs
+):
+    oversized_path = Path("oversized.jpg")
+    fs.create_file(oversized_path, st_size=200 * 1024 * 1024 + 1)
+    oversized_photo = Photo(oversized_path)
+
+    with caplog.at_level(logging.DEBUG):
+        processor_with_valid_credentials.process([oversized_photo])
+
+    assert len(responses.calls) == 0
+
+    debug_logs = get_log_entries(
+        caplog,
+        lambda r: (
+            r.levelno == logging.DEBUG and "Skipping unsupported" in r.getMessage()
+        ),
+    )
+    assert len(debug_logs) == 1
+
+
+@responses.activate
 def test_process_skips_unsupported_file_extensions(
     processor_with_valid_credentials, test_photo, test_photo_unsupported, caplog
 ):

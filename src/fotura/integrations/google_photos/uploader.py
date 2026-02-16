@@ -11,13 +11,27 @@ from tenacity import (
 
 from fotura.domain.photo import Photo
 from fotura.integrations.google_photos.client import (
-    SUPPORTED_EXTENSIONS,
     TALLY_KEY,
     GooglePhotosClient,
 )
 from fotura.processors.context import Context
 from fotura.processors.processor_setup_error import ProcessorSetupError
 from fotura.utils.operation_throttle import OperationThrottle
+
+SUPPORTED_EXTENSIONS = {
+    ".avif",
+    ".bmp",
+    ".gif",
+    ".heic",
+    ".ico",
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".tif",
+    ".tiff",
+    ".webp",
+}
+MAX_FILE_SIZE = 200 * 1024 * 1024  # 200 MB
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +48,12 @@ class GooglePhotosUploader:
         self._client.configure()
 
     def can_support(self, photo: Photo) -> bool:
-        return photo.path.suffix.lower() in SUPPORTED_EXTENSIONS
+        if photo.path.suffix.lower() not in SUPPORTED_EXTENSIONS:
+            return False
+        try:
+            return photo.path.stat().st_size <= MAX_FILE_SIZE
+        except OSError:
+            return False
 
     def upload_bytes(self, photo: Photo) -> str:
         """Upload bytes with exponential backoff retry. Raises on failure."""

@@ -200,14 +200,46 @@ def test_photo_png(fs):
 ## can_handle method
 
 
-@pytest.mark.parametrize("ext", [".jpg", ".jpeg", ".png", ".txt.jpg"])
-def test_handles_supported_extensions(ext, processor):
-    assert processor.can_handle(Photo(Path(f"foo{ext}")))
+@pytest.mark.parametrize(
+    "ext",
+    [
+        ".avif",
+        ".bmp",
+        ".gif",
+        ".heic",
+        ".ico",
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".tif",
+        ".tiff",
+        ".webp",
+        ".txt.jpg",
+    ],
+)
+def test_handles_supported_extensions(ext, processor, fs):
+    path = Path(f"foo{ext}")
+    fs.create_file(path, contents=b"data")
+    assert processor.can_handle(Photo(path))
 
 
 @pytest.mark.parametrize("ext", [None, "", ".txt", ".mp4"])
-def test_rejects_unsupported_extensions(ext, processor):
-    assert not processor.can_handle(Photo(Path(f"foo{ext}")))
+def test_rejects_unsupported_extensions(ext, processor, fs):
+    path = Path(f"foo{ext}")
+    fs.create_file(path, contents=b"data")
+    assert not processor.can_handle(Photo(path))
+
+
+def test_rejects_file_exceeding_max_file_size(processor, fs):
+    path = Path("oversized.jpg")
+    fs.create_file(path, st_size=200 * 1024 * 1024 + 1)
+    assert not processor.can_handle(Photo(path))
+
+
+def test_accepts_file_at_exactly_the_max_file_size(processor, fs):
+    path = Path("exact.jpg")
+    fs.create_file(path, st_size=200 * 1024 * 1024)
+    assert processor.can_handle(Photo(path))
 
 
 ## configure method

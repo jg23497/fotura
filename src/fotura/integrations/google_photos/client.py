@@ -14,7 +14,6 @@ from fotura.processors.processor_setup_error import ProcessorSetupError
 
 SCOPES = ["https://www.googleapis.com/auth/photoslibrary.appendonly"]
 TALLY_KEY = "uploaded to google photos"
-SUPPORTED_EXTENSIONS = {".jpg", ".jpeg", ".png"}
 
 
 class GooglePhotosClient:
