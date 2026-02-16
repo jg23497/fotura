@@ -21,6 +21,7 @@ from tests.helpers.processors import (
     ComplexDummyAfterEachProcessor,
     DummyAfterEachProcessor,
     DummyBeforeEachProcessor,
+    FailingConfigureBeforeEachProcessor,
 )
 
 # Fixtures
@@ -127,6 +128,19 @@ def test_exits_when_unknown_after_each_processor_is_specified(input_dir, target_
             input_path=input_dir,
             target_root=target_root,
             enabled_after_each_processors=[("foobar", {})],
+        )
+
+
+@patch(
+    "fotura.processors.processor_orchestrator.BEFORE_EACH_PROCESSOR_MAP",
+    {"failing": FailingConfigureBeforeEachProcessor},
+)
+def test_exits_when_processor_configure_fails(input_dir, target_root):
+    with pytest.raises(SystemExit):
+        Importer(
+            input_path=input_dir,
+            target_root=target_root,
+            enabled_before_each_processors=[("failing", {})],
         )
 
 

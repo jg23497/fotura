@@ -96,12 +96,18 @@ class ProcessorOrchestrator:
         self, processor_map, enabled_processors, processor_instances
     ) -> None:
         for processor_name, processor_args in enabled_processors:
-            if processor_name in processor_map:
-                instance = processor_map[processor_name](
-                    context=self.processor_context, **processor_args
+            try:
+                if processor_name in processor_map:
+                    instance = processor_map[processor_name](
+                        context=self.processor_context, **processor_args
+                    )
+                    instance.configure()
+                    processor_instances.append(instance)
+                else:
+                    logger.error(f"Unknown processor: {processor_name}")
+                    sys.exit(1)
+            except Exception:
+                logger.error(
+                    f"Failed to configure {processor_name} processor", exc_info=True
                 )
-                instance.configure()
-                processor_instances.append(instance)
-            else:
-                logger.error(f"Unknown processor: {processor_name}")
                 sys.exit(1)

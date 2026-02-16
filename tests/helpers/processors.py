@@ -56,6 +56,14 @@ class ComplexDummyAfterEachProcessor:
         self.should_do_something = should_do_something
 
 
+class FailingConfigureBeforeEachProcessor:
+    def __init__(self, context: Context) -> None:
+        self.context = context
+
+    def configure(self):
+        raise RuntimeError("configuration failed")
+
+
 class DummyAfterAllProcessor:
     def __init__(
         self,
