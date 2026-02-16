@@ -33,6 +33,12 @@ class GooglePhotosClient:
             cache_discovery=False,
         )
 
+    def __ensure_configured(self) -> None:
+        if not self.service:
+            raise ProcessorSetupError(
+                "Google Photos service not initialized. Call configure() first."
+            )
+
     def upload_bytes(self, file_path: str) -> str:
         """
         Upload image bytes to Google Photos.
@@ -40,6 +46,7 @@ class GooglePhotosClient:
         Returns an upload token that can be used with batchCreate.
         Raises RuntimeError if the upload fails.
         """
+        self.__ensure_configured()
         headers = self.__get_file_upload_headers(file_path)
 
         with open(file_path, "rb") as f:
@@ -65,6 +72,7 @@ class GooglePhotosClient:
 
         Returns the API response containing newMediaItemResults.
         """
+        self.__ensure_configured()
         body = {
             "newMediaItems": [
                 {
@@ -77,7 +85,7 @@ class GooglePhotosClient:
         }
         return self.service.mediaItems().batchCreate(body=body).execute()
 
-    def batch_create_media_items(self, items: list[tuple[str, str]]) -> Dict[str, Any]:
+    def create_media_items(self, items: list[tuple[str, str]]) -> Dict[str, Any]:
         """
         Create multiple media items in a single API call.
 
@@ -86,6 +94,7 @@ class GooglePhotosClient:
 
         Returns the API response containing newMediaItemResults.
         """
+        self.__ensure_configured()
         body = {
             "newMediaItems": [
                 {

@@ -1,3 +1,6 @@
+from fotura.processors.after_all_processors.google_photos_upload_after_all_processor import (
+    GooglePhotosUploadAfterAllProcessor,
+)
 from fotura.processors.after_each_processors.google_photos_upload_after_each_processor import (
     GooglePhotosUploadAfterEachProcessor,
 )
@@ -13,4 +16,6 @@ AFTER_EACH_PROCESSOR_MAP = {
     "google_photos_upload": GooglePhotosUploadAfterEachProcessor
 }
 
-AFTER_ALL_PROCESSOR_MAP = {}
+AFTER_ALL_PROCESSOR_MAP = {
+    "google_photos_upload_batch": GooglePhotosUploadAfterAllProcessor
+}

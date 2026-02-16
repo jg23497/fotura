@@ -118,7 +118,7 @@ def mock_failed_upload_response():
 
 
 def get_client_service(processor):
-    return processor._GooglePhotosUploadAfterEachProcessor__client.service
+    return processor._GooglePhotosUploadAfterEachProcessor__uploader._client.service
 
 
 # Fixtures
@@ -658,7 +658,7 @@ def test_process_acquires_throttle_before_creating_media_item(
 ):
     mock_successful_upload_response()
 
-    throttle = processor_with_valid_credentials._GooglePhotosUploadAfterEachProcessor__batch_create_throttle
+    throttle = processor_with_valid_credentials._GooglePhotosUploadAfterEachProcessor__uploader._batch_create_throttle
 
     with mock_successful_media_item_creation(processor_with_valid_credentials):
         with patch.object(throttle, "acquire", wraps=throttle.acquire) as mock_acquire:

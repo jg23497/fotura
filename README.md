@@ -170,7 +170,21 @@ fotura import ~/Pictures/unsorted ~/Pictures/organized --dry-run --open-report -
 
 After-all processors run once after all photos have been processed. They receive the complete list of processed photos and can perform batch operations.
 
-_No after-all processors are currently available._
+- **Google Photos Batch Upload**: Uploads photos to Google Photos using batched API calls (`--after-all "google_photos_upload_batch"`).
+
+  **Parameters:**
+  - `concurrency` (int, default: 2): Number of parallel upload threads (1-5)
+  - `batch_size` (int, default: 10): Photos per batchCreate API call (1-50)
+
+  **Example:**
+  ```bash
+  # With default parameters
+  fotura import --after-all "google_photos_upload_batch" ~/Pictures/unsorted ~/Pictures/organized
+  # With custom parameters
+  fotura import --after-all "google_photos_upload_batch:concurrency=3,batch_size=20" ~/Pictures/unsorted ~/Pictures/organized
+  ```
+
+  This processor uploads image bytes in parallel using a thread pool, then uses the Google Photos `batchCreate` API to create multiple media items in a single call.
 
 ## Future features
 
