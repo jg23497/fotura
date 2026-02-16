@@ -2,19 +2,19 @@
 
 <img src="./docs/images/logo.jpg" width="200px" alt="Fotura logo"/>
 
-**A Python CLI application for importing, organizing and uploading (backing up) your photos.**
+**A Python CLI for importing, organizing, and uploading/backing up your photos.**
 
 [![Python CI](https://github.com/jg23497/fotura/actions/workflows/main.yml/badge.svg?branch=main)](https://github.com/jg23497/fotura/actions/workflows/main.yml)
 
 ## Features
 
-- **Automatic photo organization**: Intelligently imports photos into a hierarchical directory structure based on their taken timestamps (`%Y/%Y-%m` by default, like `2008/2008-05`).
-- **Supports multiple timestamp extraction methods**:
+- **Automatic photo organization**: Imports photos into a hierarchical directory structure based on their capture timestamps (`%Y/%Y-%m` by default, e.g. `2008/2008-05`).
+- **Multiple timestamp extraction methods**:
   - EXIF metadata extraction
   - WhatsApp and Android filename parsing
-- **Google Photos Uploads**: Using the extensible processors framework to upload your photos via the Google Photos API.
-- **Dry-run mode**: Fully preview changes without moving or modifying your files.
-- **Conflict resolution**: Automatically handle filename conflicts using configurable strategies.
+- **Google Photos uploads**: Upload your photos via the Google Photos API using the extensible processors framework.
+- **Dry-run mode**: Preview all changes without moving or modifying your files.
+- **Conflict resolution**: Handle filename conflicts using configurable strategies.
 
 ## Installation
 
@@ -30,11 +30,7 @@ pipx install fotura
 fotura --help
 ```
 
-> [!TIP]
-> **Why pipx?**
-> - Configures a "global" command without touching system Python packages.
-> - Installs Fotura in an isolated environment, keeping its dependencies separate from those for other Python projects on your system.
-> - It's easy to uninstall with `pipx uninstall fotura`.
+Note, you can also uninstall using `pipx uninstall fotura`.
 
 ## Usage
 
@@ -61,7 +57,7 @@ fotura import [OPTIONS] DIRECTORY TARGET_ROOT
 - `--before-each`: List of before-each processors to enable (run for each photo before moving)
 - `--after-each`: List of after-each processors to enable (run for each photo after moving)
 - `--after-all`: List of after-all processors to enable (run once after all photos are processed)
-- `--open-report`: Optionally open the report once processing completes
+- `--open-report`: Open the report in a browser once processing completes
 - `--conflict-strategy`: How to resolve conflicts in the target directory
 - `--target-path-format`: Target path format
 
@@ -75,8 +71,7 @@ fotura import ~/Pictures/unsorted ~/Pictures/organized
 
 **Dry run to preview changes:**
 
-Always perform a dry run first to be sure your files are moved as you expect, based on the configuration. Fotura will not modify, move or otherwise touch
-your files during a dry run.
+Always perform a dry run first to ensure your files will be moved as you expect. Fotura will not modify, move, or otherwise touch your files during a dry run.
 
 ```bash
 fotura import ~/Pictures/unsorted ~/Pictures/organized --dry-run
@@ -92,7 +87,7 @@ fotura import ~/Pictures/unsorted ~/Pictures/organized --dry-run --open-report
 
 #### Processors
 
-You can specify multiple before-each and after-each processors like: `--before-each "foo" --before-each "bar"` to use the `foo` and `bar` processors:
+You can specify multiple processors by repeating the flag, e.g. `--before-each "foo" --before-each "bar"`:
 
 **Enable FilenameTimestampExtract before-each processor:**
 
@@ -123,10 +118,9 @@ target_root/
 └── ...
 ```
 
-You can override this by providing an argument to `target-path-format`, which uses [Python's date string directives](https://docs.python.org/3/library/datetime.html#format-codes).
+You can override this with `--target-path-format`, which accepts [Python date format codes](https://docs.python.org/3/library/datetime.html#format-codes).
 
-For example, assuming a target directory root of `~/Pictures/organized` and a photo taken on 2008-05-30, the `"%Y/%Y-%m/%Y-%m-%d"` string will cause the
-photo to be moved to `~/Pictures/organized/2008/2008-05/2008-05-30`:
+For example, given a photo taken on 2008-05-30, the format `"%Y/%Y-%m/%Y-%m-%d"` produces the path `~/Pictures/organized/2008/2008-05/2008-05-30`:
 
 ```bash
 fotura import ~/Pictures/unsorted ~/Pictures/organized --dry-run --open-report --target-path-format="%Y/%Y-%m/%Y-%m-%d"
@@ -147,10 +141,10 @@ Other common examples:
 
 **Select a conflict strategy:**
 
-The argument to `--conflict-strategy` determines the conflict resolution strategy:
+The `--conflict-strategy` flag determines how to handle filename collisions:
 
-- keep_both: Keep both images, incrementing the conflicting filename (e.g. duplicate.jpg and duplicate_1.jpg will both exist).
-- skip: Skip the image to be copied, leaving it in place. No files are deleted.
+- `keep_both`: Keep both files by appending a numeric suffix to the new file (e.g. `duplicate.jpg` and `duplicate_1.jpg`).
+- `skip`: Leave the existing file in place and skip the incoming one. No files are deleted.
 
 Example:
 
@@ -160,7 +154,7 @@ fotura import ~/Pictures/unsorted ~/Pictures/organized --dry-run --open-report -
 
 ## Before-each Processors
 
-- **FilenameTimestampExtract**: Extract image timestamp data from WhatsApp or Android photos and updates EXIF metadata (`--before-each "filename_timestamp_extract"`)
+- **FilenameTimestampExtract**: Extracts timestamps from WhatsApp or Android photo filenames and writes them to EXIF metadata (`--before-each "filename_timestamp_extract"`).
 
 ## After-each Processors
 
@@ -189,10 +183,13 @@ After-all processors run once after all photos have been processed. They receive
 ## Future features
 
 - Concurrent processing.
-- Implementing a standalone tool/processor execution mode, like `fotura run google_photos_upload my-image.jpg`.
-- Stripping of specific EXIF data (e.g. location data).
-- Automatic flagging and skipping of low quality images (i.e. blurry images, under or over-exposed images).
-- Image labelling using Llama Vision (multimodal LLM).
+- Standalone processor execution mode, e.g. `fotura run google_photos_upload my-image.jpg`.
+- Stripping specific EXIF data (e.g. location data).
+- Automatic flagging and skipping of low-quality images, including:
+  - blurry shots
+  - under or over-exposed images
+  - duplicates (picking the best)
+- Image labelling via a multimodal LLM, like Llama Vision.
 
 ## Development
 
