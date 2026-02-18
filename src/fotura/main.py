@@ -17,7 +17,7 @@ from fotura.processors.registry import (
 )
 from fotura.reporting.logging_config import setup_logging
 
-setup_logging(level=logging.INFO)
+setup_logging(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 
