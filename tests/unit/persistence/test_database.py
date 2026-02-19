@@ -61,7 +61,7 @@ def test_schema_is_idempotent(database_path):
 
 def test_close_closes_connection(database):
     database.close()
-    with pytest.raises(ProgrammingError):
+    with pytest.raises(ProgrammingError, match=r"closed"):
         database.connection.execute("SELECT 1")
 
 
@@ -77,5 +77,5 @@ def test_context_manager_closes_connection(database_path):
     with Database(database_path) as db:
         db.connection.execute("SELECT 1")
 
-    with pytest.raises(ProgrammingError):
+    with pytest.raises(ProgrammingError, match=r"closed"):
         db.connection.execute("SELECT 1")

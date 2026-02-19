@@ -7,6 +7,7 @@ import pytest
 
 from fotura.domain.photo import Photo
 from fotura.io.photos.exif_data import ExifData
+from fotura.persistence.database import Database
 from fotura.processors.before_each_processors.filename_timestamp_extract_before_each_processor import (
     FilenameTimestampExtractBeforeEachProcessor,
 )
@@ -25,7 +26,10 @@ def tally():
 @pytest.fixture
 def processor(tally):
     context = Context(
-        user_config_path=Path(tempfile.mkdtemp()), tally=tally, dry_run=False
+        user_config_path=Path(tempfile.mkdtemp()),
+        tally=tally,
+        dry_run=False,
+        database=Database(),
     )
     return FilenameTimestampExtractBeforeEachProcessor(context)
 
@@ -33,7 +37,10 @@ def processor(tally):
 @pytest.fixture
 def processor_dry_run(tally):
     context = Context(
-        user_config_path=Path(tempfile.mkdtemp()), tally=tally, dry_run=True
+        user_config_path=Path(tempfile.mkdtemp()),
+        tally=tally,
+        dry_run=True,
+        database=Database(),
     )
     return FilenameTimestampExtractBeforeEachProcessor(context)
 

@@ -1,81 +1,35 @@
 import contextlib
-import json
 import logging
 import os
 from datetime import datetime, timedelta
 from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 import responses
-from google.oauth2.credentials import Credentials
 
 from fotura.domain.photo import Photo
+from fotura.persistence.database import Database
+from fotura.persistence.google_photos_upload_repository import (
+    GooglePhotosUploadRepository,
+)
+from fotura.persistence.upload_status import UploadStatus
 from fotura.processors.after_all_processors.google_photos_upload_after_all_processor import (
     GooglePhotosUploadAfterAllProcessor,
 )
 from fotura.processors.context import Context
 from fotura.processors.processor_setup_error import ProcessorSetupError
-from fotura.utils.synchronized_counter import SynchronizedCounter
+from fotura.utils.file_hasher import hash_file
+from tests.helpers.google_photos import (
+    create_credentials,
+    mock_failed_upload_responses,
+    mock_installed_app_flow,
+    mock_successful_upload_response,
+    read_token,
+    write_secret,
+    write_token,
+)
 from tests.helpers.helper import get_log_entries
-
-
-def create_client_secret():
-    return {
-        "installed": {
-            "client_id": "foobar.apps.googleusercontent.com",
-            "project_id": "foo",
-            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-            "token_uri": "https://oauth2.googleapis.com/token",
-            "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-            "client_secret": "secret",
-            "redirect_uris": ["http://localhost"],
-        }
-    }
-
-
-def create_credentials(expiry, refresh_token="refresh-token"):
-    return Credentials(
-        token="ya29.valid-token",
-        refresh_token=refresh_token,
-        token_uri="https://oauth2.googleapis.com/token",
-        client_id="client-id",
-        client_secret="client-secret",
-        scopes=["https://www.googleapis.com/auth/photoslibrary.appendonly"],
-        expiry=expiry,
-    )
-
-
-def write_secret(secrets_dir, client_secret):
-    secrets_subdir = secrets_dir / "integrations" / "google_photos"
-    os.makedirs(secrets_subdir, exist_ok=True)
-    secret_path = secrets_subdir / "client_secret.json"
-    with open(secret_path, "w") as f:
-        json.dump(client_secret, f)
-
-
-def write_token(secrets_dir, creds):
-    secrets_subdir = secrets_dir / "integrations" / "google_photos"
-    os.makedirs(secrets_subdir, exist_ok=True)
-    creds_path = secrets_subdir / "token.json"
-    with open(creds_path, "w") as f:
-        f.write(creds.to_json())
-    return creds_path
-
-
-def read_token():
-    creds_path = Path(".secrets/integrations/google_photos/token.json")
-    with open(creds_path, "r") as f:
-        return Credentials.from_authorized_user_info(json.load(f))
-
-
-@contextlib.contextmanager
-def mock_installed_app_flow(flow):
-    with patch(
-        "google_auth_oauthlib.flow.InstalledAppFlow.from_client_secrets_file"
-    ) as mock:
-        mock.return_value = flow
-        yield mock
 
 
 @contextlib.contextmanager
@@ -96,26 +50,6 @@ def mock_successful_batch_create(processor, num_items=1):
         yield mock_batch_create
 
 
-def mock_successful_upload_response(count=1):
-    for i in range(count):
-        responses.add(
-            responses.POST,
-            "https://photoslibrary.googleapis.com/v1/uploads",
-            body=f"upload-token-{i}",
-            status=200,
-            content_type="text/plain",
-        )
-
-
-def mock_failed_upload_response():
-    responses.add(
-        responses.POST,
-        "https://photoslibrary.googleapis.com/v1/uploads",
-        json={"error": {"message": "Upload failed"}},
-        status=400,
-    )
-
-
 def get_client_service(processor):
     return processor._GooglePhotosUploadAfterAllProcessor__uploader._client.service
 
@@ -124,52 +58,18 @@ def get_client_service(processor):
 
 
 @pytest.fixture
-def tally():
-    return SynchronizedCounter({"errored": 0})
-
-
-@pytest.fixture(autouse=True)
-def mock_photoslibrary_service():
-    with patch("fotura.integrations.google_photos.client.build") as mock_build:
-        mock_service = MagicMock()
-        mock_service._http = MagicMock(
-            credentials=MagicMock(token="ya29.default-token")
-        )
-        mock_build.return_value = mock_service
-        yield mock_build
-
-
-@pytest.fixture
-def client_secret():
-    return create_client_secret()
-
-
-@pytest.fixture
-def cached_credentials_expired():
-    return create_credentials(expiry=datetime.now() - timedelta(days=1))
-
-
-@pytest.fixture
-def cached_credentials_valid():
-    return create_credentials(expiry=datetime.now() + timedelta(days=1))
-
-
-@pytest.fixture
-def secrets_dir(fs):
-    secrets_dir = Path(".secrets")
-    fs.create_dir(secrets_dir)
-    return secrets_dir
-
-
-@pytest.fixture
 def processor(secrets_dir, tally):
-    context = Context(user_config_path=secrets_dir, tally=tally, dry_run=False)
+    context = Context(
+        user_config_path=secrets_dir, tally=tally, dry_run=False, database=Database()
+    )
     return GooglePhotosUploadAfterAllProcessor(context)
 
 
 @pytest.fixture
 def processor_dry_run(secrets_dir, tally):
-    context = Context(user_config_path=secrets_dir, tally=tally, dry_run=True)
+    context = Context(
+        user_config_path=secrets_dir, tally=tally, dry_run=True, database=Database()
+    )
     return GooglePhotosUploadAfterAllProcessor(context)
 
 
@@ -205,6 +105,25 @@ def test_photo_png(fs):
 
 
 @pytest.fixture
+def unique_photos(fs):
+    photos = []
+
+    for i in range(3):
+        path = Path(f"unique_{i}.jpg")
+        fs.create_file(path, contents=f"unique_content_{i}".encode())
+        photos.append(Photo(path))
+
+    return photos
+
+
+@pytest.fixture
+def repository(processor_with_valid_credentials):
+    return GooglePhotosUploadRepository(
+        processor_with_valid_credentials.context.database
+    )
+
+
+@pytest.fixture
 def test_photo_unsupported(fs):
     test_path = Path("test_file.txt")
     fs.create_file(test_path, contents=b"text file")
@@ -218,31 +137,41 @@ def test_photo_unsupported(fs):
 
 
 def test_raises_value_error_if_concurrency_less_than_1(secrets_dir, tally):
-    context = Context(user_config_path=secrets_dir, tally=tally, dry_run=False)
+    context = Context(
+        user_config_path=secrets_dir, tally=tally, dry_run=False, database=Database()
+    )
     with pytest.raises(ValueError, match=r"concurrency must be between 1 and 5"):
         GooglePhotosUploadAfterAllProcessor(context, concurrency=0)
 
 
 def test_raises_value_error_if_concurrency_greater_than_max(secrets_dir, tally):
-    context = Context(user_config_path=secrets_dir, tally=tally, dry_run=False)
+    context = Context(
+        user_config_path=secrets_dir, tally=tally, dry_run=False, database=Database()
+    )
     with pytest.raises(ValueError, match=r"concurrency must be between 1 and 5"):
         GooglePhotosUploadAfterAllProcessor(context, concurrency=10)
 
 
 def test_raises_value_error_if_batch_size_less_than_1(secrets_dir, tally):
-    context = Context(user_config_path=secrets_dir, tally=tally, dry_run=False)
+    context = Context(
+        user_config_path=secrets_dir, tally=tally, dry_run=False, database=Database()
+    )
     with pytest.raises(ValueError, match=r"batch_size must be between 1 and 50"):
         GooglePhotosUploadAfterAllProcessor(context, batch_size=0)
 
 
 def test_raises_value_error_if_batch_size_greater_than_max(secrets_dir, tally):
-    context = Context(user_config_path=secrets_dir, tally=tally, dry_run=False)
+    context = Context(
+        user_config_path=secrets_dir, tally=tally, dry_run=False, database=Database()
+    )
     with pytest.raises(ValueError, match=r"batch_size must be between 1 and 50"):
         GooglePhotosUploadAfterAllProcessor(context, batch_size=51)
 
 
 def test_accepts_valid_boundary_values(secrets_dir, tally):
-    context = Context(user_config_path=secrets_dir, tally=tally, dry_run=False)
+    context = Context(
+        user_config_path=secrets_dir, tally=tally, dry_run=False, database=Database()
+    )
 
     processor_1 = GooglePhotosUploadAfterAllProcessor(
         context, concurrency=1, batch_size=1
@@ -473,7 +402,9 @@ def test_process_splits_photos_into_batches(secrets_dir, tally, fs):
         fs.create_file(path, contents=b"data")
         photos.append(Photo(path))
 
-    context = Context(user_config_path=secrets_dir, tally=tally, dry_run=False)
+    context = Context(
+        user_config_path=secrets_dir, tally=tally, dry_run=False, database=Database()
+    )
     processor = GooglePhotosUploadAfterAllProcessor(context, batch_size=10)
 
     cached_credentials = create_credentials(expiry=datetime.now() + timedelta(days=1))
@@ -553,7 +484,9 @@ def test_process_continues_with_remaining_photos_after_upload_failure(
         fs.create_file(path, contents=b"data")
         photos.append(Photo(path))
 
-    context = Context(user_config_path=secrets_dir, tally=tally, dry_run=False)
+    context = Context(
+        user_config_path=secrets_dir, tally=tally, dry_run=False, database=Database()
+    )
     processor = GooglePhotosUploadAfterAllProcessor(context, concurrency=1)
 
     cached_credentials = create_credentials(expiry=datetime.now() + timedelta(days=1))
@@ -697,3 +630,85 @@ def test_batch_create_acquires_throttle_before_execution(
             processor_with_valid_credentials.process([test_photo])
 
     mock_acquire.assert_called_once()
+
+
+## process - database record tracking
+
+
+@responses.activate
+def test_process_records_uploaded_status_and_url_on_success(
+    processor_with_valid_credentials, test_photo, repository
+):
+    mock_successful_upload_response(1)
+
+    with mock_successful_batch_create(processor_with_valid_credentials, 1):
+        processor_with_valid_credentials.process([test_photo])
+
+    record = repository.find_by_hash(hash_file(test_photo.path))
+
+    assert record is not None
+    assert record["status"] == UploadStatus.UPLOADED.value
+    assert record["uploaded_url"] == "https://photos.google.com/photo/AF1QipM_0"
+    assert record["file_path"] == str(test_photo.path)
+
+
+@responses.activate
+def test_process_records_failed_status_when_byte_upload_exhausts_retries(
+    processor_with_valid_credentials, test_photo, repository
+):
+    mock_failed_upload_responses(3)
+
+    with patch("time.sleep"):
+        processor_with_valid_credentials.process([test_photo])
+
+    record = repository.find_by_hash(hash_file(test_photo.path))
+
+    assert record is not None
+    assert record["status"] == UploadStatus.FAILED.value
+
+
+@responses.activate
+def test_process_records_failed_status_when_media_item_creation_fails_including_retry(
+    processor_with_valid_credentials, test_photo, repository
+):
+    mock_successful_upload_response(2)  # one for each create media items call
+
+    with patch.object(
+        get_client_service(processor_with_valid_credentials), "mediaItems"
+    ) as mock_media_items:
+        mock_batch_create = Mock()
+        mock_batch_create.return_value.execute.side_effect = [
+            {"newMediaItemResults": [{"status": {"message": "INVALID_ARGUMENT"}}]},
+            {"newMediaItemResults": [{"status": {"message": "INVALID_ARGUMENT"}}]},
+        ]
+        mock_media_items.return_value.batchCreate = mock_batch_create
+
+        processor_with_valid_credentials.process([test_photo])
+
+    record = repository.find_by_hash(hash_file(test_photo.path))
+
+    assert record is not None
+    assert record["status"] == UploadStatus.FAILED.value
+
+
+@responses.activate
+def test_process_records_separate_statuses_for_each_photo(
+    processor_with_valid_credentials, unique_photos, repository
+):
+    mock_failed_upload_responses(3)  # first photo fails all retries
+    mock_successful_upload_response(2)  # second and third succeed
+
+    processor = GooglePhotosUploadAfterAllProcessor(
+        processor_with_valid_credentials.context, concurrency=1
+    )
+    processor.configure()
+
+    with mock_successful_batch_create(processor, 2):
+        with patch("time.sleep"):
+            processor.process(unique_photos)
+
+    statuses = [
+        repository.find_by_hash(hash_file(p.path))["status"] for p in unique_photos
+    ]
+    assert statuses.count(UploadStatus.FAILED.value) == 1
+    assert statuses.count(UploadStatus.UPLOADED.value) == 2

@@ -4,6 +4,9 @@ from typing import Any, Dict, Iterator, List, Optional
 from fotura.domain.photo import Photo
 from fotura.integrations.google_photos.client import TALLY_KEY
 from fotura.integrations.google_photos.uploader import GooglePhotosUploader
+from fotura.persistence.google_photos_upload_repository import (
+    GooglePhotosUploadRepository,
+)
 from fotura.processors.after_all_processors.after_all_processor import AfterAllProcessor
 from fotura.processors.context import Context
 from fotura.processors.fact_type import FactType
@@ -27,7 +30,8 @@ class GooglePhotosUploadAfterAllProcessor(AfterAllProcessor):
         self.batch_size = batch_size
 
         self.__validate()
-        self.__uploader = GooglePhotosUploader(context)
+        self.__repository = GooglePhotosUploadRepository(context.database)
+        self.__uploader = GooglePhotosUploader(context, self.__repository)
 
     def configure(self) -> None:
         self.__uploader.configure()

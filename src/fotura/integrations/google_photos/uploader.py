@@ -14,8 +14,14 @@ from fotura.integrations.google_photos.client import (
     TALLY_KEY,
     GooglePhotosClient,
 )
+from fotura.persistence.google_photos_upload_repository import (
+    GooglePhotosUploadRepository,
+)
+from fotura.persistence.upload_status import UploadStatus
 from fotura.processors.context import Context
+from fotura.processors.fact_type import FactType
 from fotura.processors.processor_setup_error import ProcessorSetupError
+from fotura.utils.file_hasher import hash_file
 from fotura.utils.operation_throttle import OperationThrottle
 
 SUPPORTED_EXTENSIONS = {
@@ -37,12 +43,17 @@ logger = logging.getLogger(__name__)
 
 
 class GooglePhotosUploader:
-    def __init__(self, context: Context) -> None:
+    def __init__(
+        self,
+        context: Context,
+        repository: GooglePhotosUploadRepository,
+    ) -> None:
         self._context = context
         self._client = GooglePhotosClient(context.user_config_path)
         self._batch_create_throttle = OperationThrottle(
             max_operations=50, window_seconds=60
         )
+        self.__repository = repository
 
     def configure(self) -> None:
         self._client.configure()
@@ -56,6 +67,21 @@ class GooglePhotosUploader:
             return False
 
     def upload_bytes(self, photo: Photo) -> str:
+        """Upload bytes with DB status tracking. Raises on failure."""
+        file_hash = hash_file(photo.path)
+        self.__repository.upsert_pending(str(photo.path), file_hash)
+        self.__repository.update_status(file_hash, UploadStatus.UPLOADING)
+
+        photo.log(logging.INFO, "Uploading image to Google Photos...")
+        try:
+            token = self.__upload_bytes(photo)
+            photo.facts[FactType.HASH_BLAKE2B] = file_hash
+            return token
+        except Exception:
+            self.__repository.update_status(file_hash, UploadStatus.FAILED)
+            raise
+
+    def __upload_bytes(self, photo: Photo) -> str:
         """Upload bytes with exponential backoff retry. Raises on failure."""
         for attempt in Retrying(
             stop=stop_after_attempt(3),
@@ -151,15 +177,12 @@ class GooglePhotosUploader:
         return failed_photos
 
     def __retry_single_photo(self, photo: Photo) -> None:
-        """Re-upload and create a media item for a single failed photo."""
         photo.log(logging.DEBUG, "Retrying with fresh upload")
         token = self.__try_upload_bytes(photo)
         if token:
             self.__try_create_media_item(photo, token)
 
     def __try_upload_bytes(self, photo: Photo) -> Optional[str]:
-        """Upload with retry, returns None on failure. Propagates setup errors."""
-        photo.log(logging.INFO, "Uploading image to Google Photos...")
         try:
             return self.upload_bytes(photo)
         except ProcessorSetupError:
@@ -186,13 +209,25 @@ class GooglePhotosUploader:
             else:
                 error = result.get("status", {}).get("message", "Unknown error")
                 photo.log(logging.ERROR, "Failed to create media item: %s", error)
+                self.__mark_failed(photo)
                 self._context.tally.increment("errored")
         except Exception:
             photo.log(logging.ERROR, "Failed to create media item", exc_info=True)
+            self.__mark_failed(photo)
             self._context.tally.increment("errored")
 
     def __record_upload(self, photo: Photo, result: dict) -> None:
-        """Log successful upload and increment tally."""
         url = result["mediaItem"].get("productUrl", "")
         photo.log(logging.INFO, "Uploaded to Google Photos: %s", url)
         self._context.tally.increment(TALLY_KEY)
+
+        file_hash = photo.facts.get(FactType.HASH_BLAKE2B)
+
+        if file_hash:
+            self.__repository.update_status(file_hash, UploadStatus.UPLOADED, url)
+
+    def __mark_failed(self, photo: Photo) -> None:
+        file_hash = photo.facts.get(FactType.HASH_BLAKE2B)
+
+        if file_hash:
+            self.__repository.update_status(file_hash, UploadStatus.FAILED)

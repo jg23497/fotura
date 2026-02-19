@@ -1,84 +1,39 @@
 import contextlib
-import json
 import logging
 import os
 from datetime import datetime, timedelta
 from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 import responses
 from google.auth.exceptions import RefreshError
-from google.oauth2.credentials import Credentials
 
 from fotura.domain.photo import Photo
+from fotura.persistence.database import Database
+from fotura.persistence.google_photos_upload_repository import (
+    GooglePhotosUploadRepository,
+)
+from fotura.persistence.upload_status import UploadStatus
 from fotura.processors.after_each_processors.google_photos_upload_after_each_processor import (
     GooglePhotosUploadAfterEachProcessor,
 )
 from fotura.processors.context import Context
 from fotura.processors.processor_setup_error import ProcessorSetupError
-from fotura.utils.synchronized_counter import SynchronizedCounter
+from fotura.utils.file_hasher import hash_file
+from tests.helpers.google_photos import (
+    create_credentials,
+    mock_failed_upload_response,
+    mock_failed_upload_responses,
+    mock_installed_app_flow,
+    mock_successful_upload_response,
+    read_token,
+    write_secret,
+    write_token,
+)
 from tests.helpers.helper import get_log_entries
 
 # Test helper methods
-
-
-def create_client_secret():
-    return {
-        "installed": {
-            "client_id": "foobar.apps.googleusercontent.com",
-            "project_id": "foo",
-            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-            "token_uri": "https://oauth2.googleapis.com/token",
-            "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-            "client_secret": "secret",
-            "redirect_uris": ["http://localhost"],
-        }
-    }
-
-
-def create_credentials(expiry, refresh_token="refresh-token"):
-    return Credentials(
-        token="ya29.valid-token",
-        refresh_token=refresh_token,
-        token_uri="https://oauth2.googleapis.com/token",
-        client_id="client-id",
-        client_secret="client-secret",
-        scopes=["https://www.googleapis.com/auth/photoslibrary.appendonly"],
-        expiry=expiry,
-    )
-
-
-def write_secret(secrets_dir, client_secret):
-    secrets_subdir = secrets_dir / "integrations" / "google_photos"
-    os.makedirs(secrets_subdir, exist_ok=True)
-    secret_path = secrets_subdir / "client_secret.json"
-    with open(secret_path, "w") as f:
-        json.dump(client_secret, f)
-
-
-def write_token(secrets_dir, creds):
-    secrets_subdir = secrets_dir / "integrations" / "google_photos"
-    os.makedirs(secrets_subdir, exist_ok=True)
-    creds_path = secrets_subdir / "token.json"
-    with open(creds_path, "w") as f:
-        f.write(creds.to_json())
-    return creds_path
-
-
-def read_token():
-    creds_path = Path(".secrets/integrations/google_photos/token.json")
-    with open(creds_path, "r") as f:
-        return Credentials.from_authorized_user_info(json.load(f))
-
-
-@contextlib.contextmanager
-def mock_installed_app_flow(flow):
-    with patch(
-        "google_auth_oauthlib.flow.InstalledAppFlow.from_client_secrets_file"
-    ) as mock:
-        mock.return_value = flow
-        yield mock
 
 
 @contextlib.contextmanager
@@ -98,22 +53,17 @@ def mock_successful_media_item_creation(processor):
         yield mock_batch_create
 
 
-def mock_successful_upload_response():
-    responses.add(
-        responses.POST,
-        "https://photoslibrary.googleapis.com/v1/uploads",
-        body="upload-token-12345",
-        status=200,
-        content_type="text/plain",
-    )
-
-
-def mock_failed_upload_response():
-    responses.add(
-        responses.POST,
-        "https://photoslibrary.googleapis.com/v1/uploads",
-        json={"error": {"message": "Upload failed"}},
-        status=400,
+def mock_failed_media_item_creation(processor):
+    return patch.object(
+        get_client_service(processor),
+        "mediaItems",
+        **{
+            "return_value.batchCreate.return_value.execute.return_value": {
+                "newMediaItemResults": [
+                    {"status": {"message": "INVALID_ARGUMENT: Invalid upload token"}}
+                ]
+            }
+        },
     )
 
 
@@ -125,52 +75,18 @@ def get_client_service(processor):
 
 
 @pytest.fixture
-def tally():
-    return SynchronizedCounter({"errored": 0})
-
-
-@pytest.fixture(autouse=True)
-def mock_photoslibrary_service():
-    with patch("fotura.integrations.google_photos.client.build") as mock_build:
-        mock_service = MagicMock()
-        mock_service._http = MagicMock(
-            credentials=MagicMock(token="ya29.default-token")
-        )
-        mock_build.return_value = mock_service
-        yield mock_build
-
-
-@pytest.fixture
-def client_secret():
-    return create_client_secret()
-
-
-@pytest.fixture
-def cached_credentials_expired():
-    return create_credentials(expiry=datetime.now() - timedelta(days=1))
-
-
-@pytest.fixture
-def cached_credentials_valid():
-    return create_credentials(expiry=datetime.now() + timedelta(days=1))
-
-
-@pytest.fixture
-def secrets_dir(fs):
-    secrets_dir = Path(".secrets")
-    fs.create_dir(secrets_dir)
-    return secrets_dir
-
-
-@pytest.fixture
 def processor(secrets_dir, tally):
-    context = Context(user_config_path=secrets_dir, tally=tally, dry_run=False)
+    context = Context(
+        user_config_path=secrets_dir, tally=tally, dry_run=False, database=Database()
+    )
     return GooglePhotosUploadAfterEachProcessor(context)
 
 
 @pytest.fixture
 def processor_dry_run(secrets_dir, tally):
-    context = Context(user_config_path=secrets_dir, tally=tally, dry_run=True)
+    context = Context(
+        user_config_path=secrets_dir, tally=tally, dry_run=True, database=Database()
+    )
     return GooglePhotosUploadAfterEachProcessor(context)
 
 
@@ -193,6 +109,13 @@ def test_photo_png(fs):
     test_image_path = Path("test_image.png")
     fs.create_file(test_image_path, contents=b"fake image data")
     return Photo(test_image_path)
+
+
+@pytest.fixture
+def repository(processor_with_valid_credentials):
+    return GooglePhotosUploadRepository(
+        processor_with_valid_credentials.context.database
+    )
 
 
 # Tests
@@ -442,7 +365,7 @@ def test_successful_upload_process_creates_media_item_with_upload_token(
                 {
                     "simpleMediaItem": {
                         "fileName": test_photo.path.name,
-                        "uploadToken": "upload-token-12345",
+                        "uploadToken": "upload-token-0",
                     }
                 }
             ]
@@ -697,3 +620,39 @@ def test_process_acquires_throttle_before_creating_media_item(
             processor_with_valid_credentials.process(test_photo)
 
             assert mock_acquire.call_count == 1
+
+
+## process method - database record tracking
+
+
+@responses.activate
+def test_process_records_uploaded_status_and_url_on_success(
+    processor_with_valid_credentials, test_photo, repository
+):
+    mock_successful_upload_response()
+
+    with mock_successful_media_item_creation(processor_with_valid_credentials):
+        processor_with_valid_credentials.process(test_photo)
+
+    record = repository.find_by_hash(hash_file(test_photo.path))
+
+    assert record is not None
+    assert record["status"] == UploadStatus.UPLOADED.value
+    assert record["uploaded_url"] == "https://photos.google.com/photo/AF1QipM_12345"
+    assert record["file_path"] == str(test_photo.path)
+
+
+@responses.activate
+def test_process_records_failed_status_when_upload_exhausts_retries(
+    processor_with_valid_credentials, test_photo, repository
+):
+    mock_failed_upload_responses(3)
+
+    with pytest.raises(RuntimeError):
+        with patch("time.sleep"):
+            processor_with_valid_credentials.process(test_photo)
+
+    record = repository.find_by_hash(hash_file(test_photo.path))
+
+    assert record is not None
+    assert record["status"] == UploadStatus.FAILED.value

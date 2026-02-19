@@ -3,6 +3,9 @@ from typing import Any, Dict, Optional
 
 from fotura.domain.photo import Photo
 from fotura.integrations.google_photos.uploader import GooglePhotosUploader
+from fotura.persistence.google_photos_upload_repository import (
+    GooglePhotosUploadRepository,
+)
 from fotura.processors.after_each_processors.after_each_processor import (
     AfterEachProcessor,
 )
@@ -14,7 +17,8 @@ class GooglePhotosUploadAfterEachProcessor(AfterEachProcessor):
     def __init__(self, context: Context) -> None:
         self.context = context
         self.dry_run = context.dry_run
-        self.__uploader = GooglePhotosUploader(context)
+        self.__repository = GooglePhotosUploadRepository(context.database)
+        self.__uploader = GooglePhotosUploader(context, self.__repository)
 
     def configure(self) -> None:
         self.__uploader.configure()
