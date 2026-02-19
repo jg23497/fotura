@@ -19,9 +19,7 @@ from fotura.persistence.google_photos_upload_repository import (
 )
 from fotura.persistence.upload_status import UploadStatus
 from fotura.processors.context import Context
-from fotura.processors.fact_type import FactType
 from fotura.processors.processor_setup_error import ProcessorSetupError
-from fotura.utils.file_hasher import hash_file
 from fotura.utils.operation_throttle import OperationThrottle
 
 SUPPORTED_EXTENSIONS = {
@@ -68,17 +66,14 @@ class GooglePhotosUploader:
 
     def upload_bytes(self, photo: Photo) -> str:
         """Upload bytes with DB status tracking. Raises on failure."""
-        file_hash = hash_file(photo.path)
-        self.__repository.upsert_pending(str(photo.path), file_hash)
-        self.__repository.update_status(file_hash, UploadStatus.UPLOADING)
+        self.__repository.upsert_pending(photo.path)
+        self.__repository.update_status(photo.path, UploadStatus.UPLOADING)
 
         photo.log(logging.INFO, "Uploading image to Google Photos...")
         try:
-            token = self.__upload_bytes(photo)
-            photo.facts[FactType.HASH_BLAKE2B] = file_hash
-            return token
+            return self.__upload_bytes(photo)
         except Exception:
-            self.__repository.update_status(file_hash, UploadStatus.FAILED)
+            self.__repository.update_status(photo.path, UploadStatus.FAILED)
             raise
 
     def __upload_bytes(self, photo: Photo) -> str:
@@ -220,14 +215,7 @@ class GooglePhotosUploader:
         url = result["mediaItem"].get("productUrl", "")
         photo.log(logging.INFO, "Uploaded to Google Photos: %s", url)
         self._context.tally.increment(TALLY_KEY)
-
-        file_hash = photo.facts.get(FactType.HASH_BLAKE2B)
-
-        if file_hash:
-            self.__repository.update_status(file_hash, UploadStatus.UPLOADED, url)
+        self.__repository.update_status(photo.path, UploadStatus.UPLOADED, url)
 
     def __mark_failed(self, photo: Photo) -> None:
-        file_hash = photo.facts.get(FactType.HASH_BLAKE2B)
-
-        if file_hash:
-            self.__repository.update_status(file_hash, UploadStatus.FAILED)
+        self.__repository.update_status(photo.path, UploadStatus.FAILED)

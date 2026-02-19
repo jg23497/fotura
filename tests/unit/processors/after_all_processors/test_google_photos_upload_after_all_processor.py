@@ -19,7 +19,6 @@ from fotura.processors.after_all_processors.google_photos_upload_after_all_proce
 )
 from fotura.processors.context import Context
 from fotura.processors.processor_setup_error import ProcessorSetupError
-from fotura.utils.file_hasher import hash_file
 from tests.helpers.google_photos import (
     create_credentials,
     mock_failed_upload_responses,
@@ -644,7 +643,7 @@ def test_process_records_uploaded_status_and_url_on_success(
     with mock_successful_batch_create(processor_with_valid_credentials, 1):
         processor_with_valid_credentials.process([test_photo])
 
-    record = repository.find_by_hash(hash_file(test_photo.path))
+    record = repository.find_by_path(test_photo.path)
 
     assert record is not None
     assert record["status"] == UploadStatus.UPLOADED.value
@@ -661,7 +660,7 @@ def test_process_records_failed_status_when_byte_upload_exhausts_retries(
     with patch("time.sleep"):
         processor_with_valid_credentials.process([test_photo])
 
-    record = repository.find_by_hash(hash_file(test_photo.path))
+    record = repository.find_by_path(test_photo.path)
 
     assert record is not None
     assert record["status"] == UploadStatus.FAILED.value
@@ -685,7 +684,7 @@ def test_process_records_failed_status_when_media_item_creation_fails_including_
 
         processor_with_valid_credentials.process([test_photo])
 
-    record = repository.find_by_hash(hash_file(test_photo.path))
+    record = repository.find_by_path(test_photo.path)
 
     assert record is not None
     assert record["status"] == UploadStatus.FAILED.value
@@ -707,8 +706,6 @@ def test_process_records_separate_statuses_for_each_photo(
         with patch("time.sleep"):
             processor.process(unique_photos)
 
-    statuses = [
-        repository.find_by_hash(hash_file(p.path))["status"] for p in unique_photos
-    ]
+    statuses = [repository.find_by_path(p.path)["status"] for p in unique_photos]
     assert statuses.count(UploadStatus.FAILED.value) == 1
     assert statuses.count(UploadStatus.UPLOADED.value) == 2
