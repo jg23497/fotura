@@ -183,7 +183,6 @@ After-all processors run once after all photos have been processed. They receive
 ## Future features
 
 - Concurrent processing.
-- Standalone processor execution mode, e.g. `fotura run google_photos_upload my-image.jpg`.
 - Stripping specific EXIF data (e.g. location data).
 - Automatic flagging and skipping of low-quality images, including:
   - blurry shots
