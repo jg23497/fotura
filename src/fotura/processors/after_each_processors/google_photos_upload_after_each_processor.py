@@ -1,5 +1,6 @@
 import logging
-from typing import Any, Dict, Optional
+from pathlib import Path
+from typing import Any, Dict, Iterator, Optional
 
 from fotura.domain.photo import Photo
 from fotura.integrations.google_photos.uploader import GooglePhotosUploader
@@ -11,9 +12,12 @@ from fotura.processors.after_each_processors.after_each_processor import (
 )
 from fotura.processors.context import Context
 from fotura.processors.fact_type import FactType
+from fotura.processors.resumable import Resumable
+
+logger = logging.getLogger(__name__)
 
 
-class GooglePhotosUploadAfterEachProcessor(AfterEachProcessor):
+class GooglePhotosUploadAfterEachProcessor(AfterEachProcessor, Resumable):
     def __init__(self, context: Context) -> None:
         self.context = context
         self.dry_run = context.dry_run
@@ -40,3 +44,18 @@ class GooglePhotosUploadAfterEachProcessor(AfterEachProcessor):
             raise
 
         return None
+
+    def get_retryable(self) -> Iterator[Photo]:
+        rows = self.__repository.find_retryable()
+        for row in rows:
+            yield Photo(Path(row["file_path"]))
+
+    def resume(self) -> None:
+        items = list(self.get_retryable())
+        if not items:
+            logger.info("No retryable uploads found")
+            return
+
+        for item in items:
+            if self.__uploader.can_support(item):
+                self.process(item)

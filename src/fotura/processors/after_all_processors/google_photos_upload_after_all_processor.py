@@ -1,4 +1,5 @@
 import logging
+from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional
 
 from fotura.domain.photo import Photo
@@ -10,9 +11,12 @@ from fotura.persistence.google_photos_upload_repository import (
 from fotura.processors.after_all_processors.after_all_processor import AfterAllProcessor
 from fotura.processors.context import Context
 from fotura.processors.fact_type import FactType
+from fotura.processors.resumable import Resumable
+
+logger = logging.getLogger(__name__)
 
 
-class GooglePhotosUploadAfterAllProcessor(AfterAllProcessor):
+class GooglePhotosUploadAfterAllProcessor(AfterAllProcessor, Resumable):
     DEFAULT_CONCURRENCY = 2
     DEFAULT_BATCH_SIZE = 10
     MAX_CONCURRENCY = 5
@@ -54,6 +58,21 @@ class GooglePhotosUploadAfterAllProcessor(AfterAllProcessor):
             self.__process_batch(batch)
 
         return None
+
+    def get_retryable(self) -> Iterator[Photo]:
+        rows = self.__repository.find_retryable()
+        for row in rows:
+            yield Photo(Path(row["file_path"]))
+
+    def resume(self) -> None:
+        items = list(self.get_retryable())
+        if not items:
+            logger.info("No retryable uploads found")
+            return
+
+        supported_items = [i for i in items if self.__uploader.can_support(i)]
+        for batch in self.chunked(supported_items, self.batch_size):
+            self.__process_batch(batch)
 
     def __process_batch(self, photos: List[Photo]) -> None:
         if self.dry_run:

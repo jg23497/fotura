@@ -709,3 +709,76 @@ def test_process_records_separate_statuses_for_each_photo(
     statuses = [repository.find_by_path(p.path)["status"] for p in unique_photos]
     assert statuses.count(UploadStatus.FAILED.value) == 1
     assert statuses.count(UploadStatus.UPLOADED.value) == 2
+
+
+## get_retryable
+
+
+def test_get_retryable_yields_empty_list_when_no_retryable_rows(
+    processor_with_valid_credentials,
+):
+    photos = list(processor_with_valid_credentials.get_retryable())
+
+    assert photos == []
+
+
+def test_get_retryable_yields_photo_for_each_retryable_row(
+    processor_with_valid_credentials, repository, test_photos
+):
+    for photo in test_photos:
+        repository.upsert_pending(photo.path)
+
+    photos = list(processor_with_valid_credentials.get_retryable())
+
+    assert len(photos) == 3
+    pending_paths = {p.path for p in photos}
+    assert pending_paths == {p.path for p in test_photos}
+
+
+## resume
+
+
+def test_resume_logs_when_no_retryable_photos(processor_with_valid_credentials, caplog):
+    with caplog.at_level(logging.INFO):
+        processor_with_valid_credentials.resume()
+
+    info_logs = get_log_entries(
+        caplog,
+        lambda r: r.levelno == logging.INFO and "No retryable" in r.getMessage(),
+    )
+
+    assert len(info_logs) == 1
+
+
+def test_resume_processes_retryable_photos_in_dry_run(
+    processor_dry_run, test_photos, caplog
+):
+    repo = GooglePhotosUploadRepository(processor_dry_run.context.database)
+    for photo in test_photos:
+        repo.upsert_pending(photo.path)
+
+    with caplog.at_level(logging.INFO):
+        processor_dry_run.resume()
+
+    uploaded_logs = get_log_entries(
+        caplog,
+        lambda r: r.levelno == logging.INFO and r.getMessage().startswith("Uploaded"),
+    )
+
+    assert len(uploaded_logs) == 3
+
+
+@responses.activate
+def test_resume_uploads_retryable_photos(
+    processor_with_valid_credentials, repository, test_photos, tally
+):
+    for photo in test_photos:
+        repository.upsert_pending(photo.path)
+
+    mock_successful_upload_response(3)
+
+    with mock_successful_batch_create(processor_with_valid_credentials, 3):
+        processor_with_valid_credentials.resume()
+
+    tally_snapshot = tally.get_snapshot()
+    assert tally_snapshot.get("uploaded to google photos") == 3
