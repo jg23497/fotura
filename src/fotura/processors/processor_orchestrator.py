@@ -1,14 +1,17 @@
 import logging
 import sys
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from fotura.domain.photo import Photo
+from fotura.importing.media_finder import MediaFinder
 from fotura.processors.context import Context
 from fotura.processors.registry import (
     AFTER_ALL_PROCESSOR_MAP,
     AFTER_EACH_PROCESSOR_MAP,
     BEFORE_EACH_PROCESSOR_MAP,
 )
+from fotura.processors.resumable import Resumable
 
 logger = logging.getLogger(__name__)
 
@@ -91,6 +94,43 @@ class ProcessorOrchestrator:
             if result:
                 for photo, facts in result.items():
                     photo.facts.update(facts)
+
+    def run_on_source(self, source: Path) -> int:
+        if source.is_dir():
+            items = list(MediaFinder(source).find())
+        else:
+            items = [Photo(source)]
+
+        count = 0
+
+        for processor in self.after_all_processors:
+            processor.process(items)
+
+        if self.after_all_processors:
+            count = len(items)
+
+        for item in items:
+            for processor in self.before_each_processors + self.after_each_processors:
+                if processor.can_handle(item):
+                    processor.process(item)
+                    count += 1
+
+        return count
+
+    def resume(self) -> None:
+        all_processors = (
+            self.before_each_processors
+            + self.after_each_processors
+            + self.after_all_processors
+        )
+        resumed = False
+        for processor in all_processors:
+            if isinstance(processor, Resumable):
+                processor.resume()
+                resumed = True
+
+        if not resumed:
+            raise ValueError("Processor does not support resuming")
 
     def __configure_processors_list(
         self, processor_map, enabled_processors, processor_instances

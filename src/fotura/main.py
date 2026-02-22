@@ -6,39 +6,38 @@ from pathlib import Path
 from typing import Any, Dict, Tuple, Type
 
 import click
+from platformdirs import user_config_dir
 
+from fotura.cli.processor_commands import (
+    build_resume_subcommand,
+    build_run_subcommand,
+    get_processor_params,
+)
 from fotura.importer import Importer
 from fotura.importing.conflict_resolution.registry import STRATEGIES
 from fotura.io.path_format import PathFormat
 from fotura.processors.registry import (
     AFTER_ALL_PROCESSOR_MAP,
     AFTER_EACH_PROCESSOR_MAP,
+    ALL_PROCESSOR_MAP,
     BEFORE_EACH_PROCESSOR_MAP,
 )
+from fotura.processors.resumable import Resumable
 from fotura.reporting.logging_config import setup_logging
 
-setup_logging(level=logging.DEBUG)
+setup_logging(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+USER_CONFIG_PATH = Path(user_config_dir("fotura"))
 
 
 def __get_processor_params(klass: Type) -> Dict[str, Type]:
-    """
-    Inspect a processor class and return a dictionary of its constructor parameters
-    (excluding internal ones like 'self', 'report', etc.).
+    params = {}
 
-    Args:
-        klass: Processor class to inspect.
-
-    Returns:
-        Mapping of parameter names to their annotated types.
-    """
-    sig = inspect.signature(klass.__init__)
-    params: Dict[str, Type] = {}
-    for name, p in sig.parameters.items():
-        if name in ("self", "context", "report", "dry_run"):
-            continue
-        annotation = p.annotation if p.annotation != inspect._empty else str
+    for name, p in get_processor_params(klass).items():
+        annotation = p.annotation if p.annotation != inspect.Parameter.empty else str
         params[name] = annotation
+
     return params
 
 
@@ -214,6 +213,12 @@ def import_cmd(
     )
 
 
+@cli.group()
+def processor() -> None:
+    """Run or resume processors independently of the import workflow."""
+    pass
+
+
 def __cast_arg(value: str, klass: Type) -> Any:
     """
     Convert a string value to the given type, with special handling for booleans.
@@ -275,6 +280,34 @@ def __parse_processor_arguments(
             arguments[param] = casted_arg
 
     return processor_name, arguments
+
+
+@processor.group(name="run")
+def processor_run_group() -> None:
+    """Run a processor on a source directory or file."""
+    pass
+
+
+for processor_name, processor_class in ALL_PROCESSOR_MAP.items():
+    processor_run_group.add_command(
+        build_run_subcommand(processor_name, processor_class, USER_CONFIG_PATH)
+    )
+
+
+RESUMABLE_PROCESSOR_MAP = {
+    name: cls for name, cls in ALL_PROCESSOR_MAP.items() if issubclass(cls, Resumable)
+}
+
+
+@processor.group(name="resume")
+def processor_resume_group() -> None:
+    pass
+
+
+for processor_name, processor_class in RESUMABLE_PROCESSOR_MAP.items():
+    processor_resume_group.add_command(
+        build_resume_subcommand(processor_name, processor_class, USER_CONFIG_PATH)
+    )
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 import re
 from importlib import reload
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import pytest
 from click.testing import CliRunner
@@ -337,3 +337,77 @@ def test_uses_custom_path_format_when_provided():
 
 def normalize_whitespace(text: str) -> str:
     return re.sub(r"\s+", " ", text)
+
+
+# processor run
+
+
+def test_processor_run_calls_orchestrator_with_source(tmp_path):
+    with patch(
+        "fotura.cli.processor_commands.ProcessorOrchestrator"
+    ) as mock_orchestrator_class:
+        mock_orchestrator = Mock()
+        mock_orchestrator.run_on_source.return_value = 1
+        mock_orchestrator_class.return_value = mock_orchestrator
+
+        result = CliRunner().invoke(
+            main.cli,
+            ["processor", "run", "filename_timestamp_extract", str(tmp_path)],
+        )
+
+    assert result.exit_code == 0, result.output
+    mock_orchestrator.run_on_source.assert_called_once_with(tmp_path)
+
+
+def test_processor_run_prints_processed_count(tmp_path):
+    with patch(
+        "fotura.cli.processor_commands.ProcessorOrchestrator"
+    ) as mock_orchestrator_class:
+        mock_orchestrator = Mock()
+        mock_orchestrator.run_on_source.return_value = 42
+        mock_orchestrator_class.return_value = mock_orchestrator
+
+        result = CliRunner().invoke(
+            main.cli,
+            ["processor", "run", "filename_timestamp_extract", str(tmp_path)],
+        )
+
+    assert "Processed 42 file(s)." in result.output
+
+
+# processor resume
+
+
+def test_processor_resume_delegates_to_orchestrator(tmp_path):
+    with patch(
+        "fotura.cli.processor_commands.ProcessorOrchestrator"
+    ) as mock_orchestrator_class:
+        mock_orchestrator = Mock()
+        mock_orchestrator_class.return_value = mock_orchestrator
+
+        result = CliRunner().invoke(
+            main.cli,
+            ["processor", "resume", "google_photos_upload_batch"],
+        )
+
+    assert result.exit_code == 0, result.output
+    mock_orchestrator.resume.assert_called_once()
+
+
+def test_processor_resume_raises_usage_error_when_orchestrator_raises(tmp_path):
+    with patch(
+        "fotura.cli.processor_commands.ProcessorOrchestrator"
+    ) as mock_orchestrator_class:
+        mock_orchestrator = Mock()
+        mock_orchestrator.resume.side_effect = ValueError(
+            "Processor does not support resuming"
+        )
+        mock_orchestrator_class.return_value = mock_orchestrator
+
+        result = CliRunner().invoke(
+            main.cli,
+            ["processor", "resume", "google_photos_upload_batch"],
+        )
+
+    assert result.exit_code == 2
+    assert "does not support resuming" in result.output

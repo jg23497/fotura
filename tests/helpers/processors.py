@@ -64,6 +64,18 @@ class FailingConfigureBeforeEachProcessor:
         raise RuntimeError("configuration failed")
 
 
+class ComplexDummyAfterAllProcessor:
+    def __init__(
+        self,
+        context: Context,
+        concurrency: int = 2,
+    ) -> None:
+        self.context = context
+        self.configure = Mock()
+        self.process: Mock = Mock(return_value=None)
+        self.concurrency = concurrency
+
+
 class DummyAfterAllProcessor:
     def __init__(
         self,
@@ -72,3 +84,20 @@ class DummyAfterAllProcessor:
         self.context = context
         self.configure = Mock()
         self.process: Mock = Mock(return_value=None)
+
+
+class ResumableDummyAfterAllProcessor:
+    def __init__(self, context: Context) -> None:
+        self.context = context
+
+    def configure(self) -> None:
+        pass
+
+    def process(self, _photos) -> None:
+        return None
+
+    def get_retryable(self):
+        return iter([])
+
+    def resume(self) -> None:
+        pass

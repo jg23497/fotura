@@ -19,3 +19,9 @@ AFTER_EACH_PROCESSOR_MAP = {
 AFTER_ALL_PROCESSOR_MAP = {
     "google_photos_upload_batch": GooglePhotosUploadAfterAllProcessor
 }
+
+ALL_PROCESSOR_MAP = {
+    **BEFORE_EACH_PROCESSOR_MAP,
+    **AFTER_EACH_PROCESSOR_MAP,
+    **AFTER_ALL_PROCESSOR_MAP,
+}
