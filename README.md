@@ -2,7 +2,7 @@
 
 <img src="./docs/images/logo.jpg" width="200px" alt="Fotura logo"/>
 
-**A Python CLI for importing, organizing, and uploading/backing up your photos.**
+**A Python CLI for importing, organizing, and uploading your photos.**
 
 [![Python CI](https://github.com/jg23497/fotura/actions/workflows/main.yml/badge.svg?branch=main)](https://github.com/jg23497/fotura/actions/workflows/main.yml)
 
@@ -15,6 +15,8 @@
 - **Google Photos uploads**: Upload your photos via the Google Photos API using the extensible processors framework.
 - **Dry-run mode**: Preview all changes without moving or modifying your files.
 - **Conflict resolution**: Handle filename conflicts using configurable strategies.
+
+![Fotura pipeline flow diagram](./docs/images/pipeline-flow-diagram.png)
 
 ## Installation
 
@@ -158,19 +160,20 @@ fotura import ~/Pictures/unsorted ~/Pictures/organized --dry-run --open-report -
 
 ## After-each Processors
 
-- **[Google Photos Upload Processor](./docs/after_each_processors/google_photos_upload_after_each_processor/google_photos_upload_after_each_processor.md)**: Uploads photos to the Google Photos API (`--after-each "google_photos_upload"`).
+- **[Google Photos Upload](./docs/processors/google_photos_upload.md)**: Uploads photos to Google Photos, either individually (`--after-each "google_photos_upload"`) or in batches (`--after-all "google_photos_upload_batch"`).
 
 ## After-all Processors
 
 After-all processors run once after all photos have been processed. They receive the complete list of processed photos and can perform batch operations.
 
-- **Google Photos Batch Upload**: Uploads photos to Google Photos using batched API calls (`--after-all "google_photos_upload_batch"`).
+- **[Google Photos Batch Upload](./docs/processors/google_photos_upload.md)**: Uploads photos to Google Photos using batched API calls (`--after-all "google_photos_upload_batch"`).
 
   **Parameters:**
   - `concurrency` (int, default: 2): Number of parallel upload threads (1-5)
   - `batch_size` (int, default: 10): Photos per batchCreate API call (1-50)
 
   **Example:**
+
   ```bash
   # With default parameters
   fotura import --after-all "google_photos_upload_batch" ~/Pictures/unsorted ~/Pictures/organized
@@ -182,7 +185,6 @@ After-all processors run once after all photos have been processed. They receive
 
 ## Future features
 
-- Concurrent processing.
 - Stripping specific EXIF data (e.g. location data).
 - Automatic flagging and skipping of low-quality images, including:
   - blurry shots
