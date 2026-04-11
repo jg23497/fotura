@@ -1,85 +1,30 @@
 # Fotura
 
-<img src="./docs/images/logo.jpg" width="200px" alt="Fotura logo"/>
+<img src="./docs/images/logo.png" width="200px" alt="Fotura logo"/>
 
 **A Python CLI for importing, organizing, and uploading your photos.**
 
 [![Python CI](https://github.com/jg23497/fotura/actions/workflows/main.yml/badge.svg?branch=main)](https://github.com/jg23497/fotura/actions/workflows/main.yml)
 
-## Features
-
-- **Automatic photo organization**: Imports photos into a hierarchical directory structure based on their capture timestamps (`%Y/%Y-%m` by default, e.g. `2008/2008-05`).
-- **Multiple timestamp extraction methods**:
-  - EXIF metadata extraction
-  - WhatsApp and Android filename parsing
-- **Google Photos uploads**: Upload your photos via the Google Photos API using the extensible processors framework.
-- **Dry-run mode**: Preview all changes without moving or modifying your files.
-- **Conflict resolution**: Handle filename conflicts using configurable strategies.
+Fotura moves photos from a source directory into a clean, date-organised folder structure. It extracts timestamps from EXIF metadata and filenames, resolves conflicts, and can upload directly to Google Photos, all from a single command.
 
 ![Fotura pipeline flow diagram](./docs/images/pipeline-flow-diagram.png)
 
 ## Installation
 
-```
-# Install pipx if not already installed
-python3 -m pip install --user pipx
-python3 -m pipx ensurepath
+> **Note:** Fotura is not yet published to PyPI. Until then, please follow the [development setup instructions](docs/development.md) to install from source.
 
-# Install Fotura
+```bash
 pipx install fotura
-
-# Run Fotura
-fotura --help
 ```
-
-Note, you can also uninstall using `pipx uninstall fotura`.
 
 ## Usage
-
-### Basic Usage
-
-```bash
-fotura import /photos/to/import /home/user/Pictures
-```
-
-### Command Line Options
-
-```bash
-fotura import [OPTIONS] DIRECTORY TARGET_ROOT
-```
-
-**Arguments:**
-
-- `DIRECTORY`: Source directory containing photos to organize
-- `TARGET_ROOT`: Target directory where organized photos will be stored
-
-**Options:**
-
-- `--dry-run`: Show what would be done without making changes
-- `--before-each`: List of before-each processors to enable (run for each photo before moving)
-- `--after-each`: List of after-each processors to enable (run for each photo after moving)
-- `--after-all`: List of after-all processors to enable (run once after all photos are processed)
-- `--open-report`: Open the report in a browser once processing completes
-- `--conflict-strategy`: How to resolve conflicts in the target directory
-- `--target-path-format`: Target path format
-
-### Examples
-
-**Basic photo organization:**
 
 ```bash
 fotura import ~/Pictures/unsorted ~/Pictures/organized
 ```
 
-**Dry run to preview changes:**
-
-Always perform a dry run first to ensure your files will be moved as you expect. Fotura will not modify, move, or otherwise touch your files during a dry run.
-
-```bash
-fotura import ~/Pictures/unsorted ~/Pictures/organized --dry-run
-```
-
-Add `--open-report` to view the report in your web browser:
+Always preview first with `--dry-run`:
 
 ```bash
 fotura import ~/Pictures/unsorted ~/Pictures/organized --dry-run --open-report
@@ -87,110 +32,83 @@ fotura import ~/Pictures/unsorted ~/Pictures/organized --dry-run --open-report
 
 <img src="./docs/images/report-example.png" width="600px" alt="Example report"/>
 
-#### Processors
+## Processors
 
-You can specify multiple processors by repeating the flag, e.g. `--before-each "foo" --before-each "bar"`:
+Processors extend the import pipeline. Specify them with `--before-each`, `--after-each`, or `--after-all`. Multiple processors can be chained by repeating the flag.
 
-**Enable FilenameTimestampExtract before-each processor:**
+Before-each processors run prior to a photo being moved. They extract facts, such as a timestamp from a filename, which inform how the photo is routed and processed.
+
+### Filename Timestamp Extract
+
+Extracts timestamps from WhatsApp and Android filenames and writes them back into EXIF metadata.
 
 ```bash
 fotura import --before-each "filename_timestamp_extract" ~/Pictures/unsorted ~/Pictures/organized
 ```
 
-**Enable the Google Photos Upload after-each processor:**
+### Google Photos Upload
+
+Uploads each photo to Google Photos as it is moved. See the [full documentation](./docs/processors/google_photos_upload.md) for setup.
 
 ```bash
-fotura import --before-each "filename_timestamp_extract" --after-each "google_photos_upload" ~/Pictures/unsorted ~/Pictures/organized
+fotura import --after-each "google_photos_upload" ~/Pictures/unsorted ~/Pictures/organized
 ```
 
-**Override the default path format:**
+### Google Photos Batch Upload
 
-By default, photos are organized into the following structure:
-
-```
-target_root/
-├── 2023/
-│   ├── 2023-01/
-│   ├── 2023-02/
-│   └── ...
-├── 2024/
-│   ├── 2024-01/
-│   ├── 2024-02/
-│   └── ...
-└── ...
-```
-
-You can override this with `--target-path-format`, which accepts [Python date format codes](https://docs.python.org/3/library/datetime.html#format-codes).
-
-For example, given a photo taken on 2008-05-30, the format `"%Y/%Y-%m/%Y-%m-%d"` produces the path `~/Pictures/organized/2008/2008-05/2008-05-30`:
+Uploads in parallel after the full import completes, using the Google Photos batch API for efficiency.
 
 ```bash
-fotura import ~/Pictures/unsorted ~/Pictures/organized --dry-run --open-report --target-path-format="%Y/%Y-%m/%Y-%m-%d"
+fotura import --after-all "google_photos_upload_batch" ~/Pictures/unsorted ~/Pictures/organized
+fotura import --after-all "google_photos_upload_batch:concurrency=3,batch_size=20" ~/Pictures/unsorted ~/Pictures/organized
 ```
 
-_Note: Always perform a dry run first to ensure your photos will be moved as you would expect._
+| Parameter     | Default | Range | Description                       |
+| ------------- | ------- | ----- | --------------------------------- |
+| `concurrency` | 2       | 1–5   | Parallel byte uploads             |
+| `batch_size`  | 10      | 1–50  | Photos per batch creation request |
 
-Other common examples:
-
-| Style                     | Format String                 | Example Path                    |
-| ------------------------- | ----------------------------- | ------------------------------- |
-| **Year / Month**          | `%Y/%m/example.jpg`           | `2008/05/example.jpg`           |
-| **Year / Month (named)**  | `%Y/%B/example.jpg`           | `2008/May/example.jpg`          |
-| **Year-Month (flat)**     | `%Y-%m/example.jpg`           | `2008-05/example.jpg`           |
-| **Month-Day under year**  | `%Y/%m-%d/example.jpg`        | `2008/05-28/example.jpg`        |
-| **Day-Month-Year (flat)** | `%d-%m-%Y/example.jpg`        | `28-05-2008/example.jpg`        |
-| **Custom folder name**    | `%Y-%m-%d_photos/example.jpg` | `2008-05-28_photos/example.jpg` |
-
-**Select a conflict strategy:**
-
-The `--conflict-strategy` flag determines how to handle filename collisions:
-
-- `keep_both`: Keep both files by appending a numeric suffix to the new file (e.g. `duplicate.jpg` and `duplicate_1.jpg`).
-- `skip`: Leave the existing file in place and skip the incoming one. No files are deleted.
-
-Example:
+Both Google Photos processors are resumable. Interrupted or failed uploads can be retried without re-uploading photos that already succeeded:
 
 ```bash
-fotura import ~/Pictures/unsorted ~/Pictures/organized --dry-run --open-report --conflict-strategy 'keep_both'
+fotura processor resume google_photos_upload
+fotura processor resume google_photos_upload_batch
 ```
 
-## Before-each Processors
+## Options
 
-- **FilenameTimestampExtract**: Extracts timestamps from WhatsApp or Android photo filenames and writes them to EXIF metadata (`--before-each "filename_timestamp_extract"`).
+| Option                 | Description                                             |
+| ---------------------- | ------------------------------------------------------- |
+| `--dry-run`            | Preview changes without moving files                    |
+| `--open-report`        | Open the HTML report in a browser after import          |
+| `--before-each`        | Processor to run per photo before moving                |
+| `--after-each`         | Processor to run per photo after moving                 |
+| `--after-all`          | Processor to run once after all photos are processed    |
+| `--conflict-strategy`  | How to handle filename collisions (`keep_both`, `skip`) |
+| `--target-path-format` | Date format for the target directory structure          |
 
-## After-each Processors
+### Path format
 
-- **[Google Photos Upload](./docs/processors/google_photos_upload.md)**: Uploads photos to Google Photos, either individually (`--after-each "google_photos_upload"`) or in batches (`--after-all "google_photos_upload_batch"`).
+Photos are organised into `%Y/%Y-%m` by default (e.g. `2023/2023-05`). Override with `--target-path-format` using [Python date format codes](https://docs.python.org/3/library/datetime.html#format-codes):
 
-## After-all Processors
+| Style              | Format              | Example                               |
+| ------------------ | ------------------- | ------------------------------------- |
+| Year / Month       | `%Y/%m`             | `2008/05/example.jpg`                 |
+| Year / Month name  | `%Y/%B`             | `2008/May/example.jpg`                |
+| Year-Month flat    | `%Y-%m`             | `2008-05/example.jpg`                 |
+| Year / Month / Day | `%Y/%m/%d`          | `2008/12/25/example.jpg`              |
+| Daily folders      | `%Y/%Y-%m/%Y-%m-%d` | `2008/2008-05/2008-05-30/example.jpg` |
 
-After-all processors run once after all photos have been processed. They receive the complete list of processed photos and can perform batch operations.
+### Conflict resolution
 
-- **[Google Photos Batch Upload](./docs/processors/google_photos_upload.md)**: Uploads photos to Google Photos using batched API calls (`--after-all "google_photos_upload_batch"`).
+- `keep_both`: appends a numeric suffix to the incoming file (`photo_1.jpg`, `photo_2.jpg`, …)
+- `skip`: leaves the existing file in place and skips the incoming one
 
-  **Parameters:**
-  - `concurrency` (int, default: 2): Number of parallel upload threads (1-5)
-  - `batch_size` (int, default: 10): Photos per batchCreate API call (1-50)
+## Coming soon
 
-  **Example:**
-
-  ```bash
-  # With default parameters
-  fotura import --after-all "google_photos_upload_batch" ~/Pictures/unsorted ~/Pictures/organized
-  # With custom parameters
-  fotura import --after-all "google_photos_upload_batch:concurrency=3,batch_size=20" ~/Pictures/unsorted ~/Pictures/organized
-  ```
-
-  This processor uploads image bytes in parallel using a thread pool, then uses the Google Photos `batchCreate` API to create multiple media items in a single call.
-
-## Future features
-
-- Stripping specific EXIF data (e.g. location data).
-- Automatic flagging and skipping of low-quality images, including:
-  - blurry shots
-  - under or over-exposed images
-  - duplicates (picking the best)
-- Image labelling via a multimodal LLM, like Llama Vision.
+- Stripping location data from EXIF.
+- Flagging low-quality images (blurry, over/under-exposed, duplicates).
+- Image labelling via a multimodal LLM.
 
 ## Development
 
