@@ -75,6 +75,22 @@ fotura processor resume google_photos_upload
 fotura processor resume google_photos_upload_batch
 ```
 
+## Supported file types
+
+| Format      | Extensions      | Cameras    |
+| ----------- | --------------- | ---------- |
+| JPEG        | `.jpg`, `.jpeg` | All        |
+| TIFF        | `.tiff`, `.tif` | All        |
+| Sony ARW    | `.arw`          | Sony Alpha |
+| Nikon RAW   | `.nef`          | Nikon      |
+| Canon RAW   | `.cr2`          | Canon      |
+| Olympus RAW | `.orf`          | Olympus    |
+| Pentax RAW  | `.pef`          | Pentax     |
+| Adobe DNG   | `.dng`          | Various    |
+| Generic RAW | `.raw`          | Various (TIFF-based only) |
+
+Fuji RAF images (`.raf`) are not supported — Fuji's proprietary format is not TIFF-based and cannot be read by the current EXIF library.
+
 ## Options
 
 | Option                 | Description                                             |

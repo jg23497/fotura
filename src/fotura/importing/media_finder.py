@@ -8,7 +8,19 @@ logger = logging.getLogger(__name__)
 
 
 class MediaFinder:
-    SUPPORTED_EXTENSIONS = {".jpg", ".jpeg", ".tiff", ".tif", ".arw"}
+    SUPPORTED_EXTENSIONS = {
+        ".jpg",
+        ".jpeg",
+        ".tiff",
+        ".tif",
+        ".arw",
+        ".nef",
+        ".cr2",
+        ".orf",
+        ".pef",
+        ".dng",
+        ".raw",
+    }
 
     def __init__(self, input_path: Path):
         self.input_path = input_path
