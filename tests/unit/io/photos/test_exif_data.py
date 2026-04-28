@@ -5,7 +5,7 @@ import piexif
 import pytest
 
 from fotura.domain.photo import Photo
-from fotura.io.photos.exif_data import ExifData
+from fotura.io.photos.exif.exif_data import ExifData
 from tests.helpers.helper import assert_exif_dates, temporary_images
 
 
@@ -83,6 +83,40 @@ def test_extract_date_returns_none_if_invalid_date_format():
         assert date is None
 
 
+def test_extract_date_extracts_date_from_raf():
+    with temporary_images(["fuji.raf"]) as (_, _, input_image_paths):
+        photo = Photo(input_image_paths[0])
+        date = ExifData.extract_date(photo)
+        assert date == datetime.datetime(2011, 5, 23, 11, 51, 28)
+
+
+def test_extract_date_extracts_date_from_legacy_raf():
+    # Older RAF files (S2 Pro era) store a smaller jpeg_length in the directory entry.
+    with temporary_images(["fuji_s2pro.raf"]) as (_, _, input_image_paths):
+        photo = Photo(input_image_paths[0])
+        date = ExifData.extract_date(photo)
+        assert date == datetime.datetime(2004, 3, 6, 16, 28, 37)
+
+
+def test_extract_date_returns_none_for_missing_raf():
+    photo = Photo(Path("nonexistent.raf"))
+    assert ExifData.extract_date(photo) is None
+
+
+def test_extract_date_returns_none_for_corrupt_raf(tmp_path):
+    corrupt = tmp_path / "corrupt.raf"
+    corrupt.write_bytes(b"foo")
+    assert ExifData.extract_date(Photo(corrupt)) is None
+
+
+def test_extract_date_uses_raf_strategy_for_uppercase_extension():
+    with temporary_images(["fuji.raf"]) as (input_dir, _, _):
+        uppercase = input_dir / "fuji.RAF"
+        (input_dir / "fuji.raf").rename(uppercase)
+        date = ExifData.extract_date(Photo(uppercase))
+        assert date == datetime.datetime(2011, 5, 23, 11, 51, 28)
+
+
 # write_date
 
 
@@ -115,3 +149,10 @@ def test_write_date_raises_FileNotFoundError_for_when_file_does_not_exist(tmp_pa
     photo = Photo(non_existent_file)
     with pytest.raises(FileNotFoundError):
         ExifData.write_date(photo, datetime.datetime.now())
+
+
+def test_write_date_raises_for_raf():
+    with temporary_images(["fuji.raf"]) as (_, _, input_image_paths):
+        photo = Photo(input_image_paths[0])
+        with pytest.raises(NotImplementedError):
+            ExifData.write_date(photo, datetime.datetime.now())

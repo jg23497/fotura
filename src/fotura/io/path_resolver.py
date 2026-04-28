@@ -7,7 +7,7 @@ from fotura.domain.media_file import MediaFile
 from fotura.domain.photo import Photo
 from fotura.importing.conflict_resolution.strategies.strategy_base import StrategyBase
 from fotura.io.path_format import PathFormat
-from fotura.io.photos.exif_data import ExifData
+from fotura.io.photos.exif.exif_data import ExifData
 from fotura.processors.fact_type import FactType
 
 logger = logging.getLogger(__name__)

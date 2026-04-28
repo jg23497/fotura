@@ -32,6 +32,8 @@ def test_photo_sorting():
             "2023/2023-10/sony_alpha_a58.JPG",
             "2025/2025-05/IMG-20250521-WA0002.jpg",
             "2024/2024-09/IMG_20240909_103402.jpg",
+            "2011/2011-05/fuji.raf",
+            "2004/2004-03/fuji_s2pro.raf",
         }
 
         whatsapp_image_path = (
@@ -60,6 +62,6 @@ def test_tally_counts():
 
         tally_snapshot = importer.tally.get_snapshot()
 
-        assert tally_snapshot.get("moved") == 9
+        assert tally_snapshot.get("moved") == 11
         assert tally_snapshot.get("skipped") == 1
         assert tally_snapshot.get("errored") == 0

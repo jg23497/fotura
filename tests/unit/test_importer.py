@@ -10,7 +10,7 @@ import pytest
 
 from fotura.domain.photo import Photo
 from fotura.importer import Importer
-from fotura.io.photos.exif_data import ExifData
+from fotura.io.photos.exif.exif_data import ExifData
 from fotura.processors.fact_type import FactType
 from tests.helpers import helper
 from tests.helpers.helper import (

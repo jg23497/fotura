@@ -88,8 +88,7 @@ fotura processor resume google_photos_upload_batch
 | Pentax RAW  | `.pef`          | Pentax     |
 | Adobe DNG   | `.dng`          | Various    |
 | Generic RAW | `.raw`          | Various (TIFF-based only) |
-
-Fuji RAF images (`.raf`) are not supported — Fuji's proprietary format is not TIFF-based and cannot be read by the current EXIF library.
+| Fuji RAF    | `.raf`          | Fuji |
 
 ## Options
 

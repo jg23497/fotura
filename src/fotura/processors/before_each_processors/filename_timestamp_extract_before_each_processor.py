@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 
 from fotura.domain.photo import Photo
-from fotura.io.photos.exif_data import ExifData
+from fotura.io.photos.exif.exif_data import ExifData
 from fotura.processors.context import Context
 from fotura.processors.fact_type import FactType
 

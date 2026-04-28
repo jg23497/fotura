@@ -20,6 +20,7 @@ class MediaFinder:
         ".pef",
         ".dng",
         ".raw",
+        ".raf",
     }
 
     def __init__(self, input_path: Path):

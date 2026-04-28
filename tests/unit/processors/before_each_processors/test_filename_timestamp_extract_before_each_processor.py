@@ -6,7 +6,7 @@ from unittest.mock import ANY, patch
 import pytest
 
 from fotura.domain.photo import Photo
-from fotura.io.photos.exif_data import ExifData
+from fotura.io.photos.exif.exif_data import ExifData
 from fotura.persistence.database import Database
 from fotura.processors.before_each_processors.filename_timestamp_extract_before_each_processor import (
     FilenameTimestampExtractBeforeEachProcessor,

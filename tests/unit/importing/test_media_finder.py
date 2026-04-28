@@ -25,7 +25,23 @@ def finder(input_dir):
 # find
 
 
-@pytest.mark.parametrize("extension", ["jpg", "jpeg", "tif", "tiff", "arw"])
+@pytest.mark.parametrize(
+    "extension",
+    [
+        "jpg",
+        "jpeg",
+        "tif",
+        "tiff",
+        "arw",
+        "nef",
+        "cr2",
+        "orf",
+        "pef",
+        "dng",
+        "raw",
+        "raf",
+    ],
+)
 def test_find_finds_files_with_supported_extensions(finder, input_dir, extension):
     file_path = create_path(input_dir / f"test.{extension}")
 
