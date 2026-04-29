@@ -76,7 +76,7 @@ def test_move_logs_moved_report_entry(files, media_file, target_path, caplog):
 
     assert len(log_entries) == 1
 
-    assert str(log_entries[0].media_file) == "~/Desktop/test_image.jpg"
+    assert Path(log_entries[0].media_file) == Path("~/Desktop/test_image.jpg")
     assert str(new_path) in log_entries[0].getMessage()
 
 

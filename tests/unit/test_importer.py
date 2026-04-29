@@ -640,16 +640,12 @@ def test_permission_check_raises_on_remove_error(fs):
     temp_file = path / "permission-check.tmp"
     fs.create_file(temp_file)
 
-    if os.name == "nt":
-        os.chmod(path, 0o444)
-    else:
-        os.chmod(path, 0o555)
-
-    with pytest.raises(
-        PermissionError, match="Permission check: Failed to remove test file"
-    ):
-        importer = Importer(input_path=path, target_root=path)
-        importer.process_photos()
+    with patch("os.remove", side_effect=PermissionError("Permission denied")):
+        with pytest.raises(
+            PermissionError, match="Permission check: Failed to remove test file"
+        ):
+            importer = Importer(input_path=path, target_root=path)
+            importer.process_photos()
 
 
 def test_process_photos_makes_read_only_files_writable(stub_user_dirs):

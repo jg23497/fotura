@@ -103,8 +103,8 @@ def test_find_skips_empty_directories(finder, input_dir):
 
 
 def test_find_uses_case_insensitive_extension_matching(finder, input_dir):
-    upper_file = create_path(input_dir / "test.JPG")
-    lower_file = create_path(input_dir / "test.jpg")
+    upper_file = create_path(input_dir / "upper.JPG")
+    lower_file = create_path(input_dir / "lower.jpg")
 
     photos = finder.find()
     photo_paths = list(map(lambda x: x.path, photos))
