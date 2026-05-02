@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import Optional
 
 import piexif
+from piexif import InvalidImageDataError
 
 from fotura.domain.photo import Photo
 from fotura.io.photos.exif.exif_io_strategy import ExifIoStrategy
@@ -12,20 +13,14 @@ logger = logging.getLogger(__name__)
 
 class PiexifExifStrategy(ExifIoStrategy):
     def extract_date(self, photo: Photo) -> Optional[datetime]:
-        try:
-            return self.__parse_timestamp(piexif.load(str(photo.path)))
-        except Exception:
-            photo.log(logging.ERROR, "Error reading EXIF data", exc_info=True)
-            return None
+        exif_dict = self.__load_exif_dict(str(photo.path), photo)
+        return self.__parse_timestamp(exif_dict) if exif_dict is not None else None
 
     def extract_date_from_bytes(
         self, jpeg_bytes: bytes, photo: Photo
     ) -> Optional[datetime]:
-        try:
-            return self.__parse_timestamp(piexif.load(jpeg_bytes))
-        except Exception:
-            photo.log(logging.ERROR, "Error reading EXIF data", exc_info=True)
-            return None
+        exif_dict = self.__load_exif_dict(jpeg_bytes, photo)
+        return self.__parse_timestamp(exif_dict) if exif_dict is not None else None
 
     def write_date(self, photo: Photo, timestamp: datetime) -> None:
         exif = piexif.load(str(photo.path))
@@ -37,6 +32,17 @@ class PiexifExifStrategy(ExifIoStrategy):
 
         exif_bytes = piexif.dump(exif)
         piexif.insert(exif_bytes, str(photo.path))
+
+    @staticmethod
+    def __load_exif_dict(source, photo: Photo) -> Optional[dict]:
+        try:
+            return piexif.load(source)
+        except InvalidImageDataError:
+            photo.log(logging.ERROR, "Error reading EXIF data: not a valid image")
+            return None
+        except Exception:
+            photo.log(logging.ERROR, "Error reading EXIF data", exc_info=True)
+            return None
 
     @staticmethod
     def __parse_timestamp(exif_dict) -> Optional[datetime]:

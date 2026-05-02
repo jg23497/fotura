@@ -1,10 +1,11 @@
+import errno
 import logging
 import os
 import shutil
 import stat
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import DEFAULT, Mock, patch
 
 import pytest
 
@@ -436,34 +437,8 @@ def test_process_photos_increments_skipped_tally_when_photo_skipped():
         assert tally_snapshot.get("skipped") == 1
 
 
-@patch.object(shutil, "move", side_effect=ValueError)
-def test_process_photos_logs_failed_on_move_exception(_, caplog):
-    with temporary_images(["Canon_40D.jpg"]) as (
-        input_path,
-        target_root,
-        _,
-    ):
-        importer = Importer(
-            input_path=input_path,
-            target_root=target_root,
-        )
-
-        with caplog.at_level(logging.INFO):
-            importer.process_photos()
-
-        log_entries = get_log_entries(
-            caplog,
-            lambda r: r.levelno == logging.ERROR
-            and "Failed to import" in r.getMessage()
-            and r.exc_info[0] is ValueError,
-        )
-
-        assert len(log_entries) == 1
-        assert "Canon_40D.jpg" in str(log_entries[0].media_file)
-
-
-@patch.object(ExifData, "extract_date", side_effect=ValueError)
-def test_process_photos_halts_on_exception(_, caplog):
+@patch.object(shutil, "move", side_effect=FileNotFoundError)
+def test_process_photos_halts_on_unrecoverable_move_exception(_, caplog):
     with temporary_images(["Canon_40D.jpg", "sony_alpha_a58.JPG"]) as (
         input_path,
         target_root,
@@ -474,7 +449,7 @@ def test_process_photos_halts_on_exception(_, caplog):
             target_root=target_root,
         )
 
-        with caplog.at_level(logging.INFO):
+        with caplog.at_level(logging.INFO), pytest.raises(FileNotFoundError):
             importer.process_photos()
 
         assert image_paths[0].exists()
@@ -484,28 +459,76 @@ def test_process_photos_halts_on_exception(_, caplog):
             caplog,
             lambda r: r.levelno == logging.ERROR
             and "Failed to import" in r.getMessage()
-            and r.exc_info[0] is ValueError,
+            and r.exc_info[0] is FileNotFoundError,
         )
 
         assert len(log_entries) == 1
+        assert "Canon_40D.jpg" in str(log_entries[0].media_file)
+
+        tally = importer.tally.get_snapshot()
+        assert tally.get("errored") == 1
 
 
-@patch.object(ExifData, "extract_date", side_effect=ValueError)
-def test_process_photos_increments_errored_tally_when_error_occurs(_):
-    with temporary_images(["Canon_40D.jpg"]) as (
+@patch.object(
+    ExifData,
+    "extract_date",
+    side_effect=OSError(errno.ENOSPC, "No space left on device"),
+)
+def test_process_photos_halts_on_unrecoverable_exception(_, caplog):
+    with temporary_images(["Canon_40D.jpg", "sony_alpha_a58.JPG"]) as (
         input_path,
         target_root,
-        _,
+        image_paths,
     ):
         importer = Importer(
             input_path=input_path,
             target_root=target_root,
         )
 
-        importer.process_photos()
+        with caplog.at_level(logging.INFO), pytest.raises(OSError):
+            importer.process_photos()
 
-        tally_snapshot = importer.tally.get_snapshot()
-        assert tally_snapshot.get("errored") == 1
+        assert image_paths[0].exists()
+        assert image_paths[1].exists()
+
+        log_entries = get_log_entries(
+            caplog,
+            lambda r: r.levelno == logging.ERROR
+            and "Failed to import" in r.getMessage()
+            and r.exc_info[0] is OSError,
+        )
+
+        assert len(log_entries) == 1
+
+        tally = importer.tally.get_snapshot()
+        assert tally.get("errored") == 1
+
+
+def test_process_photos_continues_on_recoverable_oserror(caplog):
+    with temporary_images(["Canon_40D.jpg", "sony_alpha_a58.JPG"]) as (
+        input_path,
+        target_root,
+        image_paths,
+    ):
+        importer = Importer(input_path=input_path, target_root=target_root)
+
+        with patch.object(
+            shutil,
+            "move",
+            wraps=shutil.move,
+            side_effect=[
+                OSError(errno.EACCES, "Permission denied", str(image_paths[0])),
+                DEFAULT,
+            ],
+        ):
+            importer.process_photos()
+
+        assert image_paths[0].exists()
+        assert (target_root / "2023" / "2023-10" / "sony_alpha_a58.JPG").exists()
+
+        tally = importer.tally.get_snapshot()
+        assert tally.get("errored") == 1
+        assert tally.get("moved") == 1
 
 
 def test_process_skips_destination_directory_creation_for_dry_runs():
@@ -747,3 +770,28 @@ def test_processor_facts_are_accumulated_through_processor_calls():
             "complex_after_each_processor_fact": "complex_after_each_processor_value",
         }
         assert photo.facts == expected_facts
+
+
+def test_process_photos_skips_images_that_fail_to_parse(caplog):
+    with temporary_images(["invalid.jpg"]) as (
+        input_path,
+        target_root,
+        image_paths,
+    ):
+        importer = Importer(input_path=input_path, target_root=target_root)
+
+        with caplog.at_level(logging.ERROR):
+            importer.process_photos()
+
+        assert image_paths[0].exists()
+
+        exif_error_entries = get_log_entries(
+            caplog,
+            lambda r: r.levelno == logging.ERROR
+            and "Error reading EXIF data: not a valid image" in r.getMessage(),
+        )
+        assert len(exif_error_entries) == 1
+        assert "invalid.jpg" in str(exif_error_entries[0].media_file)
+
+        tally_snapshot = importer.tally.get_snapshot()
+        assert tally_snapshot.get("skipped") == 1

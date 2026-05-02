@@ -133,8 +133,8 @@ def test_report_displays_tally_counts(report):
     assert attributes["moved"] == "11", (
         f"Expected 11 moved files, got {attributes['moved']}"
     )
-    assert attributes["skipped"] == "1", (
-        f"Expected 1 skipped file, got {attributes['skipped']}"
+    assert attributes["skipped"] == "2", (
+        f"Expected 2 skipped files, got {attributes['skipped']}"
     )
     assert attributes["errored"] == "0", (
         f"Expected 0 errored files, got {attributes['errored']}"

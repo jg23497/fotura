@@ -63,5 +63,5 @@ def test_tally_counts():
         tally_snapshot = importer.tally.get_snapshot()
 
         assert tally_snapshot.get("moved") == 11
-        assert tally_snapshot.get("skipped") == 1
+        assert tally_snapshot.get("skipped") == 2
         assert tally_snapshot.get("errored") == 0

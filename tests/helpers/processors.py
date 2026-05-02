@@ -38,7 +38,7 @@ class DummyAfterEachProcessor:
         self.context = context
         self.configure = Mock()
         self.can_handle: Mock = Mock(return_value=True)
-        self.process: Mock = Mock()
+        self.process: Mock = Mock(return_value={})
 
 
 class ComplexDummyAfterEachProcessor:
@@ -51,7 +51,7 @@ class ComplexDummyAfterEachProcessor:
         self.context = context
         self.configure = Mock()
         self.can_handle: Mock = Mock(return_value=True)
-        self.process: Mock = Mock()
+        self.process: Mock = Mock(return_value={})
         self.max_size = max_size
         self.should_do_something = should_do_something
 

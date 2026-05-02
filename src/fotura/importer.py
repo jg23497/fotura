@@ -66,10 +66,11 @@ class Importer:
                 try:
                     if self.__process_photo(photo):
                         processed_photos.append(photo)
-                except Exception:
-                    photo.log(logging.ERROR, "Failed to import", exc_info=True)
-                    self.tally.increment("errored")
-                    break
+                except Exception as e:
+                    self.__record_error(photo)
+                    if self.__is_recoverable_error(e, photo.path):
+                        continue
+                    raise
 
             if processed_photos:
                 self.processor_orchestrator.run_after_all_processors(processed_photos)
@@ -140,3 +141,12 @@ class Importer:
         self.html_report_handler.close(self.tally)
         if self.open_report:
             webbrowser.open(self.report_path.as_uri())
+
+    def __record_error(self, photo) -> None:
+        photo.log(logging.ERROR, "Failed to import", exc_info=True)
+        self.tally.increment("errored")
+
+    @staticmethod
+    def __is_recoverable_error(e: Exception, photo_path: Path) -> bool:
+        filename = getattr(e, "filename", None)
+        return bool(filename) and Path(filename) == photo_path

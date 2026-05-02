@@ -75,4 +75,3 @@ def test_resume_subcommand_calls_resume(tmp_path):
         result = CliRunner().invoke(cmd, [])
 
     assert result.exit_code == 0, result.output
-

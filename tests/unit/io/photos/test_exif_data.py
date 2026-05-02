@@ -1,4 +1,5 @@
 import datetime
+import logging
 from pathlib import Path
 
 import piexif
@@ -69,6 +70,20 @@ def test_extract_date_returns_none_if_no_exif_data_found(tmp_path):
     date = ExifData.extract_date(photo)
 
     assert date is None
+
+
+def test_extract_date_logs_error_without_traceback_for_invalid_image(tmp_path, caplog):
+    image_path = tmp_path / "image.jpg"
+    image_path.write_bytes(b"foobar")
+    photo = Photo(image_path)
+
+    with caplog.at_level(logging.ERROR):
+        ExifData.extract_date(photo)
+
+    error_records = [r for r in caplog.records if r.levelno == logging.ERROR]
+    assert len(error_records) == 1
+    assert "not a valid image" in error_records[0].getMessage()
+    assert error_records[0].exc_info is None
 
 
 def test_extract_date_returns_none_if_invalid_date_format():
