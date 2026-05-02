@@ -3,7 +3,25 @@ name = "fotura"
 version = "0.1.0"
 description = "A tool to organize and sort photos based on their metadata"
 readme = "README.md"
+license = { file = "LICENSE" }
 requires-python = ">=3.11"
+authors = [
+    { name = "J Gulan", email = "jg23497@gmail.com" },
+]
+keywords = ["photos", "exif", "import", "organize", "cli"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Multimedia :: Graphics",
+    "Topic :: Utilities",
+]
 dependencies = [
     "click>=8.1.0",
     "piexif>=1.1.3",
@@ -12,9 +30,15 @@ dependencies = [
     "google-auth-oauthlib>=1.0.0",
     "google-api-python-client>=2.97.0",
     "platformdirs>=4.5.0",
+    "requests>=2.32.0",
     "rich>=13.0.0",
     "tenacity>=9.1.4",
 ]
+
+[project.urls]
+Homepage = "https://github.com/jg23497/fotura"
+Repository = "https://github.com/jg23497/fotura"
+"Bug Tracker" = "https://github.com/jg23497/fotura/issues"
 
 [project.scripts]
 fotura = "fotura.main:cli"
@@ -26,6 +50,15 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/fotura"]
 
+[tool.hatch.build.targets.sdist]
+exclude = [
+    ".claude/",
+    ".vscode/",
+    ".github/",
+    "scripts/",
+    "output/",
+]
+
 [dependency-groups]
 dev = [
     "pytest>=8.3.5",
@@ -35,7 +68,6 @@ dev = [
     "pyfakefs>=5.9.1",
     "responses>=0.25.7",
     "beautifulsoup4>=4.14.2",
-    "tenacity>=9.1.4",
 ]
 
 [tool.pytest.ini_options]

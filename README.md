@@ -1,6 +1,6 @@
 # Fotura
 
-<img src="./docs/images/logo.png" width="200px" alt="Fotura logo"/>
+<img src="https://raw.githubusercontent.com/jg23497/fotura/main/docs/images/logo.png" width="200px" alt="Fotura logo"/>
 
 **A Python CLI for importing, organizing, and uploading your photos.**
 
@@ -8,11 +8,9 @@
 
 Fotura moves photos from a source directory into a clean, date-organised folder structure. It extracts timestamps from EXIF metadata and filenames, resolves conflicts, and can upload directly to Google Photos, all from a single command.
 
-![Fotura pipeline flow diagram](./docs/images/pipeline-flow-diagram.png)
+![Fotura pipeline flow diagram](https://raw.githubusercontent.com/jg23497/fotura/main/docs/images/pipeline-flow-diagram.png)
 
 ## Installation
-
-> **Note:** Fotura is not yet published to PyPI. Until then, please follow the [development setup instructions](docs/development.md) to install from source.
 
 ```bash
 pipx install fotura
@@ -30,7 +28,9 @@ Always preview first with `--dry-run`:
 fotura import ~/Pictures/unsorted ~/Pictures/organized --dry-run --open-report
 ```
 
-<img src="./docs/images/report-example.png" width="600px" alt="Example report"/>
+Reports are generated for each import, viewable using your browser:
+
+<img src="https://raw.githubusercontent.com/jg23497/fotura/main/docs/images/report-example.png" width="600px" alt="Example report"/>
 
 ## Processors
 
@@ -77,18 +77,18 @@ fotura processor resume google_photos_upload_batch
 
 ## Supported file types
 
-| Format      | Extensions      | Cameras    |
-| ----------- | --------------- | ---------- |
-| JPEG        | `.jpg`, `.jpeg` | All        |
-| TIFF        | `.tiff`, `.tif` | All        |
-| Sony ARW    | `.arw`          | Sony Alpha |
-| Nikon RAW   | `.nef`          | Nikon      |
-| Canon RAW   | `.cr2`          | Canon      |
-| Olympus RAW | `.orf`          | Olympus    |
-| Pentax RAW  | `.pef`          | Pentax     |
-| Adobe DNG   | `.dng`          | Various    |
+| Format      | Extensions      | Cameras                   |
+| ----------- | --------------- | ------------------------- |
+| JPEG        | `.jpg`, `.jpeg` | All                       |
+| TIFF        | `.tiff`, `.tif` | All                       |
+| Sony ARW    | `.arw`          | Sony Alpha                |
+| Nikon RAW   | `.nef`          | Nikon                     |
+| Canon RAW   | `.cr2`          | Canon                     |
+| Olympus RAW | `.orf`          | Olympus                   |
+| Pentax RAW  | `.pef`          | Pentax                    |
+| Adobe DNG   | `.dng`          | Various                   |
 | Generic RAW | `.raw`          | Various (TIFF-based only) |
-| Fuji RAF    | `.raf`          | Fuji |
+| Fuji RAF    | `.raf`          | Fuji                      |
 
 ## Options
 
