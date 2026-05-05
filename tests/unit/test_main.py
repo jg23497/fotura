@@ -10,6 +10,7 @@ from tests.helpers.helper import temporary_images
 from tests.helpers.processors import (
     ComplexDummyAfterEachProcessor,
     ComplexDummyBeforeEachProcessor,
+    DummyAfterAllProcessor,
     DummyAfterEachProcessor,
     DummyBeforeEachProcessor,
 )
@@ -87,7 +88,9 @@ def test_fails_when_unknown_before_each_processor_specified():
             ],
         )
 
-        assert result.exit_code == 1
+        assert result.exit_code == 2
+        assert "Unknown processor 'filename_timestamp_extract'" in result.output
+        assert "Valid options:" in result.output
 
 
 @patch(
@@ -211,7 +214,39 @@ def test_fails_when_unknown_after_each_processor_specified():
             ],
         )
 
-        assert result.exit_code == 1
+        assert result.exit_code == 2
+        assert "Unknown processor 'foo'" in result.output
+        assert "Valid options:" in result.output
+
+
+@patch(
+    "fotura.processors.registry.AFTER_ALL_PROCESSOR_MAP",
+    {
+        "other_after_all_processor": DummyAfterAllProcessor,
+    },
+)
+def test_fails_when_unknown_after_all_processor_specified():
+    reload(main)
+
+    with temporary_images(["Canon_40D.jpg"]) as (
+        input_path,
+        target_root,
+        _,
+    ):
+        result = CliRunner().invoke(
+            main.cli,
+            [
+                "import",
+                str(input_path),
+                str(target_root),
+                "--after-all",
+                "foo",
+            ],
+        )
+
+        assert result.exit_code == 2
+        assert "Unknown processor 'foo'" in result.output
+        assert "Valid options:" in result.output
 
 
 @patch(

@@ -110,21 +110,27 @@ def run_import(
     enabled_before_each_processors = []
     if before_each_processors:
         enabled_before_each_processors = [
-            __parse_processor_arguments(p.strip(), BEFORE_EACH_PROCESSOR_MAP)
+            __parse_processor_arguments(
+                p.strip(), BEFORE_EACH_PROCESSOR_MAP, "--before-each"
+            )
             for p in before_each_processors
         ]
 
     enabled_after_each_processors = []
     if after_each_processors:
         enabled_after_each_processors = [
-            __parse_processor_arguments(p.strip(), AFTER_EACH_PROCESSOR_MAP)
+            __parse_processor_arguments(
+                p.strip(), AFTER_EACH_PROCESSOR_MAP, "--after-each"
+            )
             for p in after_each_processors
         ]
 
     enabled_after_all_processors = []
     if after_all_processors:
         enabled_after_all_processors = [
-            __parse_processor_arguments(p.strip(), AFTER_ALL_PROCESSOR_MAP)
+            __parse_processor_arguments(
+                p.strip(), AFTER_ALL_PROCESSOR_MAP, "--after-all"
+            )
             for p in after_all_processors
         ]
 
@@ -248,7 +254,7 @@ def __cast_arg(value: str, klass: Type) -> Any:
 
 
 def __parse_processor_arguments(
-    input: str, processor_map: Dict[str, Type]
+    input: str, processor_map: Dict[str, Type], option_name: str
 ) -> Tuple[str, Dict[str, Any]]:
     """
     Parse a processor specification string into a name and argument dictionary.
@@ -268,6 +274,12 @@ def __parse_processor_arguments(
     processor_name = parts[0]
     options_string = parts[1] if len(parts) > 1 else None
 
+    if processor_name not in processor_map:
+        valid = ", ".join(processor_map.keys())
+        raise click.BadParameter(
+            f"Unknown processor '{processor_name}'. Valid options: {valid}",
+            param_hint=f"'{option_name}'",
+        )
     processor_class = processor_map[processor_name]
     allowed_params = __get_processor_params(processor_class)
 
