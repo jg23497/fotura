@@ -1,21 +1,13 @@
 # Google Photos Upload
 
-Two processors are available for uploading photos to Google Photos, which both share the same OAuth2 authentication setup.
-
-## After-each processor
-
-Uploads each photo individually as soon as it has been moved to its target location.
-
-```
-fotura import --after-each "google_photos_upload" ~/Pictures/unsorted ~/Pictures/organized
-```
+A processor for uploading photos to Google Photos, using OAuth2 authentication.
 
 ## After-all processor
 
-Uploads all photos in batches after the full import is complete. This is more efficient for large imports as it parallelises byte uploads and uses the Google Photos Batch Create API.
+Uploads all photos in batches after the full import is complete. This is efficient for large imports as it parallelises byte uploads and uses the Google Photos Batch Create API.
 
 ```
-fotura import --after-all "google_photos_upload_batch" ~/Pictures/unsorted ~/Pictures/organized
+fotura import --after-all "google_photos_upload" ~/Pictures/unsorted ~/Pictures/organized
 ```
 
 ### Parameters
@@ -26,19 +18,18 @@ fotura import --after-all "google_photos_upload_batch" ~/Pictures/unsorted ~/Pic
 | `batch_size`  | 10      | 1–50  | Number of photos per batch creation request |
 
 ```
-fotura import --after-all "google_photos_upload_batch:concurrency=3,batch_size=20" ~/Pictures/unsorted ~/Pictures/organized
+fotura import --after-all "google_photos_upload:concurrency=3,batch_size=20" ~/Pictures/unsorted ~/Pictures/organized
 ```
 
-Both processors are resumable via the `processor resume` command, in the case of failed or interrupted uploads:
+The processor is resumable via the `processor resume` command, in the case of failed or interrupted uploads:
 
 ```
 fotura processor resume google_photos_upload
-fotura processor resume google_photos_upload_batch
 ```
 
 ## Configuration
 
-To use either processor, you must configure a Google Cloud project and enable the Google Photos Library API.
+To use the processor, you must configure a Google Cloud project and enable the Google Photos Library API.
 
 ### Step 1: Obtain your personal Google Photos API credentials
 
@@ -61,7 +52,7 @@ Note: Using the [Google Auth Platform - Audience](https://console.cloud.google.c
 
 ### Step 3: Authenticate
 
-1. The first time you run either processor, it will initiate the OAuth authentication flow.
+1. The first time you run the processor, it will initiate the OAuth authentication flow.
 2. A browser window will open, prompting you to sign in to your Google account and grant Fotura permission to upload photos.
 3. After you approve the permissions, the application will receive a token. This token is saved as `token.json` in the user config directory:
    - Linux: `~/.config/fotura/integrations/google_photos/token.json`

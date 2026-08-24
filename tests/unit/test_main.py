@@ -422,7 +422,7 @@ def test_processor_resume_delegates_to_orchestrator(tmp_path):
 
         result = CliRunner().invoke(
             main.cli,
-            ["processor", "resume", "google_photos_upload_batch"],
+            ["processor", "resume", "google_photos_upload"],
         )
 
     assert result.exit_code == 0, result.output
@@ -441,7 +441,7 @@ def test_processor_resume_raises_usage_error_when_orchestrator_raises(tmp_path):
 
         result = CliRunner().invoke(
             main.cli,
-            ["processor", "resume", "google_photos_upload_batch"],
+            ["processor", "resume", "google_photos_upload"],
         )
 
     assert result.exit_code == 2

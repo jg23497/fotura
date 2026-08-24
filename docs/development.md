@@ -154,7 +154,7 @@ Processors can also be invoked independently of an import using `fotura processo
 
 ### The Google Photos batch upload processor
 
-The `google_photos_upload_batch` after-all processor uploads photos to Google Photos after the full import is complete. Using an after-all processor rather than an after-each processor means all uploads can be issued as batched API calls, which is both more efficient and in line with Google's recommended usage of the Photos Library API.
+The `google_photos_upload` after-all processor uploads photos to Google Photos after the full import is complete. Using an after-all processor rather than an after-each processor means all uploads can be issued as batched API calls, which is both more efficient and in line with Google's recommended usage of the Photos Library API.
 
 The processor works in two steps per batch:
 
@@ -171,7 +171,7 @@ Authentication uses OAuth2 via the Google API client library. On first use, the 
 Processor parameters are passed on the command line in `name:key=value` format:
 
 ```
-fotura import ... --after-all-processors google_photos_upload_batch:concurrency=3,batch_size=20
+fotura import ... --after-all-processors google_photos_upload:concurrency=3,batch_size=20
 ```
 
 ### Concurrency

@@ -48,19 +48,11 @@ fotura import --before-each "filename_timestamp_extract" ~/Pictures/unsorted ~/P
 
 ### Google Photos Upload
 
-Uploads each photo to Google Photos as it is moved. See the [full documentation](./docs/processors/google_photos_upload.md) for setup.
-
-```bash
-fotura import --after-each "google_photos_upload" ~/Pictures/unsorted ~/Pictures/organized
-```
-
-### Google Photos Batch Upload
-
 Uploads in parallel after the full import completes, using the Google Photos batch API for efficiency.
 
 ```bash
-fotura import --after-all "google_photos_upload_batch" ~/Pictures/unsorted ~/Pictures/organized
-fotura import --after-all "google_photos_upload_batch:concurrency=3,batch_size=20" ~/Pictures/unsorted ~/Pictures/organized
+fotura import --after-all "google_photos_upload" ~/Pictures/unsorted ~/Pictures/organized
+fotura import --after-all "google_photos_upload:concurrency=3,batch_size=20" ~/Pictures/unsorted ~/Pictures/organized
 ```
 
 | Parameter     | Default | Range | Description                       |
@@ -68,11 +60,10 @@ fotura import --after-all "google_photos_upload_batch:concurrency=3,batch_size=2
 | `concurrency` | 2       | 1–5   | Parallel byte uploads             |
 | `batch_size`  | 10      | 1–50  | Photos per batch creation request |
 
-Both Google Photos processors are resumable. Interrupted or failed uploads can be retried without re-uploading photos that already succeeded:
+The Google Photos processor is resumable. Interrupted or failed uploads can be retried without re-uploading photos that already succeeded:
 
 ```bash
 fotura processor resume google_photos_upload
-fotura processor resume google_photos_upload_batch
 ```
 
 ## Supported file types
