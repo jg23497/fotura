@@ -176,9 +176,15 @@ fotura import ... --after-all-processors google_photos_upload:concurrency=3,batc
 
 ### Concurrency
 
-The import pipeline itself is single-threaded. Photos are processed sequentially for the for-each and after-each stages, which allows processing to be immediately halted in case of an exception.
+The import pipeline processes photos concurrently when `fotura import` is given `--concurrency N` (default: `1`, range: `1`–`5`). Each worker runs the before-each, move, and after-each stages for one photo.
 
-The Google Photos batch processor leverages ThreadPoolExecutor to upload multiple photos concurrently. Multiprocessing is not used.
+After-all processors run only after the worker pool has completed, on the calling thread, so they remain single-threaded and receive the complete set of successfully processed photos.
+
+PathResolver uses a lock to serialize conflict detection, resolution, and path claiming, which prevents concurrent workers from targeting the same destination filename.
+
+The Google Photos batch processor leverages ThreadPoolExecutor to upload multiple photos concurrently.
+
+Multiprocessing is not used anywhere.
 
 ### SQLite integration
 
@@ -204,7 +210,7 @@ The shared Context object provides a Database instance within the processor cont
 
 The CLI is built with [Click](https://click.palletsprojects.com) and exposes two top-level commands:
 
-- **`fotura import`** is the primary command. It takes a source directory and a target root, discovers photos, runs the full processor pipeline, and generates a report. Processors are specified via `--before-each`, `--after-each`, and `--after-all` options, each accepting one or more processor specs in `name` or `name:key=value` format.
+- **`fotura import`** is the primary command. It takes a source directory and a target root, discovers photos, runs the full processor pipeline, and generates a report. `--concurrency` controls parallel per-photo processing from `1` to `5` (default: `1`). Processors are specified via `--before-each`, `--after-each`, and `--after-all` options, each accepting one or more processor specs in `name` or `name:key=value` format.
 
 - **`fotura processor`** is a command group for running or resuming processors independently, without triggering a full import. Its subcommands are generated dynamically at startup from the processor registry, so any registered processor automatically gains a `run` and (if Resumable) a `resume` subcommand.
 
@@ -228,7 +234,7 @@ Supported extensions are defined in a module-level `SUPPORTED_EXTENSIONS` consta
 
 PathResolver determines where each photo should be placed in the target directory tree. It combines the photo's capture date with the configured `--target-path-format` string (a Python `strftime` format, defaulting to `%Y/%Y-%m`) to build the target directory, then appends the original filename.
 
-Before returning a path, it checks for conflicts against both the filesystem and a `claimed_paths` set that tracks paths already assigned in the current run. If a conflict is found, it delegates to the configured conflict resolution strategy. Photos with no resolvable date are skipped.
+Before returning a path, it atomically checks for conflicts against both the filesystem and a `claimed_paths` set that tracks paths already assigned in the current run, resolves any conflict, and claims the selected path. If a conflict is found, it delegates to the configured conflict resolution strategy. Photos with no resolvable date are skipped.
 
 ### Conflict resolution
 

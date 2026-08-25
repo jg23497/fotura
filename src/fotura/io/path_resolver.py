@@ -1,6 +1,7 @@
 import logging
 from datetime import datetime
 from pathlib import Path
+from threading import Lock
 from typing import Optional
 
 from fotura.domain.media_file import MediaFile
@@ -26,6 +27,7 @@ class PathResolver:
         self.dry_run = dry_run
         self.conflict_resolver = conflict_resolver
         self.claimed_paths = set[Path]()
+        self.__lock = Lock()
 
     def get_target_path(self, media_file: MediaFile) -> Optional[Path]:
         if not isinstance(media_file, Photo):
@@ -55,17 +57,18 @@ class PathResolver:
 
         target_path = target_directory / f"{original_path.stem}{original_path.suffix}"
 
-        if target_path in self.claimed_paths or target_path.exists():
-            target_path = self.conflict_resolver.resolve(
-                target_path=target_path,
-                claimed_paths=self.claimed_paths,
-            )
-            if target_path is None:
-                media_file.log(
-                    logging.WARNING,
-                    "Skipping due to conflict resolution strategy",
+        with self.__lock:
+            if target_path in self.claimed_paths or target_path.exists():
+                target_path = self.conflict_resolver.resolve(
+                    target_path=target_path,
+                    claimed_paths=self.claimed_paths,
                 )
-                return None
+                if target_path is None:
+                    media_file.log(
+                        logging.WARNING,
+                        "Skipping due to conflict resolution strategy",
+                    )
+                    return None
 
-        self.claimed_paths.add(target_path)
-        return target_path
+            self.claimed_paths.add(target_path)
+            return target_path

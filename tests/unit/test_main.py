@@ -370,6 +370,50 @@ def test_uses_custom_path_format_when_provided():
         assert result.exit_code == 0, result.output
 
 
+def test_passes_concurrency_configuration_to_importer(tmp_path):
+    source = tmp_path / "source"
+    source.mkdir()
+
+    with (
+        patch.object(importer.Importer, "__init__", return_value=None) as mock_init,
+        patch.object(importer.Importer, "process_photos", return_value=None),
+    ):
+        result = CliRunner().invoke(
+            main.cli,
+            ["import", str(source), str(tmp_path / "target"), "--concurrency", "3"],
+        )
+
+    assert result.exit_code == 0, result.output
+    assert mock_init.call_args.kwargs["concurrency"] == 3
+
+
+@pytest.mark.parametrize("concurrency", [0, -1])
+def test_rejects_concurrency_less_than_one(tmp_path, concurrency):
+    result = CliRunner().invoke(
+        main.cli,
+        [
+            "import",
+            str(tmp_path),
+            str(tmp_path / "target"),
+            "--concurrency",
+            str(concurrency),
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "Invalid value for '--concurrency'" in result.output
+
+
+def test_rejects_concurrency_greater_than_five(tmp_path):
+    result = CliRunner().invoke(
+        main.cli,
+        ["import", str(tmp_path), str(tmp_path / "target"), "--concurrency", "6"],
+    )
+
+    assert result.exit_code == 2
+    assert "Invalid value for '--concurrency'" in result.output
+
+
 def normalize_whitespace(text: str) -> str:
     return re.sub(r"\s+", " ", text)
 

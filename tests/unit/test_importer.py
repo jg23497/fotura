@@ -5,6 +5,7 @@ import shutil
 import stat
 from datetime import datetime
 from pathlib import Path
+from threading import Barrier, BrokenBarrierError, get_ident
 from unittest.mock import DEFAULT, Mock, patch
 
 import pytest
@@ -20,6 +21,7 @@ from tests.helpers.helper import (
 )
 from tests.helpers.processors import (
     ComplexDummyAfterEachProcessor,
+    DummyAfterAllProcessor,
     DummyAfterEachProcessor,
     DummyBeforeEachProcessor,
     FailingConfigureBeforeEachProcessor,
@@ -606,6 +608,74 @@ def test_filename_collision_skip_strategy_when_inputs_resolve_to_same_path():
         assert (target_directory / "Pentax_K10D.jpg").exists()
         files_in_directory = list(helper.get_all_files(target_directory))
         assert len(files_in_directory) == 1
+
+
+def test_concurrent_import_resolves_all_filename_collisions():
+    with temporary_images(
+        [Path("directory") / "Pentax_K10D.jpg", Path("directory2") / "Pentax_K10D.jpg"]
+    ) as (
+        input_path,
+        target_root,
+        sources,
+    ):
+        target_directory = target_root / "2008" / "2008-05"
+        target_directory.mkdir(parents=True)
+        shutil.copy2(sources[0], target_directory / "Pentax_K10D.jpg")
+
+        importer = Importer(
+            input_path=input_path,
+            target_root=target_root,
+            concurrency=2,
+        )
+        conflict_resolution_barrier = Barrier(len(sources))
+        original_resolve = importer.path_resolver.conflict_resolver.resolve
+
+        def resolve_conflict(target_path, claimed_paths):
+            resolved_path = original_resolve(target_path, claimed_paths)
+            try:
+                conflict_resolution_barrier.wait(timeout=0.1)
+            except BrokenBarrierError:
+                pass
+            return resolved_path
+
+        with patch.object(
+            importer.path_resolver.conflict_resolver,
+            "resolve",
+            side_effect=resolve_conflict,
+        ):
+            importer.process_photos()
+
+        target_paths = list(helper.get_all_files(target_directory))
+        assert len(target_paths) == len(sources) + 1
+        assert len({Path(path).name for path in target_paths}) == len(sources) + 1
+        assert all(not source.exists() for source in sources)
+
+
+@patch(
+    "fotura.processors.processor_orchestrator.AFTER_ALL_PROCESSOR_MAP",
+    {"dummy_after_all_processor": DummyAfterAllProcessor},
+)
+def test_concurrent_import_runs_after_all_processors_on_calling_thread():
+    with temporary_images(["Canon_40D.jpg", "sony_alpha_a58.JPG"]) as (
+        input_path,
+        target_root,
+        _,
+    ):
+        importer = Importer(
+            input_path=input_path,
+            target_root=target_root,
+            concurrency=2,
+            enabled_after_all_processors=[("dummy_after_all_processor", {})],
+        )
+        after_all_processor = importer.processor_orchestrator.after_all_processors[0]
+        after_all_thread_ids = []
+        after_all_processor.process.side_effect = lambda _: after_all_thread_ids.append(
+            get_ident()
+        )
+
+        importer.process_photos()
+
+        assert after_all_thread_ids == [get_ident()]
 
 
 def test_filename_collisions_are_handled_when_logged_in_dry_run_mode(caplog):

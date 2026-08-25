@@ -29,6 +29,7 @@ setup_logging(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 USER_CONFIG_PATH = Path(user_config_dir("fotura"))
+MAX_CONCURRENCY = 5
 
 
 def __get_processor_params(klass: Type) -> Dict[str, Type]:
@@ -78,6 +79,7 @@ def run_import(
     after_all_processors: Tuple[str, ...],
     conflict_strategy: str,
     target_path_format: str,
+    concurrency: int,
 ) -> None:
     """
     Execute the import operation.
@@ -100,9 +102,13 @@ def run_import(
             target directory.
         target_path_format: Format for the directory structure (using Python's
             date format codes)
+        concurrency: Number of photos to process concurrently.
     """
     if not PathFormat.is_valid(target_path_format):
         raise click.BadParameter("Target path format is invalid")
+
+    if not 1 <= concurrency <= MAX_CONCURRENCY:
+        raise click.BadParameter(f"Concurrency must be between 1 and {MAX_CONCURRENCY}")
 
     if dry_run:
         logger.warning("Running in dry-run mode - no files will be moved")
@@ -144,6 +150,7 @@ def run_import(
         enabled_after_all_processors=enabled_after_all_processors,
         conflict_resolution_strategy=conflict_strategy,
         target_path_format=target_path_format,
+        concurrency=concurrency,
     )
     importer.process_photos()
 
@@ -195,6 +202,13 @@ def cli() -> None:
     show_default=True,
     help="Path format using date format codes (see https://docs.python.org/3/library/datetime.html#format-codes)",
 )
+@click.option(
+    "--concurrency",
+    type=click.IntRange(min=1, max=MAX_CONCURRENCY),
+    default=1,
+    show_default=True,
+    help=f"Number of photos to process concurrently (maximum {MAX_CONCURRENCY})",
+)
 def import_cmd(
     directory: Path,
     target_root: Path,
@@ -205,6 +219,7 @@ def import_cmd(
     after_all_processors: Tuple[str, ...],
     conflict_strategy: str,
     target_path_format: str,
+    concurrency: int,
 ) -> None:
     run_import(
         directory=directory,
@@ -216,6 +231,7 @@ def import_cmd(
         after_all_processors=after_all_processors,
         conflict_strategy=conflict_strategy,
         target_path_format=target_path_format,
+        concurrency=concurrency,
     )
 
 

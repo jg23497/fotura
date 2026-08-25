@@ -1,11 +1,14 @@
 import logging
 import webbrowser
+from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from datetime import datetime
+from itertools import islice
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Iterable, Iterator, List, Optional, Tuple
 
 from platformdirs import user_config_dir, user_data_dir
 
+from fotura.domain.photo import Photo
 from fotura.importing.conflict_resolution import registry
 from fotura.importing.media_finder import MediaFinder
 from fotura.io.files import Files
@@ -34,12 +37,14 @@ class Importer:
         open_report: bool = False,
         conflict_resolution_strategy: str = "keep_both",
         target_path_format: str = "%Y/%Y-%m",
+        concurrency: int = 1,
     ):
         self.input_path = input_path
         self.target_root = target_root
         self.dry_run = dry_run
         self.target_path_format = target_path_format
         self.open_report = open_report
+        self.concurrency = concurrency
         self.tally = SynchronizedCounter({"errored": 0})
 
         self.__configure_dependencies(
@@ -62,20 +67,69 @@ class Importer:
         processed_photos = []
 
         try:
-            for photo in self.media_finder.find():
-                try:
-                    if self.__process_photo(photo):
-                        processed_photos.append(photo)
-                except Exception as e:
-                    self.__record_error(photo)
-                    if self.__is_recoverable_error(e, photo.path):
-                        continue
-                    raise
+            photos = self.media_finder.find()
+            processed_photos = self.__process_with_concurrency(photos)
 
             if processed_photos:
                 self.processor_orchestrator.run_after_all_processors(processed_photos)
         finally:
             self.__close_report()
+
+    def __process_with_concurrency(self, photos: Iterable[Photo]) -> List[Photo]:
+        if self.concurrency == 1:
+            return self.__process_sequentially(photos)
+
+        with ThreadPoolExecutor(max_workers=self.concurrency) as executor:
+            return self.__run_windowed(executor, iter(photos))
+
+    def __run_windowed(
+        self, executor: ThreadPoolExecutor, photos: Iterator[Photo]
+    ) -> List[Photo]:
+        window_size = self.concurrency * 2
+        futures: Dict[Future[bool], Photo] = {}
+        processed_photos: List[Photo] = []
+
+        for photo in islice(photos, window_size):
+            futures[executor.submit(self.__process_photo, photo)] = photo
+
+        while futures:
+            done, _ = wait(futures.keys(), return_when=FIRST_COMPLETED)
+
+            for future in done:
+                photo = futures.pop(future)
+
+                try:
+                    if future.result():
+                        processed_photos.append(photo)
+                except Exception as e:
+                    self.__record_error(photo)
+                    if not self.__is_recoverable_error(e, photo.path):
+                        for pending_future in futures:
+                            pending_future.cancel()
+                        raise
+
+                next_photo = next(photos, None)
+                if next_photo is not None:
+                    futures[executor.submit(self.__process_photo, next_photo)] = (
+                        next_photo
+                    )
+
+        return processed_photos
+
+    def __process_sequentially(self, photos: Iterable[Photo]) -> List[Photo]:
+        processed_photos = []
+
+        for photo in photos:
+            try:
+                if self.__process_photo(photo):
+                    processed_photos.append(photo)
+            except Exception as e:
+                self.__record_error(photo)
+                if self.__is_recoverable_error(e, photo.path):
+                    continue
+                raise
+
+        return processed_photos
 
     def __process_photo(self, photo) -> bool:
         self.files.ensure_writable(photo)

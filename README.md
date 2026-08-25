@@ -28,6 +28,12 @@ Always preview first with `--dry-run`:
 fotura import ~/Pictures/unsorted ~/Pictures/organized --dry-run --open-report
 ```
 
+To process multiple photos at once, use `--concurrency` (default: `1`, maximum: `5`).
+
+```bash
+fotura import ~/Pictures/unsorted ~/Pictures/organized --concurrency 2
+```
+
 Reports are generated for each import, viewable using your browser:
 
 <img src="https://raw.githubusercontent.com/jg23497/fotura/main/docs/images/report-example.png" width="600px" alt="Example report"/>
