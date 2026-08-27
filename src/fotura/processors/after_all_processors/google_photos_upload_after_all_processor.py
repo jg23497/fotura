@@ -66,11 +66,12 @@ class GooglePhotosUploadAfterAllProcessor(AfterAllProcessor, Resumable):
 
     def resume(self) -> None:
         items = list(self.get_retryable())
-        if not items:
+        supported_items = [i for i in items if self.__uploader.can_support(i)]
+
+        if not supported_items:
             logger.info("No retryable uploads found")
             return
 
-        supported_items = [i for i in items if self.__uploader.can_support(i)]
         for batch in self.chunked(supported_items, self.batch_size):
             self.__process_batch(batch)
 

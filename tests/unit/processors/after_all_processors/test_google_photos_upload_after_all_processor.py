@@ -293,18 +293,19 @@ def test_process_skips_files_over_the_size_limit(
     fs.create_file(oversized_path, st_size=200 * 1024 * 1024 + 1)
     oversized_photo = Photo(oversized_path)
 
-    with caplog.at_level(logging.DEBUG):
+    with caplog.at_level(logging.WARNING):
         processor_with_valid_credentials.process([oversized_photo])
 
     assert len(responses.calls) == 0
 
-    debug_logs = get_log_entries(
+    warning_logs = get_log_entries(
         caplog,
         lambda r: (
-            r.levelno == logging.DEBUG and "Skipping unsupported" in r.getMessage()
+            r.levelno == logging.WARNING
+            and "Skipping file exceeding 200.0MB size limit" in r.getMessage()
         ),
     )
-    assert len(debug_logs) == 1
+    assert len(warning_logs) == 1
 
 
 @responses.activate
@@ -738,7 +739,9 @@ def test_get_retryable_yields_photo_for_each_retryable_row(
 ## resume
 
 
-def test_resume_logs_when_no_retryable_photos(processor_with_valid_credentials, caplog):
+def test_resume_logs_when_no_pending_photos_exist(
+    processor_with_valid_credentials, caplog
+):
     with caplog.at_level(logging.INFO):
         processor_with_valid_credentials.resume()
 
@@ -750,10 +753,53 @@ def test_resume_logs_when_no_retryable_photos(processor_with_valid_credentials, 
     assert len(info_logs) == 1
 
 
+def test_resume_logs_when_no_pending_photos_are_retryable(processor_dry_run, caplog):
+    repo = GooglePhotosUploadRepository(processor_dry_run.context.database)
+    repo.upsert_pending(Path("not-found.jpg"))
+
+    with caplog.at_level(logging.INFO):
+        processor_dry_run.resume()
+
+    uploaded_logs = get_log_entries(
+        caplog,
+        lambda r: r.levelno == logging.INFO
+        and r.getMessage().startswith("No retryable uploads found"),
+    )
+
+    assert len(uploaded_logs) == 1
+
+
+def test_resume_skips_files_over_size_limit(
+    processor_with_valid_credentials, caplog, fs
+):
+    oversized_path = Path("oversized.jpg")
+    fs.create_file(oversized_path, st_size=200 * 1024 * 1024 + 1)
+    oversized_photo = Photo(oversized_path)
+
+    repo = GooglePhotosUploadRepository(
+        processor_with_valid_credentials.context.database
+    )
+    repo.upsert_pending(oversized_photo.path)
+
+    with caplog.at_level(logging.DEBUG):
+        processor_with_valid_credentials.resume()
+
+    warning_logs = get_log_entries(
+        caplog,
+        lambda r: (
+            r.levelno == logging.WARNING
+            and "Skipping file exceeding 200.0MB size limit" in r.getMessage()
+        ),
+    )
+    assert len(warning_logs) == 1
+
+
 def test_resume_processes_retryable_photos_in_dry_run(
     processor_dry_run, test_photos, caplog
 ):
     repo = GooglePhotosUploadRepository(processor_dry_run.context.database)
+    repo.upsert_pending(Path("not-found.jpg"))
+
     for photo in test_photos:
         repo.upsert_pending(photo.path)
 

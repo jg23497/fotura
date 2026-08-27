@@ -58,10 +58,22 @@ class GooglePhotosUploader:
 
     def can_support(self, photo: Photo) -> bool:
         if photo.path.suffix.lower() not in SUPPORTED_EXTENSIONS:
+            logger.debug("Skipping file with unsupported format: %s", photo.path)
             return False
         try:
-            return photo.path.stat().st_size <= MAX_FILE_SIZE
+            within_size_limit = photo.path.stat().st_size <= MAX_FILE_SIZE
+            if not within_size_limit:
+                photo.log(
+                    logging.WARNING,
+                    "Google Photos: Skipping file exceeding %sMB size limit",
+                    MAX_FILE_SIZE / (1024 * 1024),
+                )
+            return within_size_limit
         except OSError:
+            logger.debug(
+                "Failed to get file size for %s. The file may not exist or is inaccessible.",
+                photo.path,
+            )
             return False
 
     def upload_bytes(self, photo: Photo) -> str:
