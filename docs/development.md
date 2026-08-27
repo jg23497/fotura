@@ -106,13 +106,14 @@ uv run src/fotura/main.py
 
 A [Makefile](../Makefile) is provided for Unix-like systems. The key targets are:
 
-| Command       | Description          |
-| ------------- | -------------------- |
-| `make test`   | Run the test suite   |
-| `make check`  | Run the linter       |
-| `make format` | Format the code      |
-| `make type`   | Run type checking    |
-| `make ci`     | Run all of the above |
+| Command       | Description                                      |
+| ------------- | ------------------------------------------------ |
+| `make test`   | Run the test suite                               |
+| `make check`  | Run the linter                                   |
+| `make format` | Check code formatting                            |
+| `make fix`    | Fix staged Python files, or all files if none are staged |
+| `make type`   | Run type checking                                |
+| `make ci`     | Run all verification checks and the test suite   |
 
 On Windows, refer to the [Makefile](../Makefile) and run the equivalent `uv` commands directly.
 

@@ -7,11 +7,12 @@ Use `uv` for all dependency and environment management. Do not use `pip` directl
 ```bash
 uv run python -m pytest   # run tests
 uv run ruff check .       # lint
-uv run ruff format .      # format
+uv run ruff format --check .  # check formatting
 uv run ty check .         # type check
 ```
 
-Or use `make ci` to run all checks at once.
+Use `make fix` to format and apply lint fixes to staged Python files (or all files
+when no Python files are staged), or `make ci` to run all verification checks at once.
 
 ## Adding dependencies
 

@@ -54,7 +54,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: pypi
-      url: https://pypi.org/p/fotura
+      url: https://pypi.org/project/fotura/
     permissions:
       id-token: write
 
