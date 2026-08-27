@@ -62,6 +62,8 @@ class Importer:
             str(self.dry_run).lower(),
         )
 
+        logger.info("Writing report to %s", self.report_path)
+
         self.files.has_read_write_permissions(self.input_path)
 
         processed_photos = []

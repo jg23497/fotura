@@ -285,7 +285,7 @@ def test_process_photos_increments_moved_tally_when_photo_moved():
     with temporary_images(["IMG_20240909_103402.jpg"]) as (
         input_path,
         target_root,
-        image_paths,
+        _,
     ):
         importer = Importer(
             input_path=input_path,
@@ -319,6 +319,26 @@ def test_process_photos_leaves_files_in_place_for_dry_runs():
 
         assert image_paths[0].exists()
         assert not moved.exists()
+
+
+def test_process_photos_logs_report_path(input_dir, target_root, caplog):
+    importer = Importer(
+        input_path=input_dir,
+        target_root=target_root,
+        dry_run=True,
+    )
+
+    with caplog.at_level(logging.INFO):
+        importer.process_photos()
+
+    log_entries = get_log_entries(
+        caplog,
+        lambda r: r.levelno == logging.INFO
+        and r.getMessage().startswith("Writing report to"),
+    )
+
+    assert len(log_entries) == 1
+    assert str(importer.report_path) in log_entries[0].getMessage()
 
 
 @pytest.mark.parametrize("dry_run", [True, False])
