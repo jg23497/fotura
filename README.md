@@ -52,6 +52,17 @@ Extracts timestamps from WhatsApp and Android filenames and writes them back int
 fotura import --before-each "filename_timestamp_extract" ~/Pictures/unsorted ~/Pictures/organized
 ```
 
+### Video Timestamp Extract
+
+Extracts the creation timestamp stored in MP4, M4V, MOV, 3GP, and 3G2 video
+containers. The timestamp is used to route the video without modifying the file.
+
+Use in combination with the `--include-videos` flag (video files are not processed by default).
+
+```bash
+fotura import ~/Videos/unsorted ~/Videos/organized --include-videos --before-each "video_timestamp_extract"
+```
+
 ### Google Photos Upload
 
 Uploads in parallel after the full import completes, using the Google Photos batch API for efficiency.

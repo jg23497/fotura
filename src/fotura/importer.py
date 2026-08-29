@@ -38,6 +38,7 @@ class Importer:
         conflict_resolution_strategy: str = "keep_both",
         target_path_format: str = "%Y/%Y-%m",
         concurrency: int = 1,
+        include_videos: bool = False,
     ):
         self.input_path = input_path
         self.target_root = target_root
@@ -45,6 +46,7 @@ class Importer:
         self.target_path_format = target_path_format
         self.open_report = open_report
         self.concurrency = concurrency
+        self.include_videos = include_videos
         self.tally = SynchronizedCounter({"errored": 0})
 
         self.__configure_dependencies(
@@ -162,7 +164,9 @@ class Importer:
         self.conflict_resolver = registry.get_conflict_resolver(
             conflict_resolution_strategy
         )
-        self.media_finder = MediaFinder(self.input_path)
+        self.media_finder = MediaFinder(
+            self.input_path, include_videos=self.include_videos
+        )
         self.files = Files(self.dry_run)
         self.path_resolver = PathResolver(
             self.target_root,

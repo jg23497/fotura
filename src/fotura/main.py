@@ -80,6 +80,7 @@ def run_import(
     conflict_strategy: str,
     target_path_format: str,
     concurrency: int,
+    include_videos: bool,
 ) -> None:
     """
     Execute the import operation.
@@ -103,6 +104,7 @@ def run_import(
         target_path_format: Format for the directory structure (using Python's
             date format codes)
         concurrency: Number of photos to process concurrently.
+        include_videos: Whether to discover supported video files in the source.
     """
     if not PathFormat.is_valid(target_path_format):
         raise click.BadParameter("Target path format is invalid")
@@ -151,6 +153,7 @@ def run_import(
         conflict_resolution_strategy=conflict_strategy,
         target_path_format=target_path_format,
         concurrency=concurrency,
+        include_videos=include_videos,
     )
     importer.process_photos()
 
@@ -203,6 +206,11 @@ def cli() -> None:
     help="Path format using date format codes (see https://docs.python.org/3/library/datetime.html#format-codes)",
 )
 @click.option(
+    "--include-videos",
+    is_flag=True,
+    help="Include supported video files when scanning the source directory",
+)
+@click.option(
     "--concurrency",
     type=click.IntRange(min=1, max=MAX_CONCURRENCY),
     default=1,
@@ -220,6 +228,7 @@ def import_cmd(
     conflict_strategy: str,
     target_path_format: str,
     concurrency: int,
+    include_videos: bool,
 ) -> None:
     run_import(
         directory=directory,
@@ -232,6 +241,7 @@ def import_cmd(
         conflict_strategy=conflict_strategy,
         target_path_format=target_path_format,
         concurrency=concurrency,
+        include_videos=include_videos,
     )
 
 

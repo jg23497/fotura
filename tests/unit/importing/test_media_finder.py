@@ -74,6 +74,24 @@ def test_find_ignores_files_with_unsupported_extensions(
     assert str(file_path) in log_entries[0].getMessage()
 
 
+@pytest.mark.parametrize("extension", ["mp4", "m4v", "mov", "3gp", "3g2"])
+def test_find_includes_videos_when_enabled(input_dir, extension):
+    file_path = create_path(input_dir / f"test.{extension}")
+
+    photos = list(MediaFinder(input_dir, include_videos=True).find())
+
+    assert [photo.path for photo in photos] == [file_path]
+
+
+@pytest.mark.parametrize("extension", ["mp4", "m4v", "mov", "3gp", "3g2"])
+def test_find_excludes_videos_when_not_enabled(input_dir, extension):
+    create_path(input_dir / f"test.{extension}")
+
+    photos = list(MediaFinder(input_dir).find())
+
+    assert photos == []
+
+
 def test_find_locates_images_under_nested_directories(finder, input_dir):
     root_file = create_path(input_dir / "root.jpg")
     subdir = create_path(input_dir / "subdir", is_dir=True)

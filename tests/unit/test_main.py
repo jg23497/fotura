@@ -39,6 +39,20 @@ def test_main_tidies_image_files():
         assert result.exit_code == 0, result.output
 
 
+def test_include_videos_is_passed_to_importer(tmp_path):
+    with (
+        patch.object(importer.Importer, "__init__", return_value=None) as mock_init,
+        patch.object(importer.Importer, "process_photos", return_value=None),
+    ):
+        result = CliRunner().invoke(
+            main.cli,
+            ["import", str(tmp_path), str(tmp_path / "target"), "--include-videos"],
+        )
+
+    assert result.exit_code == 0, result.output
+    assert mock_init.call_args.kwargs["include_videos"] is True
+
+
 @patch(
     "fotura.processors.registry.BEFORE_EACH_PROCESSOR_MAP",
     {
