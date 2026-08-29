@@ -106,14 +106,14 @@ uv run src/fotura/main.py
 
 A [Makefile](../Makefile) is provided for Unix-like systems. The key targets are:
 
-| Command       | Description                                      |
-| ------------- | ------------------------------------------------ |
-| `make test`   | Run the test suite                               |
-| `make check`  | Run the linter                                   |
-| `make format` | Check code formatting                            |
+| Command       | Description                                              |
+| ------------- | -------------------------------------------------------- |
+| `make test`   | Run the test suite                                       |
+| `make check`  | Run the linter                                           |
+| `make format` | Check code formatting                                    |
 | `make fix`    | Fix staged Python files, or all files if none are staged |
-| `make type`   | Run type checking                                |
-| `make ci`     | Run all verification checks and the test suite   |
+| `make type`   | Run type checking                                        |
+| `make ci`     | Run all verification checks and the test suite           |
 
 On Windows, refer to the [Makefile](../Makefile) and run the equivalent `uv` commands directly.
 
@@ -207,7 +207,11 @@ Multiprocessing is not used anywhere.
 
 ### SQLite integration
 
-SQLite is used by the Google Photos upload processor. Upload state is persisted in a database at `~/.config/fotura/fotura.db` so that interrupted or partially failed runs can be resumed without re-uploading photos that already succeeded.
+SQLite is used by the Google Photos upload processor. Upload state is persisted in `fotura.db` in the user config directory so that interrupted or partially failed runs can be resumed without re-uploading photos that already succeeded. The database is located at:
+
+- Linux: `~/.config/fotura/fotura.db`
+- MacOS: `~/Library/Application Support/fotura/fotura.db`
+- Windows: `%LOCALAPPDATA%\fotura\fotura.db` (usually `C:\Users\<username>\AppData\Local\fotura\fotura.db`)
 
 Each photo has a row in the `google_photos_uploads` table with a `status` column, which transitions through the following states:
 
@@ -233,7 +237,11 @@ The CLI is built with [Click](https://click.palletsprojects.com) and exposes two
 
 - **`fotura processor`** is a command group for running or resuming processors independently, without triggering a full import. Its subcommands are generated dynamically at startup from the processor registry, so any registered processor automatically gains a `run` and (if Resumable) a `resume` subcommand.
 
-The user config directory is resolved via `platformdirs` so that it follows the platform convention on all supported operating systems (e.g. `~/.config/fotura` on Linux, `~/Library/Application Support/fotura` on MacOS).
+The user config directory is resolved via `platformdirs` so that it follows the platform convention on all supported operating systems:
+
+- Linux: `~/.config/fotura`
+- MacOS: `~/Library/Application Support/fotura`
+- Windows: `%LOCALAPPDATA%\fotura` (usually `C:\Users\<username>\AppData\Local\fotura`)
 
 ### Importer
 
