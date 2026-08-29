@@ -40,7 +40,7 @@ class GooglePhotosClient:
 
     def upload_bytes(self, file_path: str) -> str:
         """
-        Upload image bytes to Google Photos.
+        Upload media file bytes to Google Photos.
 
         Returns an upload token that can be used with batchCreate.
         Raises RuntimeError if the upload fails.

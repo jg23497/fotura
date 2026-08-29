@@ -3,7 +3,7 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from fotura.domain.photo import Photo
+from fotura.domain.media_file import MediaFile
 from fotura.importing.media_finder import MediaFinder
 from fotura.processors.context import Context
 from fotura.processors.registry import (
@@ -68,38 +68,38 @@ class ProcessorOrchestrator:
                 self.after_all_processors,
             )
 
-    def run_before_each_processors(self, photo: Photo) -> None:
+    def run_before_each_processors(self, media_file: MediaFile) -> None:
         for processor in self.before_each_processors:
-            if processor.can_handle(photo):
-                result = processor.process(photo)
+            if processor.can_handle(media_file):
+                result = processor.process(media_file)
                 if result:
-                    photo.facts.update(result)
+                    media_file.facts.update(result)
 
-    def run_after_each_processors(self, photo: Photo) -> None:
+    def run_after_each_processors(self, media_file: MediaFile) -> None:
         for processor in self.after_each_processors:
-            if not processor.can_handle(photo):
-                photo.log(
+            if not processor.can_handle(media_file):
+                media_file.log(
                     logging.WARNING,
                     "%s cannot handle file",
                     processor.__class__.__name__,
                 )
                 continue
-            result = processor.process(photo)
+            result = processor.process(media_file)
             if result:
-                photo.facts.update(result)
+                media_file.facts.update(result)
 
-    def run_after_all_processors(self, photos: List[Photo]) -> None:
+    def run_after_all_processors(self, media_files: List[MediaFile]) -> None:
         for processor in self.after_all_processors:
-            result = processor.process(photos)
+            result = processor.process(media_files)
             if result:
-                for photo, facts in result.items():
-                    photo.facts.update(facts)
+                for media_file, facts in result.items():
+                    media_file.facts.update(facts)
 
     def run_on_source(self, source: Path) -> int:
         if source.is_dir():
-            items = list(MediaFinder(source).find())
+            items = list(MediaFinder(source, include_videos=True).find())
         else:
-            items = [Photo(source)]
+            items = [MediaFinder.media_file_for(source)]
 
         count = 0
 

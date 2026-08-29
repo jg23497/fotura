@@ -6,6 +6,7 @@ from typing import Optional
 
 from fotura.domain.media_file import MediaFile
 from fotura.domain.photo import Photo
+from fotura.domain.video_file import VideoFile
 from fotura.importing.conflict_resolution.strategies.strategy_base import StrategyBase
 from fotura.io.path_format import PathFormat
 from fotura.io.photos.exif.exif_data import ExifData
@@ -30,19 +31,18 @@ class PathResolver:
         self.__lock = Lock()
 
     def get_target_path(self, media_file: MediaFile) -> Optional[Path]:
-        if not isinstance(media_file, Photo):
-            raise ValueError("Only Photo MediaFile instances are supported.")
+        if not isinstance(media_file, (Photo, VideoFile)):
+            raise ValueError("Only Photo and VideoFile instances are supported.")
 
-        photo = media_file
-        date = photo.facts.get(FactType.TAKEN_TIMESTAMP)
+        date = media_file.facts.get(FactType.TAKEN_TIMESTAMP)
 
+        if not date and isinstance(media_file, Photo):
+            date = ExifData.extract_date(media_file)
         if not date:
-            date = ExifData.extract_date(photo)
-        if not date:
-            photo.log(logging.WARNING, "Skipping file: no date found")
+            media_file.log(logging.WARNING, "Skipping file: no date found")
             return None
 
-        return self.__assign_target_path(date, photo)
+        return self.__assign_target_path(date, media_file)
 
     def __assign_target_path(
         self, date: datetime, media_file: MediaFile

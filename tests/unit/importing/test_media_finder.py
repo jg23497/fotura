@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 
 from fotura.domain.photo import Photo
+from fotura.domain.video_file import VideoFile
 from fotura.importing.media_finder import MediaFinder
 from tests.helpers.helper import get_log_entries
 
@@ -45,9 +46,10 @@ def finder(input_dir):
 def test_find_finds_files_with_supported_extensions(finder, input_dir, extension):
     file_path = create_path(input_dir / f"test.{extension}")
 
-    photos = list[Photo](finder.find())
+    photos = list(finder.find())
 
     assert len(photos) == 1
+    assert isinstance(photos[0], Photo)
     assert photos[0].path == file_path
 
 
@@ -60,7 +62,7 @@ def test_find_ignores_files_with_unsupported_extensions(
     )
 
     with caplog.at_level(logging.INFO):
-        photos = list[Photo](finder.find())
+        photos = list(finder.find())
 
     log_entries = get_log_entries(
         caplog,
@@ -81,6 +83,7 @@ def test_find_includes_videos_when_enabled(input_dir, extension):
     photos = list(MediaFinder(input_dir, include_videos=True).find())
 
     assert [photo.path for photo in photos] == [file_path]
+    assert isinstance(photos[0], VideoFile)
 
 
 @pytest.mark.parametrize("extension", ["mp4", "m4v", "mov", "3gp", "3g2"])

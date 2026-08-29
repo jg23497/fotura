@@ -8,7 +8,7 @@ from typing import Any, Dict, Iterable, Iterator, List, Optional, Tuple
 
 from platformdirs import user_config_dir, user_data_dir
 
-from fotura.domain.photo import Photo
+from fotura.domain.media_file import MediaFile
 from fotura.importing.conflict_resolution import registry
 from fotura.importing.media_finder import MediaFinder
 from fotura.io.files import Files
@@ -56,9 +56,9 @@ class Importer:
             enabled_after_all_processors,
         )
 
-    def process_photos(self):
+    def process_media_files(self):
         logger.info(
-            "Importing photos from %s to %s (dry-run: %s)",
+            "Importing media files from %s to %s (dry-run: %s)",
             self.input_path,
             self.target_root,
             str(self.dry_run).lower(),
@@ -68,82 +68,88 @@ class Importer:
 
         self.files.has_read_write_permissions(self.input_path)
 
-        processed_photos = []
+        processed_media_files = []
 
         try:
-            photos = self.media_finder.find()
-            processed_photos = self.__process_with_concurrency(photos)
+            media_files = self.media_finder.find()
+            processed_media_files = self.__process_with_concurrency(media_files)
 
-            if processed_photos:
-                self.processor_orchestrator.run_after_all_processors(processed_photos)
+            if processed_media_files:
+                self.processor_orchestrator.run_after_all_processors(
+                    processed_media_files
+                )
         finally:
             self.__close_report()
 
-    def __process_with_concurrency(self, photos: Iterable[Photo]) -> List[Photo]:
+    def __process_with_concurrency(
+        self, media_files: Iterable[MediaFile]
+    ) -> List[MediaFile]:
         if self.concurrency == 1:
-            return self.__process_sequentially(photos)
+            return self.__process_sequentially(media_files)
 
         with ThreadPoolExecutor(max_workers=self.concurrency) as executor:
-            return self.__run_windowed(executor, iter(photos))
+            return self.__run_windowed(executor, iter(media_files))
 
     def __run_windowed(
-        self, executor: ThreadPoolExecutor, photos: Iterator[Photo]
-    ) -> List[Photo]:
+        self, executor: ThreadPoolExecutor, media_files: Iterator[MediaFile]
+    ) -> List[MediaFile]:
         window_size = self.concurrency * 2
-        futures: Dict[Future[bool], Photo] = {}
-        processed_photos: List[Photo] = []
+        futures: Dict[Future[bool], MediaFile] = {}
+        processed_media_files: List[MediaFile] = []
 
-        for photo in islice(photos, window_size):
-            futures[executor.submit(self.__process_photo, photo)] = photo
+        for media_file in islice(media_files, window_size):
+            futures[executor.submit(self.__process_media_file, media_file)] = media_file
 
         while futures:
             done, _ = wait(futures.keys(), return_when=FIRST_COMPLETED)
 
             for future in done:
-                photo = futures.pop(future)
+                media_file = futures.pop(future)
 
                 try:
                     if future.result():
-                        processed_photos.append(photo)
+                        processed_media_files.append(media_file)
                 except Exception as e:
-                    self.__record_error(photo)
-                    if not self.__is_recoverable_error(e, photo.path):
+                    self.__record_error(media_file)
+                    if not self.__is_recoverable_error(e, media_file.path):
                         for pending_future in futures:
                             pending_future.cancel()
                         raise
 
-                next_photo = next(photos, None)
-                if next_photo is not None:
-                    futures[executor.submit(self.__process_photo, next_photo)] = (
-                        next_photo
-                    )
+                next_media_file = next(media_files, None)
+                if next_media_file is not None:
+                    futures[
+                        executor.submit(self.__process_media_file, next_media_file)
+                    ] = next_media_file
 
-        return processed_photos
+        return processed_media_files
 
-    def __process_sequentially(self, photos: Iterable[Photo]) -> List[Photo]:
-        processed_photos = []
+    def __process_sequentially(
+        self, media_files: Iterable[MediaFile]
+    ) -> List[MediaFile]:
+        processed_media_files = []
 
-        for photo in photos:
+        for media_file in media_files:
             try:
-                if self.__process_photo(photo):
-                    processed_photos.append(photo)
+                if self.__process_media_file(media_file):
+                    processed_media_files.append(media_file)
             except Exception as e:
-                self.__record_error(photo)
-                if self.__is_recoverable_error(e, photo.path):
+                self.__record_error(media_file)
+                if self.__is_recoverable_error(e, media_file.path):
                     continue
                 raise
 
-        return processed_photos
+        return processed_media_files
 
-    def __process_photo(self, photo) -> bool:
-        self.files.ensure_writable(photo)
-        self.processor_orchestrator.run_before_each_processors(photo)
-        target_path = self.path_resolver.get_target_path(photo)
+    def __process_media_file(self, media_file: MediaFile) -> bool:
+        self.files.ensure_writable(media_file)
+        self.processor_orchestrator.run_before_each_processors(media_file)
+        target_path = self.path_resolver.get_target_path(media_file)
 
         if target_path is not None:
-            self.files.move(photo, target_path)
+            self.files.move(media_file, target_path)
             self.tally.increment("moved")
-            self.processor_orchestrator.run_after_each_processors(photo)
+            self.processor_orchestrator.run_after_each_processors(media_file)
             return True
         else:
             self.tally.increment("skipped")
@@ -202,11 +208,11 @@ class Importer:
         if self.open_report:
             webbrowser.open(self.report_path.as_uri())
 
-    def __record_error(self, photo) -> None:
-        photo.log(logging.ERROR, "Failed to import", exc_info=True)
+    def __record_error(self, media_file: MediaFile) -> None:
+        media_file.log(logging.ERROR, "Failed to import", exc_info=True)
         self.tally.increment("errored")
 
     @staticmethod
-    def __is_recoverable_error(e: Exception, photo_path: Path) -> bool:
+    def __is_recoverable_error(e: Exception, media_file_path: Path) -> bool:
         filename = getattr(e, "filename", None)
-        return bool(filename) and Path(filename) == photo_path
+        return bool(filename) and Path(filename) == media_file_path

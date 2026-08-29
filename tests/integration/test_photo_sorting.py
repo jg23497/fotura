@@ -15,7 +15,7 @@ def test_photo_sorting():
             enabled_before_each_processors=[("filename_timestamp_extract", {})],
         )
 
-        importer.process_photos()
+        importer.process_media_files()
 
         results = []
         for file in get_all_files(path=target_root):
@@ -58,7 +58,7 @@ def test_tally_counts():
             enabled_before_each_processors=[("filename_timestamp_extract", {})],
         )
 
-        importer.process_photos()
+        importer.process_media_files()
 
         tally_snapshot = importer.tally.get_snapshot()
 

@@ -2,7 +2,9 @@ import logging
 from pathlib import Path
 from typing import Iterator
 
+from fotura.domain.media_file import MediaFile
 from fotura.domain.photo import Photo
+from fotura.domain.video_file import VideoFile
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +38,7 @@ class MediaFinder:
         if include_videos:
             self.__supported_extensions = PHOTO_EXTENSIONS | VIDEO_EXTENSIONS
 
-    def find(self) -> Iterator[Path]:
+    def find(self) -> Iterator[MediaFile]:
         for file_path in sorted(self.input_path.rglob("*")):
             if not file_path.is_file():
                 continue
@@ -50,4 +52,13 @@ class MediaFinder:
                 )
                 continue
 
-            yield Photo(file_path)
+            if file_extension in VIDEO_EXTENSIONS:
+                yield VideoFile(file_path)
+            else:
+                yield Photo(file_path)
+
+    @staticmethod
+    def media_file_for(path: Path) -> MediaFile:
+        if path.suffix.lower() in VIDEO_EXTENSIONS:
+            return VideoFile(path)
+        return Photo(path)

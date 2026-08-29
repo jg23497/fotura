@@ -2,7 +2,7 @@ import logging
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional
 
-from fotura.domain.photo import Photo
+from fotura.domain.media_file import MediaFile
 from fotura.integrations.google_photos.client import TALLY_KEY
 from fotura.integrations.google_photos.uploader import GooglePhotosUploader
 from fotura.persistence.google_photos_upload_repository import (
@@ -16,7 +16,7 @@ from fotura.processors.resumable import Resumable
 logger = logging.getLogger(__name__)
 
 
-class GooglePhotosUploadAfterAllProcessor(AfterAllProcessor, Resumable):
+class GooglePhotosUploadAfterAllProcessor(AfterAllProcessor[MediaFile], Resumable):
     DEFAULT_CONCURRENCY = 2
     DEFAULT_BATCH_SIZE = 10
     MAX_CONCURRENCY = 5
@@ -41,28 +41,28 @@ class GooglePhotosUploadAfterAllProcessor(AfterAllProcessor, Resumable):
         self.__uploader.configure()
 
     def process(
-        self, photos: List[Photo]
-    ) -> Optional[Dict[Photo, Dict[FactType, Any]]]:
-        supported_photos = []
+        self, media_files: List[MediaFile]
+    ) -> Optional[Dict[MediaFile, Dict[FactType, Any]]]:
+        supported_media_files = []
 
-        for photo in photos:
-            if self.__uploader.can_support(photo):
-                supported_photos.append(photo)
+        for media_file in media_files:
+            if self.__uploader.can_support(media_file):
+                supported_media_files.append(media_file)
             else:
-                photo.log(logging.DEBUG, "Skipping unsupported file type")
+                media_file.log(logging.DEBUG, "Skipping unsupported file type")
 
-        if not supported_photos:
+        if not supported_media_files:
             return None
 
-        for batch in self.chunked(supported_photos, self.batch_size):
+        for batch in self.chunked(supported_media_files, self.batch_size):
             self.__process_batch(batch)
 
         return None
 
-    def get_retryable(self) -> Iterator[Photo]:
+    def get_retryable(self) -> Iterator[MediaFile]:
         rows = self.__repository.find_retryable()
         for row in rows:
-            yield Photo(Path(row["file_path"]))
+            yield MediaFile(Path(row["file_path"]))
 
     def resume(self) -> None:
         items = list(self.get_retryable())
@@ -75,15 +75,15 @@ class GooglePhotosUploadAfterAllProcessor(AfterAllProcessor, Resumable):
         for batch in self.chunked(supported_items, self.batch_size):
             self.__process_batch(batch)
 
-    def __process_batch(self, photos: List[Photo]) -> None:
+    def __process_batch(self, media_files: List[MediaFile]) -> None:
         if self.dry_run:
-            for photo in photos:
-                photo.log(logging.INFO, "Uploaded to Google Photos")
+            for media_file in media_files:
+                media_file.log(logging.INFO, "Uploaded to Google Photos")
                 self.context.tally.increment(TALLY_KEY)
             return
 
         upload_tokens = self.__uploader.upload_bytes_concurrent(
-            photos, self.concurrency
+            media_files, self.concurrency
         )
 
         if upload_tokens:
@@ -102,7 +102,7 @@ class GooglePhotosUploadAfterAllProcessor(AfterAllProcessor, Resumable):
             )
 
     @staticmethod
-    def chunked(items: List[Photo], chunk_size: int) -> Iterator[List[Photo]]:
+    def chunked(items: List[MediaFile], chunk_size: int) -> Iterator[List[MediaFile]]:
         """Yield successive chunks of the given size."""
         for i in range(0, len(items), chunk_size):
             yield items[i : i + chunk_size]

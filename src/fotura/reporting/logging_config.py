@@ -43,10 +43,10 @@ class HTMLReportHandler(logging.Handler):
 
         general_entries = self.entries.get("General", [])
 
-        photo_entries = {k: v for k, v in self.entries.items() if k != "General"}
+        media_entries = {k: v for k, v in self.entries.items() if k != "General"}
         return template.render(
             entries=general_entries,
-            photo_entries=photo_entries,
+            media_entries=media_entries,
             summary_attributes=summary_attributes.get_snapshot(),
         )
 

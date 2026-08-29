@@ -85,12 +85,12 @@ def run_import(
     """
     Execute the import operation.
 
-    Imports photos from a source directory into a target directory hierarchy,
-    optionally applying processors to the photos.
+    Imports media files from a source directory into a target directory hierarchy,
+    optionally applying processors to the media files.
 
     Args:
-        directory: Source directory containing photos.
-        target_root: Target root directory for organized photos.
+        directory: Source directory containing media files.
+        target_root: Target root directory for organized media files.
         dry_run: If True, no actual file operations are performed.
         open_report: If True, opens the generated HTML report.
         before_each_processors: Before-each processor specifications in the form
@@ -103,7 +103,7 @@ def run_import(
             target directory.
         target_path_format: Format for the directory structure (using Python's
             date format codes)
-        concurrency: Number of photos to process concurrently.
+        concurrency: Number of media files to process concurrently.
         include_videos: Whether to discover supported video files in the source.
     """
     if not PathFormat.is_valid(target_path_format):
@@ -155,7 +155,7 @@ def run_import(
         concurrency=concurrency,
         include_videos=include_videos,
     )
-    importer.process_photos()
+    importer.process_media_files()
 
 
 @click.group()
@@ -215,7 +215,7 @@ def cli() -> None:
     type=click.IntRange(min=1, max=MAX_CONCURRENCY),
     default=1,
     show_default=True,
-    help=f"Number of photos to process concurrently (maximum {MAX_CONCURRENCY})",
+    help=f"Number of media files to process concurrently (maximum {MAX_CONCURRENCY})",
 )
 def import_cmd(
     directory: Path,

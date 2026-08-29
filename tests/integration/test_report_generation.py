@@ -24,7 +24,7 @@ def report(stub_user_dirs):
             Path(target_root),
             enabled_before_each_processors=[("filename_timestamp_extract", {})],
         )
-        importer.process_photos()
+        importer.process_media_files()
 
         report_files = list((user_data_path / "reports").glob("*.html"))
         assert report_files, "Expect a report to have been generated."

@@ -1,8 +1,9 @@
 import logging
 import re
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, TypeGuard
 
+from fotura.domain.media_file import MediaFile
 from fotura.domain.photo import Photo
 from fotura.io.photos.exif.exif_data import ExifData
 from fotura.processors.context import Context
@@ -13,18 +14,21 @@ from .before_each_processor import BeforeEachProcessor
 logger = logging.getLogger(__name__)
 
 
-class FilenameTimestampExtractBeforeEachProcessor(BeforeEachProcessor):
+class FilenameTimestampExtractBeforeEachProcessor(BeforeEachProcessor[Photo]):
     _WHATSAPP_REGEX = re.compile(r"^IMG-(\d{4})(\d{2})(\d{2})-WA\d{4}.*")
     _ANDROID_REGEX = re.compile(r"^IMG_(\d{8})_(\d{6})")
 
     def __init__(self, context: Context) -> None:
         self.context = context
 
-    def can_handle(self, photo: Photo) -> bool:
-        return self.__get_handler(photo.path.name) is not None
+    def can_handle(self, media_file: MediaFile) -> TypeGuard[Photo]:
+        return (
+            isinstance(media_file, Photo)
+            and self.__get_handler(media_file.path.name) is not None
+        )
 
-    def process(self, photo: Photo) -> Optional[Dict[FactType, datetime]]:
-        filename = photo.path.name
+    def process(self, media_file: Photo) -> Optional[Dict[FactType, datetime]]:
+        filename = media_file.path.name
         handler = self.__get_handler(filename)
         if not handler:
             return None
@@ -33,14 +37,14 @@ class FilenameTimestampExtractBeforeEachProcessor(BeforeEachProcessor):
         if not date:
             raise ValueError(f"Unable to extract timestamp from {filename}")
 
-        photo.log(
+        media_file.log(
             logging.INFO,
             "Updated EXIF date fields to %s",
             date.strftime("%Y/%m/%d %H:%M:%S"),
         )
 
         if not self.context.dry_run:
-            ExifData.write_date(photo, date)
+            ExifData.write_date(media_file, date)
 
         return {FactType.TAKEN_TIMESTAMP: date}
 

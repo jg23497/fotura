@@ -4,7 +4,9 @@ from pathlib import Path
 
 import pytest
 
+from fotura.domain.media_file import MediaFile
 from fotura.domain.photo import Photo
+from fotura.domain.video_file import VideoFile
 from fotura.importing.conflict_resolution.strategies.keep_both_strategy import (
     KeepBothStrategy,
 )
@@ -64,6 +66,28 @@ def test_get_target_path_builds_path_from_taken_timestamp_fact(
     target = resolver.get_target_path(photo)
 
     assert target == Path("~/Pictures/2024/12/31/test_image.jpg")
+
+
+@pytest.mark.parametrize("resolver", [True, False], indirect=True)
+def test_get_target_path_builds_video_path_from_taken_timestamp_fact(
+    resolver, tmp_path, taken_date
+):
+    video = VideoFile(tmp_path / "video.mp4")
+    video.facts[FactType.TAKEN_TIMESTAMP] = taken_date
+
+    target = resolver.get_target_path(video)
+
+    assert target == Path("~/Pictures/2024/12/31/video.mp4")
+
+
+@pytest.mark.parametrize("resolver", [True, False], indirect=True)
+def test_get_target_path_rejects_unsupported_media_file(resolver, tmp_path):
+    media_file = MediaFile(tmp_path / "unknown.bin")
+
+    with pytest.raises(
+        ValueError, match="Only Photo and VideoFile instances are supported"
+    ):
+        resolver.get_target_path(media_file)
 
 
 @pytest.mark.parametrize("resolver", [True, False], indirect=True)

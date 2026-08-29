@@ -2,40 +2,37 @@ import logging
 import struct
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import BinaryIO, Dict, Iterator, Optional, Tuple
+from typing import BinaryIO, Dict, Iterator, Optional, Tuple, TypeGuard
 
-from fotura.domain.photo import Photo
+from fotura.domain.media_file import MediaFile
+from fotura.domain.video_file import VideoFile
 from fotura.processors.context import Context
 from fotura.processors.fact_type import FactType
 
 from .before_each_processor import BeforeEachProcessor
 
-VIDEO_EXTENSIONS = {".mp4", ".m4v", ".mov", ".3gp", ".3g2"}
 QUICKTIME_EPOCH = datetime(1904, 1, 1, tzinfo=timezone.utc)
 
 
-class VideoTimestampExtractBeforeEachProcessor(BeforeEachProcessor):
+class VideoTimestampExtractBeforeEachProcessor(BeforeEachProcessor[VideoFile]):
     """Extract the creation timestamp from ISO Base Media/QuickTime containers."""
 
     def __init__(self, context: Context) -> None:
         self.context = context
 
-    def can_handle(self, photo: Photo) -> bool:
-        return photo.path.suffix.lower() in VIDEO_EXTENSIONS
+    def can_handle(self, media_file: MediaFile) -> TypeGuard[VideoFile]:
+        return isinstance(media_file, VideoFile)
 
-    def process(self, photo: Photo) -> Optional[Dict[FactType, datetime]]:
-        if not self.can_handle(photo):
-            return None
-
-        timestamp = self.__extract_timestamp(photo.path)
+    def process(self, media_file: VideoFile) -> Optional[Dict[FactType, datetime]]:
+        timestamp = self.__extract_timestamp(media_file.path)
         if timestamp is None:
-            photo.log(
+            media_file.log(
                 logging.WARNING,
                 "Unable to extract video timestamp; video file may be invalid or mislabeled",
             )
             return None
 
-        photo.log(
+        media_file.log(
             logging.INFO,
             "Extracted video creation timestamp %s",
             timestamp.strftime("%Y/%m/%d %H:%M:%S"),

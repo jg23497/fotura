@@ -4,7 +4,9 @@ from pathlib import Path
 
 import pytest
 
+from fotura.domain.media_file import MediaFile
 from fotura.domain.photo import Photo
+from fotura.domain.video_file import VideoFile
 from fotura.persistence.database import Database
 from fotura.processors.before_each_processors.video_timestamp_extract_before_each_processor import (
     QUICKTIME_EPOCH,
@@ -29,11 +31,12 @@ def processor(tmp_path):
 
 @pytest.mark.parametrize("extension", ["mp4", "MP4", "m4v", "mov", "3gp", "3g2"])
 def test_can_handle_iso_media_video_extensions(processor, extension):
-    assert processor.can_handle(Photo(Path(f"video.{extension}"))) is True
+    assert processor.can_handle(VideoFile(Path(f"video.{extension}"))) is True
 
 
-def test_can_handle_rejects_other_extensions(processor):
-    assert processor.can_handle(Photo(Path("video.avi"))) is False
+def test_can_handle_rejects_non_video_file_types(processor):
+    assert processor.can_handle(Photo(Path("video.mp4"))) is False
+    assert processor.can_handle(MediaFile(Path("video.mp4"))) is False
 
 
 @pytest.mark.parametrize("version", [0, 1])
@@ -42,7 +45,7 @@ def test_process_extracts_movie_header_creation_timestamp(processor, tmp_path, v
     video_path = tmp_path / "video.mp4"
     video_path.write_bytes(__video_with_creation_time(expected, version))
 
-    result = processor.process(Photo(video_path))
+    result = processor.process(VideoFile(video_path))
 
     assert result == {FactType.TAKEN_TIMESTAMP: expected}
 
@@ -53,11 +56,9 @@ def test_process_supports_extended_size_boxes(processor, tmp_path):
     mvhd = __box(b"mvhd", __movie_header(expected, 0), extended=True)
     video_path.write_bytes(__box(b"moov", mvhd, extended=True))
 
-    assert processor.process(Photo(video_path)) == {FactType.TAKEN_TIMESTAMP: expected}
-
-
-def test_process_returns_none_for_non_video(processor):
-    assert processor.process(Photo(Path("photo.jpg"))) is None
+    assert processor.process(VideoFile(video_path)) == {
+        FactType.TAKEN_TIMESTAMP: expected
+    }
 
 
 def test_process_returns_none_when_movie_header_has_no_timestamp(
@@ -66,7 +67,7 @@ def test_process_returns_none_when_movie_header_has_no_timestamp(
     video_path = tmp_path / "video.mp4"
     video_path.write_bytes(__box(b"moov", __box(b"free", b"content")))
 
-    result = processor.process(Photo(video_path))
+    result = processor.process(VideoFile(video_path))
 
     assert result is None
     assert "video file may be invalid or mislabeled" in caplog.text
@@ -77,7 +78,7 @@ def test_process_handles_jpeg_with_mp4_extension(processor, caplog):
         video_path = input_image_paths[0].with_suffix(".mp4")
         input_image_paths[0].rename(video_path)
 
-        result = processor.process(Photo(video_path))
+        result = processor.process(VideoFile(video_path))
 
         assert result is None
         assert "video file may be invalid or mislabeled" in caplog.text
@@ -87,7 +88,7 @@ def test_process_handles_corrupt_video_file(processor, tmp_path, caplog):
     video_path = tmp_path / "corrupt.mp4"
     video_path.write_bytes(b"not a video")
 
-    result = processor.process(Photo(video_path))
+    result = processor.process(VideoFile(video_path))
 
     assert result is None
     assert "video file may be invalid or mislabeled" in caplog.text

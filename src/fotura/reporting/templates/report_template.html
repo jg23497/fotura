@@ -169,10 +169,10 @@
     </div>
 
     <div id="media-logs">
-      {% for photo, records in photo_entries.items() %}
-      <div class="photo-logs">
+      {% for media_file, records in media_entries.items() %}
+      <div class="media-logs">
         <details open>
-          <summary>{{ photo }}</summary>
+          <summary>{{ media_file }}</summary>
 
           {% for record in records %}
           <div class="log {{ record.levelname|lower }}">

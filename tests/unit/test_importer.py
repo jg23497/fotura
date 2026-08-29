@@ -147,7 +147,7 @@ def test_exits_when_processor_configure_fails(input_dir, target_root):
         )
 
 
-## process_photos
+## process_media_files
 
 
 @patch(
@@ -174,7 +174,7 @@ def test_last_before_each_processor_fact_takes_precedence(input_dir, target_root
         FactType.TAKEN_TIMESTAMP: datetime(2020, 1, 2, 3, 4, 5)
     }
 
-    importer.process_photos()
+    importer.process_media_files()
 
     dest_dir = target_root / "2020" / "2020-01"
     expected_path = dest_dir / image_path.name
@@ -186,7 +186,7 @@ def test_last_before_each_processor_fact_takes_precedence(input_dir, target_root
     "fotura.processors.processor_orchestrator.BEFORE_EACH_PROCESSOR_MAP",
     {"processor": DummyBeforeEachProcessor},
 )
-def test_process_photos_ignores_exif_data_when_processor_sourced_timestamp_is_obtained():
+def test_process_media_files_ignores_exif_data_when_processor_sourced_timestamp_is_obtained():
     with temporary_images(["IMG_20100102_030405.jpg"]) as (
         input_path,
         target_root,
@@ -206,7 +206,7 @@ def test_process_photos_ignores_exif_data_when_processor_sourced_timestamp_is_ob
             FactType.TAKEN_TIMESTAMP: datetime(2010, 1, 2, 3, 4, 5)
         }
 
-        importer.process_photos()
+        importer.process_media_files()
 
         dest_dir = target_root / "2010" / "2010-01"
         expected_path = dest_dir / image_paths[0].name
@@ -219,7 +219,7 @@ def test_process_photos_ignores_exif_data_when_processor_sourced_timestamp_is_ob
 
 
 @pytest.mark.parametrize("extension", ["jpg", "jpeg", "tif", "tiff", "arw"])
-def test_process_photos_handles_files_with_supported_extensions(
+def test_process_media_files_handles_files_with_supported_extensions(
     input_dir, target_root, extension
 ):
     importer = Importer(input_path=input_dir, target_root=target_root)
@@ -230,14 +230,14 @@ def test_process_photos_handles_files_with_supported_extensions(
     with patch.object(
         ExifData, "extract_date", Mock(return_value=datetime(2020, 1, 1))
     ):
-        importer.process_photos()
+        importer.process_media_files()
 
     assert not file_path.exists()
     assert (target_root / "2020" / "2020-01" / f"foo.{extension}").exists()
 
 
 @pytest.mark.parametrize("extension", ["mp4", "txt", ""])
-def test_process_photos_ignores_unsupported_files(
+def test_process_media_files_ignores_unsupported_files(
     input_dir, target_root, extension, caplog
 ):
     importer = Importer(input_path=input_dir, target_root=target_root)
@@ -246,7 +246,7 @@ def test_process_photos_ignores_unsupported_files(
     file_path.write_text("bar")
 
     with caplog.at_level(logging.INFO):
-        importer.process_photos()
+        importer.process_media_files()
 
     log_entries = get_log_entries(
         caplog,
@@ -259,7 +259,7 @@ def test_process_photos_ignores_unsupported_files(
     assert str(file_path) in log_entries[0].getMessage()
 
 
-def test_process_photos_moves_files():
+def test_process_media_files_moves_files():
     with temporary_images(["IMG_20240909_103402.jpg"]) as (
         input_path,
         target_root,
@@ -272,7 +272,7 @@ def test_process_photos_moves_files():
             enabled_before_each_processors=[("filename_timestamp_extract", {})],
         )
 
-        importer.process_photos()
+        importer.process_media_files()
 
         dest_dir = target_root / "2024" / "2024-09"
         moved = dest_dir / image_paths[0].name
@@ -281,7 +281,7 @@ def test_process_photos_moves_files():
         assert not image_paths[0].exists()
 
 
-def test_process_photos_increments_moved_tally_when_photo_moved():
+def test_process_media_files_increments_moved_tally_when_photo_moved():
     with temporary_images(["IMG_20240909_103402.jpg"]) as (
         input_path,
         target_root,
@@ -294,13 +294,13 @@ def test_process_photos_increments_moved_tally_when_photo_moved():
             enabled_before_each_processors=[("filename_timestamp_extract", {})],
         )
 
-        importer.process_photos()
+        importer.process_media_files()
 
         tally_snapshot = importer.tally.get_snapshot()
         assert tally_snapshot.get("moved") == 1
 
 
-def test_process_photos_leaves_files_in_place_for_dry_runs():
+def test_process_media_files_leaves_files_in_place_for_dry_runs():
     with temporary_images(["Canon_40D.jpg"]) as (
         input_path,
         target_root,
@@ -312,7 +312,7 @@ def test_process_photos_leaves_files_in_place_for_dry_runs():
             dry_run=True,
         )
 
-        importer.process_photos()
+        importer.process_media_files()
 
         dest_dir = target_root / "2024" / "2024-09"
         moved = dest_dir / image_paths[0].name
@@ -321,7 +321,7 @@ def test_process_photos_leaves_files_in_place_for_dry_runs():
         assert not moved.exists()
 
 
-def test_process_photos_logs_report_path(input_dir, target_root, caplog):
+def test_process_media_files_logs_report_path(input_dir, target_root, caplog):
     importer = Importer(
         input_path=input_dir,
         target_root=target_root,
@@ -329,7 +329,7 @@ def test_process_photos_logs_report_path(input_dir, target_root, caplog):
     )
 
     with caplog.at_level(logging.INFO):
-        importer.process_photos()
+        importer.process_media_files()
 
     log_entries = get_log_entries(
         caplog,
@@ -342,7 +342,7 @@ def test_process_photos_logs_report_path(input_dir, target_root, caplog):
 
 
 @pytest.mark.parametrize("dry_run", [True, False])
-def test_process_photos_logs_file_moves_to_report(dry_run, caplog):
+def test_process_media_files_logs_file_moves_to_report(dry_run, caplog):
     with temporary_images(["Canon_40D.jpg"]) as (
         input_path,
         target_root,
@@ -355,7 +355,7 @@ def test_process_photos_logs_file_moves_to_report(dry_run, caplog):
         )
 
         with caplog.at_level(logging.INFO):
-            importer.process_photos()
+            importer.process_media_files()
 
         log_entries = get_log_entries(
             caplog,
@@ -384,7 +384,7 @@ def test_process_executes_after_each_processors_for_files_that_can_be_handled():
             dry_run=False,
             enabled_after_each_processors=[("dummy_after_each_processor", {})],
         )
-        importer.process_photos()
+        importer.process_media_files()
 
         importer.processor_orchestrator.after_each_processors[0].process.assert_called()
 
@@ -409,14 +409,14 @@ def test_process_skips_after_each_processor_execution_for_files_that_cannot_be_h
         importer.processor_orchestrator.after_each_processors[
             0
         ].can_handle.return_value = False
-        importer.process_photos()
+        importer.process_media_files()
 
         importer.processor_orchestrator.after_each_processors[
             0
         ].process.assert_not_called()
 
 
-def test_process_photos_skips_when_a_timestamp_cannot_be_obtained(caplog):
+def test_process_media_files_skips_when_a_timestamp_cannot_be_obtained(caplog):
     with temporary_images(["no-date.jpg"]) as (
         input_path,
         target_root,
@@ -429,7 +429,7 @@ def test_process_photos_skips_when_a_timestamp_cannot_be_obtained(caplog):
         )
 
         with caplog.at_level(logging.INFO):
-            importer.process_photos()
+            importer.process_media_files()
 
         log_entries = get_log_entries(
             caplog,
@@ -441,7 +441,7 @@ def test_process_photos_skips_when_a_timestamp_cannot_be_obtained(caplog):
         assert "no-date.jpg" in str(log_entries[0].media_file)
 
 
-def test_process_photos_increments_skipped_tally_when_photo_skipped():
+def test_process_media_files_increments_skipped_tally_when_photo_skipped():
     with temporary_images(["no-date.jpg"]) as (
         input_path,
         target_root,
@@ -453,14 +453,14 @@ def test_process_photos_increments_skipped_tally_when_photo_skipped():
             enabled_before_each_processors=[("filename_timestamp_extract", {})],
         )
 
-        importer.process_photos()
+        importer.process_media_files()
 
         tally_snapshot = importer.tally.get_snapshot()
         assert tally_snapshot.get("skipped") == 1
 
 
 @patch.object(shutil, "move", side_effect=FileNotFoundError)
-def test_process_photos_halts_on_unrecoverable_move_exception(_, caplog):
+def test_process_media_files_halts_on_unrecoverable_move_exception(_, caplog):
     with temporary_images(["Canon_40D.jpg", "sony_alpha_a58.JPG"]) as (
         input_path,
         target_root,
@@ -472,7 +472,7 @@ def test_process_photos_halts_on_unrecoverable_move_exception(_, caplog):
         )
 
         with caplog.at_level(logging.INFO), pytest.raises(FileNotFoundError):
-            importer.process_photos()
+            importer.process_media_files()
 
         assert image_paths[0].exists()
         assert image_paths[1].exists()
@@ -496,7 +496,7 @@ def test_process_photos_halts_on_unrecoverable_move_exception(_, caplog):
     "extract_date",
     side_effect=OSError(errno.ENOSPC, "No space left on device"),
 )
-def test_process_photos_halts_on_unrecoverable_exception(_, caplog):
+def test_process_media_files_halts_on_unrecoverable_exception(_, caplog):
     with temporary_images(["Canon_40D.jpg", "sony_alpha_a58.JPG"]) as (
         input_path,
         target_root,
@@ -508,7 +508,7 @@ def test_process_photos_halts_on_unrecoverable_exception(_, caplog):
         )
 
         with caplog.at_level(logging.INFO), pytest.raises(OSError):
-            importer.process_photos()
+            importer.process_media_files()
 
         assert image_paths[0].exists()
         assert image_paths[1].exists()
@@ -526,7 +526,7 @@ def test_process_photos_halts_on_unrecoverable_exception(_, caplog):
         assert tally.get("errored") == 1
 
 
-def test_process_photos_continues_on_recoverable_oserror(caplog):
+def test_process_media_files_continues_on_recoverable_oserror(caplog):
     with temporary_images(["Canon_40D.jpg", "sony_alpha_a58.JPG"]) as (
         input_path,
         target_root,
@@ -543,7 +543,7 @@ def test_process_photos_continues_on_recoverable_oserror(caplog):
                 DEFAULT,
             ],
         ):
-            importer.process_photos()
+            importer.process_media_files()
 
         assert image_paths[0].exists()
         assert (target_root / "2023" / "2023-10" / "sony_alpha_a58.JPG").exists()
@@ -564,7 +564,7 @@ def test_process_skips_destination_directory_creation_for_dry_runs():
             input_path=input_path, target_root=target_root, dry_run=True
         )
 
-        importer.process_photos()
+        importer.process_media_files()
 
         assert not target_directory.exists()
 
@@ -584,7 +584,7 @@ def test_filename_collision_increment_when_target_exists():
             target_root=target_root,
         )
 
-        importer.process_photos()
+        importer.process_media_files()
 
         assert not image_paths[0].exists()
         assert (target_directory / "Canon_40D.jpg").exists()
@@ -601,7 +601,7 @@ def test_filename_collision_keep_both_strategy_when_inputs_resolve_to_same_path(
             conflict_resolution_strategy="keep_both",
         )
 
-        importer.process_photos()
+        importer.process_media_files()
 
         assert not image_paths[0].exists()
         target_directory = target_root / "2008" / "2008-05"
@@ -619,7 +619,7 @@ def test_filename_collision_skip_strategy_when_inputs_resolve_to_same_path():
             conflict_resolution_strategy="skip",
         )
 
-        importer.process_photos()
+        importer.process_media_files()
 
         assert not image_paths[0].exists()
         assert image_paths[1].exists()
@@ -663,7 +663,7 @@ def test_concurrent_import_resolves_all_filename_collisions():
             "resolve",
             side_effect=resolve_conflict,
         ):
-            importer.process_photos()
+            importer.process_media_files()
 
         target_paths = list(helper.get_all_files(target_directory))
         assert len(target_paths) == len(sources) + 1
@@ -693,7 +693,7 @@ def test_concurrent_import_runs_after_all_processors_on_calling_thread():
             get_ident()
         )
 
-        importer.process_photos()
+        importer.process_media_files()
 
         assert after_all_thread_ids == [get_ident()]
 
@@ -712,7 +712,7 @@ def test_filename_collisions_are_handled_when_logged_in_dry_run_mode(caplog):
         )
 
         with caplog.at_level(logging.INFO):
-            importer.process_photos()
+            importer.process_media_files()
 
     log_entries = get_log_entries(
         caplog,
@@ -745,7 +745,7 @@ def test_permission_check_raises_on_write_error(fs):
         PermissionError, match="Permission check: Failed to write test file"
     ):
         importer = Importer(input_path=path, target_root=path)
-        importer.process_photos()
+        importer.process_media_files()
 
 
 def test_permission_check_raises_on_remove_error(fs):
@@ -758,10 +758,10 @@ def test_permission_check_raises_on_remove_error(fs):
             PermissionError, match="Permission check: Failed to remove test file"
         ):
             importer = Importer(input_path=path, target_root=path)
-            importer.process_photos()
+            importer.process_media_files()
 
 
-def test_process_photos_makes_read_only_files_writable(stub_user_dirs):
+def test_process_media_files_makes_read_only_files_writable(stub_user_dirs):
     user_data_path, _ = stub_user_dirs
     with temporary_images(["Canon_40D.jpg"]) as (
         input_path,
@@ -779,7 +779,7 @@ def test_process_photos_makes_read_only_files_writable(stub_user_dirs):
             dry_run=False,
         )
 
-        importer.process_photos()
+        importer.process_media_files()
 
         dest_dir = target_root / "2008" / "2008-05"
         moved = dest_dir / image_paths[0].name
@@ -837,7 +837,7 @@ def test_processor_facts_are_accumulated_through_processor_calls():
             "complex_after_each_processor_fact": "complex_after_each_processor_value",
         }
 
-        importer.process_photos()
+        importer.process_media_files()
 
         importer.processor_orchestrator.before_each_processors[
             0
@@ -862,7 +862,7 @@ def test_processor_facts_are_accumulated_through_processor_calls():
         assert photo.facts == expected_facts
 
 
-def test_process_photos_skips_images_that_fail_to_parse(caplog):
+def test_process_media_files_skips_images_that_fail_to_parse(caplog):
     with temporary_images(["invalid.jpg"]) as (
         input_path,
         target_root,
@@ -871,7 +871,7 @@ def test_process_photos_skips_images_that_fail_to_parse(caplog):
         importer = Importer(input_path=input_path, target_root=target_root)
 
         with caplog.at_level(logging.ERROR):
-            importer.process_photos()
+            importer.process_media_files()
 
         assert image_paths[0].exists()
 
