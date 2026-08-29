@@ -125,21 +125,18 @@ uv add --dev <name>
 
 ### Publish a release
 
-Set the release version in `pyproject.toml`, run the checks, then commit and push a
-matching `v` tag:
+Ensure the version in `pyproject.toml` is correct and run the checks. If you change
+the version, commit and push that change first.
 
 ```bash
 make ci
-git add pyproject.toml
-git commit -m "Release 0.1.0"
 git tag v0.1.0
-git push origin main
 git push origin v0.1.0
 ```
 
-Pushing the tag runs GitHub Actions, which builds the package and publishes it to
-PyPI after all checks pass. The tag version must match the version in
-`pyproject.toml`.
+This tags the current commit. To release a different existing commit, use
+`git tag v0.1.0 <commit>` instead. Pushing the tag runs GitHub Actions, which builds
+the package and publishes it to PyPI. The tag and package versions must match.
 
 ## Architecture
 
