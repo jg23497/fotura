@@ -54,10 +54,17 @@ packages = ["src/fotura"]
 [tool.hatch.build.targets.sdist]
 exclude = [
     ".claude/",
-    ".vscode/",
     ".github/",
-    "scripts/",
+    ".vscode/",
+    "docs/",
     "output/",
+    "scripts/",
+    "tests/",
+    ".python-version",
+    "AGENTS.md",
+    "Makefile",
+    "pytest.ini",
+    "uv.lock",
 ]
 
 [dependency-groups]

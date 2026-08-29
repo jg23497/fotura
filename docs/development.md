@@ -123,6 +123,24 @@ On Windows, refer to the [Makefile](../Makefile) and run the equivalent `uv` com
 uv add --dev <name>
 ```
 
+### Publish a release
+
+Set the release version in `pyproject.toml`, run the checks, then commit and push a
+matching `v` tag:
+
+```bash
+make ci
+git add pyproject.toml
+git commit -m "Release 0.1.0"
+git tag v0.1.0
+git push origin main
+git push origin v0.1.0
+```
+
+Pushing the tag runs GitHub Actions, which builds the package and publishes it to
+PyPI after all checks pass. The tag version must match the version in
+`pyproject.toml`.
+
 ## Architecture
 
 ```mermaid
