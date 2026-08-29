@@ -199,7 +199,10 @@ class Importer:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         self.report_path = report_dir / f"import-report-{timestamp}.html"
 
-        self.html_report_handler = configure_report(self.report_path)
+        self.html_report_handler = configure_report(
+            self.report_path,
+            dry_run=self.dry_run,
+        )
 
     def __close_report(self):
         self.html_report_handler.close(self.tally)

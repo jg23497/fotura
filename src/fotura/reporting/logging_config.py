@@ -6,6 +6,7 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 from rich.console import Console
 from rich.logging import RichHandler
 
+from fotura.reporting.report_category import ReportCategory
 from fotura.utils.synchronized_counter import SynchronizedCounter
 
 OAUTH_FLOW_LOGGER = "google_auth_oauthlib.flow"
@@ -22,9 +23,10 @@ class PhotoPrefixFilter(logging.Filter):
 
 
 class HTMLReportHandler(logging.Handler):
-    def __init__(self, output_path: Path):
+    def __init__(self, output_path: Path, dry_run: bool = False):
         super().__init__()
         self.output_path = output_path
+        self.__dry_run = dry_run
         self.entries: dict[str, list[logging.LogRecord]] = {}
         self._template_env: Optional[Environment] = None
         self.template_name = "report_template.html"
@@ -44,12 +46,38 @@ class HTMLReportHandler(logging.Handler):
         template = template_env.get_template(self.template_name)
 
         general_entries = self.entries.get("General", [])
+        file_entries = {k: v for k, v in self.entries.items() if k != "General"}
+        skipped_entries = {
+            key: records
+            for key, records in file_entries.items()
+            if any(
+                record["report_category"] is ReportCategory.skipped
+                for record in records
+            )
+        }
+        ignored_entries = {
+            key: records
+            for key, records in file_entries.items()
+            if any(
+                record["report_category"] is ReportCategory.ignored
+                for record in records
+            )
+        }
+        media_entries = {
+            key: records
+            for key, records in file_entries.items()
+            if key not in skipped_entries and key not in ignored_entries
+        }
+        summary = summary_attributes.get_snapshot()
+        summary[ReportCategory.ignored.value] = len(ignored_entries)
 
-        media_entries = {k: v for k, v in self.entries.items() if k != "General"}
         return template.render(
             entries=general_entries,
+            skipped_entries=skipped_entries,
+            ignored_entries=ignored_entries,
             media_entries=media_entries,
-            summary_attributes=summary_attributes.get_snapshot(),
+            summary_attributes=summary,
+            dry_run=self.__dry_run,
         )
 
     def emit(self, record: logging.LogRecord) -> None:
@@ -61,6 +89,7 @@ class HTMLReportHandler(logging.Handler):
             "levelname": record.levelname,
             "message": record.getMessage(),
             "exception": None,
+            "report_category": getattr(record, "report_category", None),
         }
 
         if record.exc_info:
@@ -112,10 +141,10 @@ def setup_logging(
     root_logger.addHandler(handler)
 
 
-def configure_report(report_path: Path):
+def configure_report(report_path: Path, dry_run: bool = False):
     root_logger = logging.getLogger()
 
-    html_handler = HTMLReportHandler(report_path)
+    html_handler = HTMLReportHandler(report_path, dry_run=dry_run)
     html_handler.setLevel(logging.INFO)
 
     root_logger.addHandler(html_handler)

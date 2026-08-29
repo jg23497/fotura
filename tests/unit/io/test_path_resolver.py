@@ -13,6 +13,7 @@ from fotura.importing.conflict_resolution.strategies.keep_both_strategy import (
 from fotura.importing.conflict_resolution.strategies.skip_strategy import SkipStrategy
 from fotura.io.path_resolver import PathResolver
 from fotura.processors.fact_type import FactType
+from fotura.reporting.report_category import ReportCategory
 from tests.helpers.helper import get_log_entries
 
 # Fixtures
@@ -183,3 +184,4 @@ def test_skipped_conflict_resolution_writes_skipped_log_entry(
     assert len(log_entries) == 1
 
     assert str(photo.path) in str(log_entries[0].media_file)
+    assert log_entries[0].report_category is ReportCategory.skipped

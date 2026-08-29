@@ -56,7 +56,7 @@ def __print_instructions(input_directory: Path, output_directory: Path) -> None:
     print()
     print(
         f'  uv run fotura import "{input_directory}" "{output_directory}"'
-        " --before-each filename_timestamp_extract"
+        " --before-each filename_timestamp_extract --open-report"
     )
     print()
 

@@ -6,6 +6,7 @@ import pytest
 from fotura.domain.photo import Photo
 from fotura.domain.video_file import VideoFile
 from fotura.importing.media_finder import MediaFinder, MediaType
+from fotura.reporting.report_category import ReportCategory
 from tests.helpers.helper import get_log_entries
 
 # Fixtures
@@ -74,6 +75,8 @@ def test_find_ignores_files_with_unsupported_extensions(
     assert len(photos) == 0
     assert len(log_entries) > 0
     assert str(file_path) in log_entries[0].getMessage()
+    assert log_entries[0].media_file == file_path
+    assert log_entries[0].report_category is ReportCategory.ignored
 
 
 @pytest.mark.parametrize("extension", ["mp4", "m4v", "mov", "3gp", "3g2"])

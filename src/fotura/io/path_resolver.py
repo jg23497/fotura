@@ -11,6 +11,7 @@ from fotura.importing.conflict_resolution.strategies.strategy_base import Strate
 from fotura.io.path_format import PathFormat
 from fotura.io.photos.exif.exif_data import ExifData
 from fotura.processors.fact_type import FactType
+from fotura.reporting.report_category import ReportCategory
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +40,11 @@ class PathResolver:
         if not date and isinstance(media_file, Photo):
             date = ExifData.extract_date(media_file)
         if not date:
-            media_file.log(logging.WARNING, "Skipping file: no date found")
+            media_file.log(
+                logging.WARNING,
+                "Skipping file: no date found",
+                extra={"report_category": ReportCategory.skipped},
+            )
             return None
 
         return self.__assign_target_path(date, media_file)
@@ -67,6 +72,7 @@ class PathResolver:
                     media_file.log(
                         logging.WARNING,
                         "Skipping due to conflict resolution strategy",
+                        extra={"report_category": ReportCategory.skipped},
                     )
                     return None
 

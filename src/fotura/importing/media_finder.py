@@ -6,6 +6,7 @@ from typing import Collection, Iterator
 from fotura.domain.media_file import MediaFile
 from fotura.domain.photo import Photo
 from fotura.domain.video_file import VideoFile
+from fotura.reporting.report_category import ReportCategory
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +62,10 @@ class MediaFinder:
                     "Ignored %s (%s extension not in supported list)",
                     file_path,
                     file_extension,
+                    extra={
+                        "media_file": file_path,
+                        "report_category": ReportCategory.ignored,
+                    },
                 )
                 continue
 
