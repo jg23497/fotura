@@ -8,6 +8,8 @@ from rich.logging import RichHandler
 
 from fotura.utils.synchronized_counter import SynchronizedCounter
 
+OAUTH_FLOW_LOGGER = "google_auth_oauthlib.flow"
+
 
 class PhotoPrefixFilter(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
@@ -84,6 +86,8 @@ def setup_logging(
     show_path: bool = True,
     rich_tracebacks: bool = True,
 ) -> None:
+    logging.getLogger(OAUTH_FLOW_LOGGER).setLevel(logging.WARNING)
+
     if console is None:
         console = Console(stderr=True)
 
