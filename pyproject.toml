@@ -1,7 +1,7 @@
 [project]
 name = "fotura"
 version = "0.1.0"
-description = "A tool to organize and sort photos based on their metadata"
+description = "A Python CLI for importing, organizing, and uploading your photos."
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.10"
