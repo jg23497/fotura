@@ -57,10 +57,15 @@ fotura import --before-each "filename_timestamp_extract" ~/Pictures/unsorted ~/P
 Extracts the creation timestamp stored in MP4, M4V, MOV, 3GP, and 3G2 video
 containers. The timestamp is used to route the video without modifying the file.
 
-Use in combination with the `--include-videos` flag (video files are not processed by default).
+Choose media types with the repeatable `--include` option. Photos are selected by
+default; select videos alone or explicitly select both:
 
 ```bash
-fotura import ~/Videos/unsorted ~/Videos/organized --include-videos --before-each "video_timestamp_extract"
+# Videos only
+fotura import ~/Videos/unsorted ~/Videos/organized --include videos --before-each "video_timestamp_extract"
+
+# Photos and videos
+fotura import ~/Pictures/unsorted ~/Pictures/organized --include photos --include videos
 ```
 
 ### Google Photos Upload
@@ -85,6 +90,8 @@ fotura processor resume google_photos_upload
 
 ## Supported file types
 
+### Photos
+
 | Format      | Extensions      | Cameras                   |
 | ----------- | --------------- | ------------------------- |
 | JPEG        | `.jpg`, `.jpeg` | All                       |
@@ -98,6 +105,12 @@ fotura processor resume google_photos_upload
 | Generic RAW | `.raw`          | Various (TIFF-based only) |
 | Fuji RAF    | `.raf`          | Fuji                      |
 
+### Videos
+
+| Format | Extensions                              |
+| ------ | --------------------------------------- |
+| Video  | `.mp4`, `.m4v`, `.mov`, `.3gp`, `.3g2` |
+
 ## Options
 
 | Option                 | Description                                             |
@@ -107,6 +120,7 @@ fotura processor resume google_photos_upload
 | `--before-each`        | Processor to run per photo before moving                |
 | `--after-each`         | Processor to run per photo after moving                 |
 | `--after-all`          | Processor to run once after all photos are processed    |
+| `--include`            | Media type to import (`photos`, `videos`); repeat for both |
 | `--conflict-strategy`  | How to handle filename collisions (`keep_both`, `skip`) |
 | `--target-path-format` | Date format for the target directory structure          |
 
@@ -123,6 +137,8 @@ Photos are organised into `%Y/%Y-%m` by default (e.g. `2023/2023-05`). Override 
 | Daily folders      | `%Y/%Y-%m/%Y-%m-%d` | `2008/2008-05/2008-05-30/example.jpg` |
 
 ### Conflict resolution
+
+The default conflict strategy is `keep_both`.
 
 - `keep_both`: appends a numeric suffix to the incoming file (`photo_1.jpg`, `photo_2.jpg`, …)
 - `skip`: leaves the existing file in place and skips the incoming one

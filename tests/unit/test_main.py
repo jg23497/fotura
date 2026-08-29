@@ -39,18 +39,29 @@ def test_main_tidies_image_files():
         assert result.exit_code == 0, result.output
 
 
-def test_include_videos_is_passed_to_importer(tmp_path):
+@pytest.mark.parametrize(
+    ("arguments", "expected"),
+    [
+        ([], (main.MediaType.PHOTOS,)),
+        (["--include", "videos"], (main.MediaType.VIDEOS,)),
+        (
+            ["--include", "photos", "--include", "videos"],
+            (main.MediaType.PHOTOS, main.MediaType.VIDEOS),
+        ),
+    ],
+)
+def test_include_media_types_are_passed_to_importer(tmp_path, arguments, expected):
     with (
         patch.object(importer.Importer, "__init__", return_value=None) as mock_init,
         patch.object(importer.Importer, "process_media_files", return_value=None),
     ):
         result = CliRunner().invoke(
             main.cli,
-            ["import", str(tmp_path), str(tmp_path / "target"), "--include-videos"],
+            ["import", str(tmp_path), str(tmp_path / "target"), *arguments],
         )
 
     assert result.exit_code == 0, result.output
-    assert mock_init.call_args.kwargs["include_videos"] is True
+    assert mock_init.call_args.kwargs["media_types"] == expected
 
 
 @patch(

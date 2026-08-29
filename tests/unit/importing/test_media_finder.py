@@ -5,7 +5,7 @@ import pytest
 
 from fotura.domain.photo import Photo
 from fotura.domain.video_file import VideoFile
-from fotura.importing.media_finder import MediaFinder
+from fotura.importing.media_finder import MediaFinder, MediaType
 from tests.helpers.helper import get_log_entries
 
 # Fixtures
@@ -77,22 +77,42 @@ def test_find_ignores_files_with_unsupported_extensions(
 
 
 @pytest.mark.parametrize("extension", ["mp4", "m4v", "mov", "3gp", "3g2"])
-def test_find_includes_videos_when_enabled(input_dir, extension):
+def test_find_includes_videos_when_selected(input_dir, extension):
     file_path = create_path(input_dir / f"test.{extension}")
 
-    photos = list(MediaFinder(input_dir, include_videos=True).find())
+    videos = list(MediaFinder(input_dir, media_types=(MediaType.VIDEOS,)).find())
 
-    assert [photo.path for photo in photos] == [file_path]
-    assert isinstance(photos[0], VideoFile)
+    assert [video.path for video in videos] == [file_path]
+    assert isinstance(videos[0], VideoFile)
 
 
 @pytest.mark.parametrize("extension", ["mp4", "m4v", "mov", "3gp", "3g2"])
-def test_find_excludes_videos_when_not_enabled(input_dir, extension):
+def test_find_excludes_videos_by_default(input_dir, extension):
     create_path(input_dir / f"test.{extension}")
 
     photos = list(MediaFinder(input_dir).find())
 
     assert photos == []
+
+
+def test_find_excludes_photos_when_only_videos_are_selected(input_dir):
+    create_path(input_dir / "photo.jpg")
+    video_path = create_path(input_dir / "video.mp4")
+
+    media = list(MediaFinder(input_dir, media_types=(MediaType.VIDEOS,)).find())
+
+    assert [item.path for item in media] == [video_path]
+
+
+def test_find_includes_photos_and_videos_when_both_are_selected(input_dir):
+    photo_path = create_path(input_dir / "photo.jpg")
+    video_path = create_path(input_dir / "video.mp4")
+
+    media = list(
+        MediaFinder(input_dir, media_types=(MediaType.PHOTOS, MediaType.VIDEOS)).find()
+    )
+
+    assert [item.path for item in media] == [photo_path, video_path]
 
 
 def test_find_locates_images_under_nested_directories(finder, input_dir):

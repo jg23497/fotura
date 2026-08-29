@@ -4,13 +4,13 @@ from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from datetime import datetime
 from itertools import islice
 from pathlib import Path
-from typing import Any, Dict, Iterable, Iterator, List, Optional, Tuple
+from typing import Any, Collection, Dict, Iterable, Iterator, List, Optional, Tuple
 
 from platformdirs import user_config_dir, user_data_dir
 
 from fotura.domain.media_file import MediaFile
 from fotura.importing.conflict_resolution import registry
-from fotura.importing.media_finder import MediaFinder
+from fotura.importing.media_finder import MediaFinder, MediaType
 from fotura.io.files import Files
 from fotura.io.path_resolver import PathResolver
 from fotura.processors.context import Context
@@ -38,7 +38,7 @@ class Importer:
         conflict_resolution_strategy: str = "keep_both",
         target_path_format: str = "%Y/%Y-%m",
         concurrency: int = 1,
-        include_videos: bool = False,
+        media_types: Collection[MediaType] = (MediaType.PHOTOS,),
     ):
         self.input_path = input_path
         self.target_root = target_root
@@ -46,7 +46,7 @@ class Importer:
         self.target_path_format = target_path_format
         self.open_report = open_report
         self.concurrency = concurrency
-        self.include_videos = include_videos
+        self.media_types = media_types
         self.tally = SynchronizedCounter({"errored": 0})
 
         self.__configure_dependencies(
@@ -170,9 +170,7 @@ class Importer:
         self.conflict_resolver = registry.get_conflict_resolver(
             conflict_resolution_strategy
         )
-        self.media_finder = MediaFinder(
-            self.input_path, include_videos=self.include_videos
-        )
+        self.media_finder = MediaFinder(self.input_path, media_types=self.media_types)
         self.files = Files(self.dry_run)
         self.path_resolver = PathResolver(
             self.target_root,

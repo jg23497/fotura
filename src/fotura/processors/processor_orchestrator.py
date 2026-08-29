@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from fotura.domain.media_file import MediaFile
-from fotura.importing.media_finder import MediaFinder
+from fotura.importing.media_finder import MediaFinder, MediaType
 from fotura.processors.context import Context
 from fotura.processors.registry import (
     AFTER_ALL_PROCESSOR_MAP,
@@ -97,7 +97,11 @@ class ProcessorOrchestrator:
 
     def run_on_source(self, source: Path) -> int:
         if source.is_dir():
-            items = list(MediaFinder(source, include_videos=True).find())
+            items = list(
+                MediaFinder(
+                    source, media_types=(MediaType.PHOTOS, MediaType.VIDEOS)
+                ).find()
+            )
         else:
             items = [MediaFinder.media_file_for(source)]
 

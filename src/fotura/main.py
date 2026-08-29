@@ -15,6 +15,7 @@ from fotura.cli.processor_commands import (
 )
 from fotura.importer import Importer
 from fotura.importing.conflict_resolution.registry import STRATEGIES
+from fotura.importing.media_finder import MediaType
 from fotura.io.path_format import PathFormat
 from fotura.processors.registry import (
     AFTER_ALL_PROCESSOR_MAP,
@@ -80,7 +81,7 @@ def run_import(
     conflict_strategy: str,
     target_path_format: str,
     concurrency: int,
-    include_videos: bool,
+    media_types: Tuple[MediaType, ...],
 ) -> None:
     """
     Execute the import operation.
@@ -104,7 +105,7 @@ def run_import(
         target_path_format: Format for the directory structure (using Python's
             date format codes)
         concurrency: Number of media files to process concurrently.
-        include_videos: Whether to discover supported video files in the source.
+        media_types: Media types to discover in the source.
     """
     if not PathFormat.is_valid(target_path_format):
         raise click.BadParameter("Target path format is invalid")
@@ -153,7 +154,7 @@ def run_import(
         conflict_resolution_strategy=conflict_strategy,
         target_path_format=target_path_format,
         concurrency=concurrency,
-        include_videos=include_videos,
+        media_types=media_types,
     )
     importer.process_media_files()
 
@@ -206,9 +207,13 @@ def cli() -> None:
     help="Path format using date format codes (see https://docs.python.org/3/library/datetime.html#format-codes)",
 )
 @click.option(
-    "--include-videos",
-    is_flag=True,
-    help="Include supported video files when scanning the source directory",
+    "--include",
+    "media_types",
+    type=click.Choice(MediaType, case_sensitive=False),
+    multiple=True,
+    default=(MediaType.PHOTOS,),
+    show_default=True,
+    help="Media type to import. Repeat to include both photos and videos",
 )
 @click.option(
     "--concurrency",
@@ -228,7 +233,7 @@ def import_cmd(
     conflict_strategy: str,
     target_path_format: str,
     concurrency: int,
-    include_videos: bool,
+    media_types: Tuple[MediaType, ...],
 ) -> None:
     run_import(
         directory=directory,
@@ -241,7 +246,7 @@ def import_cmd(
         conflict_strategy=conflict_strategy,
         target_path_format=target_path_format,
         concurrency=concurrency,
-        include_videos=include_videos,
+        media_types=media_types,
     )
 
 

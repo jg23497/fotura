@@ -1,6 +1,7 @@
 import logging
+from enum import Enum
 from pathlib import Path
-from typing import Iterator
+from typing import Collection, Iterator
 
 from fotura.domain.media_file import MediaFile
 from fotura.domain.photo import Photo
@@ -31,12 +32,23 @@ VIDEO_EXTENSIONS = {
 }
 
 
+class MediaType(str, Enum):
+    PHOTOS = "photos"
+    VIDEOS = "videos"
+
+
 class MediaFinder:
-    def __init__(self, input_path: Path, include_videos: bool = False):
+    def __init__(
+        self,
+        input_path: Path,
+        media_types: Collection[MediaType] = (MediaType.PHOTOS,),
+    ):
         self.input_path = input_path
-        self.__supported_extensions = PHOTO_EXTENSIONS
-        if include_videos:
-            self.__supported_extensions = PHOTO_EXTENSIONS | VIDEO_EXTENSIONS
+        self.__supported_extensions = set()
+        if MediaType.PHOTOS in media_types:
+            self.__supported_extensions.update(PHOTO_EXTENSIONS)
+        if MediaType.VIDEOS in media_types:
+            self.__supported_extensions.update(VIDEO_EXTENSIONS)
 
     def find(self) -> Iterator[MediaFile]:
         for file_path in sorted(self.input_path.rglob("*")):
