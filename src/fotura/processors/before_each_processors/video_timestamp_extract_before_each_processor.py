@@ -33,7 +33,7 @@ class VideoTimestampExtractBeforeEachProcessor(BeforeEachProcessor[VideoFile]):
             return None
 
         media_file.log(
-            logging.INFO,
+            logging.DEBUG,
             "Extracted video creation timestamp %s",
             timestamp.strftime("%Y/%m/%d %H:%M:%S"),
         )
