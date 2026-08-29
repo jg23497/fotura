@@ -69,6 +69,7 @@ class HTMLReportHandler(logging.Handler):
             if key not in skipped_entries and key not in ignored_entries
         }
         summary = summary_attributes.get_snapshot()
+        summary.setdefault(ReportCategory.skipped.value, 0)
         summary[ReportCategory.ignored.value] = len(ignored_entries)
 
         return template.render(

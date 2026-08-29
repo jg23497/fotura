@@ -187,7 +187,7 @@
 
     <div id="general-logs">
       <details open>
-        <summary>General logs</summary>
+        <summary>General</summary>
 
         {% for record in entries %}
         <div class="log {{ record.levelname|lower }}">
@@ -211,7 +211,7 @@
     </div>
 
     <div id="ignored-logs">
-      <details{% if ignored_entries|length <= 10 %} open{% endif %}>
+      <details{% if 0 < ignored_entries|length <= 10 %} open{% endif %}>
         <summary>Ignored</summary>
 
         {% for media_file, records in ignored_entries.items() %}
@@ -232,7 +232,7 @@
     </div>
 
     <div id="skipped-logs">
-      <details{% if skipped_entries|length <= 10 %} open{% endif %}>
+      <details{% if 0 < skipped_entries|length <= 10 %} open{% endif %}>
         <summary>Skipped</summary>
 
         {% for media_file, records in skipped_entries.items() %}

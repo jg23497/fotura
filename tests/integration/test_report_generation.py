@@ -69,7 +69,7 @@ def test_report_structure(report):
     general_section = None
     for section in details_sections:
         summary = section.find("summary")
-        if summary and "General logs" in clean_text(summary):
+        if summary and clean_text(summary) == "General":
             general_section = section
             break
 
@@ -244,3 +244,25 @@ def test_report_category_sections_collapse_above_ten_entries(
         section = report.select_one(f"#{section_id} details")
         assert section is not None
         assert section.has_attr("open") is expected_open
+
+
+def test_empty_report_categories_are_collapsed_and_display_zero_counts(tmp_path):
+    output_path = tmp_path / "report.html"
+    handler = HTMLReportHandler(output_path)
+
+    handler.close()
+
+    report = BeautifulSoup(output_path.read_text(encoding="utf-8"), "html.parser")
+    for section_id in ("ignored-logs", "skipped-logs"):
+        section = report.select_one(f"#{section_id} details")
+        assert section is not None
+        assert not section.has_attr("open")
+
+    attributes = {
+        clean_text(card.select_one(".attribute-name")): clean_text(
+            card.select_one(".attribute-value")
+        )
+        for card in report.select(".summary-attribute-card")
+    }
+    assert attributes["ignored"] == "0"
+    assert attributes["skipped"] == "0"
