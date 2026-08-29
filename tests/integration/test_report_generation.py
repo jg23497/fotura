@@ -76,6 +76,7 @@ def test_report_structure(report):
     assert general_section is not None, (
         "Report should have a general log entries section."
     )
+    assert "Disk space check:" in clean_text(general_section)
 
     skipped_section = report.select_one("#skipped-logs details")
     assert skipped_section is not None, "Report should have a skipped entries section."
@@ -115,6 +116,7 @@ def test_report_displays_dry_run_indicator_only_for_dry_runs(report, dry_run_rep
     assert indicator is not None
     assert clean_text(indicator) == "Dry run — no files changed"
     assert indicator.find_previous_sibling("button", id="themeToggle") is not None
+    assert "Disk space check:" in clean_text(dry_run_report.select_one("#general-logs"))
 
 
 def test_report_photo_contents(report):

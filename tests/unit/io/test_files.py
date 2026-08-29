@@ -1,7 +1,10 @@
+import errno
 import logging
 import os
+import shutil
 import stat
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
@@ -91,6 +94,76 @@ def test_move_skips_move_when_dry_run_mode_is_enabled(
 
     assert source_path.exists()
     assert not new_path.exists()
+
+
+@pytest.mark.parametrize("files", [False], indirect=True)
+def test_move_reports_disk_space_exhaustion(files, media_file, target_path):
+    new_path = target_path / "test_image.jpg"
+
+    with patch.object(
+        shutil,
+        "move",
+        side_effect=OSError(errno.ENOSPC, "No space left on device"),
+    ):
+        with pytest.raises(OSError, match="Ran out of disk space") as error:
+            files.move(media_file, new_path)
+
+    assert error.value.errno == errno.ENOSPC
+    assert error.value.filename == str(new_path)
+
+
+@pytest.mark.parametrize("files", [False, True], indirect=True)
+def test_ensure_sufficient_space_rejects_import_before_moving(
+    files, media_file, target_path
+):
+    with patch.object(
+        shutil,
+        "disk_usage",
+        return_value=SimpleNamespace(total=10, used=6, free=4),
+    ) as disk_usage:
+        with pytest.raises(OSError, match="Not enough disk space") as error:
+            files.ensure_sufficient_space([media_file], target_path)
+
+    assert error.value.errno == errno.ENOSPC
+    disk_usage.assert_called_once_with(target_path)
+
+
+@pytest.mark.parametrize("files", [True], indirect=True)
+def test_ensure_sufficient_space_is_checked_for_dry_runs(
+    files, media_file, target_path
+):
+    with patch.object(
+        shutil,
+        "disk_usage",
+        return_value=SimpleNamespace(total=10, used=5, free=5),
+    ) as disk_usage:
+        files.ensure_sufficient_space([media_file], target_path)
+
+    disk_usage.assert_called_once_with(target_path)
+
+
+@pytest.mark.parametrize("files", [False, True], indirect=True)
+def test_ensure_sufficient_space_logs_check_result(
+    files, media_file, target_path, caplog
+):
+    with (
+        patch.object(
+            shutil,
+            "disk_usage",
+            return_value=SimpleNamespace(
+                total=8 * 1024**3,
+                used=6 * 1024**3,
+                free=2 * 1024**3,
+            ),
+        ),
+        caplog.at_level(logging.INFO),
+    ):
+        files.ensure_sufficient_space([media_file], target_path)
+
+    assert (
+        "Disk space check: 0.00 MB required, 2.00 GB available (75.0% full)"
+        in caplog.text
+    )
 
 
 # ensure_writable

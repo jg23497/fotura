@@ -1,3 +1,4 @@
+import errno
 import logging
 import webbrowser
 from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
@@ -71,7 +72,8 @@ class Importer:
         processed_media_files = []
 
         try:
-            media_files = self.media_finder.find()
+            media_files = list(self.media_finder.find())
+            self.files.ensure_sufficient_space(media_files, self.target_root)
             processed_media_files = self.__process_with_concurrency(media_files)
 
             if processed_media_files:
@@ -215,5 +217,7 @@ class Importer:
 
     @staticmethod
     def __is_recoverable_error(e: Exception, media_file_path: Path) -> bool:
+        if isinstance(e, OSError) and e.errno == errno.ENOSPC:
+            return False
         filename = getattr(e, "filename", None)
         return bool(filename) and Path(filename) == media_file_path

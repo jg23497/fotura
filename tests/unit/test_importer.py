@@ -459,6 +459,52 @@ def test_process_media_files_increments_skipped_tally_when_photo_skipped():
         assert tally_snapshot.get("skipped") == 1
 
 
+def test_process_media_files_fails_preflight_when_total_space_is_insufficient():
+    with temporary_images(["Canon_40D.jpg", "sony_alpha_a58.JPG"]) as (
+        input_path,
+        target_root,
+        _,
+    ):
+        importer = Importer(input_path=input_path, target_root=target_root)
+
+        with (
+            patch.object(
+                shutil, "disk_usage", return_value=Mock(total=1, used=1, free=0)
+            ),
+            pytest.raises(OSError, match="Not enough disk space") as error,
+        ):
+            importer.process_media_files()
+
+        assert error.value.errno == errno.ENOSPC
+
+
+def test_process_media_files_halts_when_space_runs_out_during_move():
+    with temporary_images(["Canon_40D.jpg", "sony_alpha_a58.JPG"]) as (
+        input_path,
+        target_root,
+        _,
+    ):
+        importer = Importer(input_path=input_path, target_root=target_root)
+
+        with (
+            patch.object(
+                shutil,
+                "disk_usage",
+                return_value=Mock(total=2 * 10**30, used=10**30, free=10**30),
+            ),
+            patch.object(
+                shutil,
+                "move",
+                side_effect=OSError(errno.ENOSPC, "No space left on device"),
+            ),
+            pytest.raises(OSError, match="Ran out of disk space") as error,
+        ):
+            importer.process_media_files()
+
+        assert error.value.errno == errno.ENOSPC
+        assert importer.tally.get_snapshot()["errored"] == 1
+
+
 @patch.object(shutil, "move", side_effect=FileNotFoundError)
 def test_process_media_files_halts_on_unrecoverable_move_exception(_, caplog):
     with temporary_images(["Canon_40D.jpg", "sony_alpha_a58.JPG"]) as (
