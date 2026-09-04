@@ -905,7 +905,8 @@ def test_processor_facts_are_accumulated_through_processor_calls():
             "after_each_processor_fact": "after_each_processor_value",
             "complex_after_each_processor_fact": "complex_after_each_processor_value",
         }
-        assert photo.facts == expected_facts
+        assert photo.facts.items() >= expected_facts.items()
+        assert photo.facts[FactType.TAKEN_TIMESTAMP] == datetime(2008, 5, 30, 15, 56, 1)
 
 
 def test_process_media_files_skips_images_that_fail_to_parse(caplog):

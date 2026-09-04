@@ -5,16 +5,29 @@ from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from datetime import datetime
 from itertools import islice
 from pathlib import Path
-from typing import Any, Collection, Dict, Iterable, Iterator, List, Optional, Tuple
+from typing import (
+    Any,
+    Callable,
+    Collection,
+    Dict,
+    Iterable,
+    Iterator,
+    List,
+    Optional,
+    Tuple,
+)
 
 from platformdirs import user_config_dir, user_data_dir
 
 from fotura.domain.media_file import MediaFile
+from fotura.domain.photo import Photo
 from fotura.importing.conflict_resolution import registry
 from fotura.importing.media_finder import MediaFinder, MediaType
 from fotura.io.files import Files
 from fotura.io.path_resolver import PathResolver
+from fotura.io.photos.exif.exif_data import ExifData
 from fotura.processors.context import Context
+from fotura.processors.fact_type import FactType
 from fotura.processors.processor_orchestrator import ProcessorOrchestrator
 from fotura.reporting.logging_config import configure_report
 from fotura.utils.synchronized_counter import SynchronizedCounter
@@ -73,8 +86,13 @@ class Importer:
 
         try:
             media_files = list(self.media_finder.find())
-            self.files.ensure_sufficient_space(media_files, self.target_root)
-            processed_media_files = self.__process_with_concurrency(media_files)
+
+            prepared_media_files = self.__prepare_with_concurrency(media_files)
+            self.files.ensure_sufficient_space(prepared_media_files, self.target_root)
+
+            processed_media_files = self.__process_with_concurrency(
+                prepared_media_files
+            )
 
             if processed_media_files:
                 self.processor_orchestrator.run_after_all_processors(
@@ -86,21 +104,36 @@ class Importer:
     def __process_with_concurrency(
         self, media_files: Iterable[MediaFile]
     ) -> List[MediaFile]:
+        return self.__run_with_concurrency(media_files, self.__process_media_file)
+
+    def __prepare_with_concurrency(
+        self, media_files: Iterable[MediaFile]
+    ) -> List[MediaFile]:
+        return self.__run_with_concurrency(media_files, self.__prepare_media_file)
+
+    def __run_with_concurrency(
+        self,
+        media_files: Iterable[MediaFile],
+        operation: Callable[[MediaFile], bool],
+    ) -> List[MediaFile]:
         if self.concurrency == 1:
-            return self.__process_sequentially(media_files)
+            return self.__run_sequentially(media_files, operation)
 
         with ThreadPoolExecutor(max_workers=self.concurrency) as executor:
-            return self.__run_windowed(executor, iter(media_files))
+            return self.__run_windowed(executor, iter(media_files), operation)
 
     def __run_windowed(
-        self, executor: ThreadPoolExecutor, media_files: Iterator[MediaFile]
+        self,
+        executor: ThreadPoolExecutor,
+        media_files: Iterator[MediaFile],
+        operation: Callable[[MediaFile], bool],
     ) -> List[MediaFile]:
         window_size = self.concurrency * 2
         futures: Dict[Future[bool], MediaFile] = {}
         processed_media_files: List[MediaFile] = []
 
         for media_file in islice(media_files, window_size):
-            futures[executor.submit(self.__process_media_file, media_file)] = media_file
+            futures[executor.submit(operation, media_file)] = media_file
 
         while futures:
             done, _ = wait(futures.keys(), return_when=FIRST_COMPLETED)
@@ -120,20 +153,22 @@ class Importer:
 
                 next_media_file = next(media_files, None)
                 if next_media_file is not None:
-                    futures[
-                        executor.submit(self.__process_media_file, next_media_file)
-                    ] = next_media_file
+                    futures[executor.submit(operation, next_media_file)] = (
+                        next_media_file
+                    )
 
         return processed_media_files
 
-    def __process_sequentially(
-        self, media_files: Iterable[MediaFile]
+    def __run_sequentially(
+        self,
+        media_files: Iterable[MediaFile],
+        operation: Callable[[MediaFile], bool],
     ) -> List[MediaFile]:
         processed_media_files = []
 
         for media_file in media_files:
             try:
-                if self.__process_media_file(media_file):
+                if operation(media_file):
                     processed_media_files.append(media_file)
             except Exception as e:
                 self.__record_error(media_file)
@@ -143,9 +178,20 @@ class Importer:
 
         return processed_media_files
 
-    def __process_media_file(self, media_file: MediaFile) -> bool:
+    def __prepare_media_file(self, media_file: MediaFile) -> bool:
         self.files.ensure_writable(media_file)
         self.processor_orchestrator.run_before_each_processors(media_file)
+
+        if FactType.TAKEN_TIMESTAMP not in media_file.facts and isinstance(
+            media_file, Photo
+        ):
+            timestamp = ExifData.extract_date(media_file)
+            if timestamp is not None:
+                media_file.facts[FactType.TAKEN_TIMESTAMP] = timestamp
+
+        return True
+
+    def __process_media_file(self, media_file: MediaFile) -> bool:
         target_path = self.path_resolver.get_target_path(media_file)
 
         if target_path is not None:

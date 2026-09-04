@@ -9,7 +9,6 @@ from fotura.domain.photo import Photo
 from fotura.domain.video_file import VideoFile
 from fotura.importing.conflict_resolution.strategies.strategy_base import StrategyBase
 from fotura.io.path_format import PathFormat
-from fotura.io.photos.exif.exif_data import ExifData
 from fotura.processors.fact_type import FactType
 from fotura.reporting.report_category import ReportCategory
 
@@ -37,8 +36,6 @@ class PathResolver:
 
         date = media_file.facts.get(FactType.TAKEN_TIMESTAMP)
 
-        if not date and isinstance(media_file, Photo):
-            date = ExifData.extract_date(media_file)
         if not date:
             media_file.log(
                 logging.WARNING,
