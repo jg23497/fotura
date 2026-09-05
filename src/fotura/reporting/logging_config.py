@@ -1,4 +1,5 @@
 import logging
+from importlib.metadata import version
 from pathlib import Path
 from typing import Any, Optional
 
@@ -12,6 +13,7 @@ from fotura.reporting.report_category import ReportCategory
 from fotura.utils.synchronized_counter import SynchronizedCounter
 
 OAUTH_FLOW_LOGGER = "google_auth_oauthlib.flow"
+FOTURA_VERSION = version("fotura")
 ReportEntry = dict[str, Any]
 FileEntries = dict[str, list[ReportEntry]]
 
@@ -67,6 +69,7 @@ class HTMLReportHandler(logging.Handler):
             clustering_enabled=self.__photo_cluster_report is not None,
             summary_attributes=summary,
             dry_run=self.__dry_run,
+            fotura_version=FOTURA_VERSION,
         )
 
     def __build_file_sections(

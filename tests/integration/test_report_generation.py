@@ -1,5 +1,6 @@
 import shutil
 from dataclasses import dataclass
+from importlib.metadata import version
 from pathlib import Path
 from typing import Optional
 
@@ -72,6 +73,10 @@ def test_report_structure(report):
     title = report.find("title")
     assert title is not None, "Report should have a <title> element."
     assert "Fotura" in title.text, f"Unexpected title: {title.text}"
+
+    report_version = report.select_one(".report-version")
+    assert report_version is not None
+    assert f"Fotura v{version('fotura')}" in clean_text(report_version)
 
     details_sections = report.find_all("details")
     assert len(details_sections) > 0, "Report should have details sections."
