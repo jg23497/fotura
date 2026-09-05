@@ -5,7 +5,8 @@ from typing import Callable
 
 from fotura.domain.photo import Photo
 from fotura.domain.photo_cluster import PhotoCluster
-from fotura.importing.photo_dhash import calculate_dhash
+from fotura.domain.photo_thumbnail import PhotoThumbnail
+from fotura.importing.photo_thumbnailer import generate_thumbnail
 from fotura.processors.fact_type import FactType
 
 
@@ -15,16 +16,16 @@ class PhotoClusterer:
         max_time_gap: timedelta = timedelta(seconds=30),
         max_dhash_distance: int = 20,
         concurrency: int = 1,
-        dhash_calculator: Callable[[Photo], int] = calculate_dhash,
+        thumbnail_generator: Callable[..., PhotoThumbnail] = generate_thumbnail,
     ) -> None:
         self.__max_time_gap = max_time_gap
         self.__max_dhash_distance = max_dhash_distance
         self.__concurrency = concurrency
-        self.__dhash_calculator = dhash_calculator
+        self.__thumbnail_generator = thumbnail_generator
 
     def cluster(self, photos: list[Photo]) -> list[PhotoCluster]:
         candidate_groups = self.__group_by_time(photos)
-        self.__populate_dhashes(self.__photos_to_hash(candidate_groups))
+        self.__generate_thumbnails(self.__photos_to_hash(candidate_groups))
         return self.__cluster_by_visual_similarity(candidate_groups)
 
     @staticmethod
@@ -65,16 +66,31 @@ class PhotoClusterer:
         groups.extend([[photo] for photo in photos_without_timestamps])
         return groups
 
-    def __populate_dhashes(self, photos: list[Photo]) -> None:
+    def __generate_thumbnails(self, photos: list[Photo]) -> None:
         if self.__concurrency == 1:
             for photo in photos:
-                photo.dhash = self.__dhash_calculator(photo)
+                self.__generate_photo_thumbnail(photo)
             return
 
         with ThreadPoolExecutor(max_workers=self.__concurrency) as executor:
-            hashes = executor.map(self.__dhash_calculator, photos)
-            for photo, dhash in zip(photos, hashes):
-                photo.dhash = dhash
+            thumbnails = executor.map(self.__generate, photos)
+            for photo, thumbnail in zip(photos, thumbnails):
+                self.__store_thumbnail(photo, thumbnail)
+
+    def __generate_photo_thumbnail(self, photo: Photo) -> None:
+        self.__store_thumbnail(photo, self.__generate(photo))
+
+    def __generate(self, photo: Photo) -> PhotoThumbnail:
+        return self.__thumbnail_generator(
+            photo,
+            generate_jpeg=True,
+            generate_dhash=True,
+        )
+
+    @staticmethod
+    def __store_thumbnail(photo: Photo, thumbnail: PhotoThumbnail) -> None:
+        photo.dhash = thumbnail.dhash
+        photo.thumbnail = thumbnail.jpeg
 
     def __cluster_by_visual_similarity(
         self, candidate_groups: list[list[Photo]]

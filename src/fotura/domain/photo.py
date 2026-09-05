@@ -10,3 +10,4 @@ class Photo(MediaFile):
     def __init__(self, path: Path):
         super().__init__(path)
         self.dhash: int | None = None
+        self.thumbnail: bytes | None = None

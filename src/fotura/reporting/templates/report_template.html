@@ -161,6 +161,56 @@
         font-size: 0.95rem;
         word-break: break-word;
       }
+
+      .cluster-photo {
+        display: grid;
+        grid-template-columns: 120px minmax(0, 1fr);
+        gap: 0.75rem;
+        margin: 0.75rem 1rem;
+      }
+
+      .cluster-thumbnail,
+      .cluster-thumbnail-placeholder {
+        box-sizing: border-box;
+        width: 120px;
+        height: 90px;
+        padding: 3px;
+        border: 1px solid rgba(0, 0, 0, 0.22);
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.75);
+        box-shadow:
+          0 1px 2px rgba(0, 0, 0, 0.12),
+          0 4px 12px rgba(0, 0, 0, 0.08);
+      }
+
+      .cluster-thumbnail {
+        object-fit: contain;
+      }
+
+      .cluster-thumbnail-placeholder {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0, 0, 0, 0.08);
+        color: var(--text-color);
+        font-size: 0.75rem;
+      }
+
+      [data-theme="dark"] .cluster-thumbnail-placeholder {
+        background: rgba(255, 255, 255, 0.1);
+      }
+
+      [data-theme="dark"] .cluster-thumbnail {
+        background: rgba(255, 255, 255, 0.06);
+      }
+
+      [data-theme="dark"] .cluster-thumbnail,
+      [data-theme="dark"] .cluster-thumbnail-placeholder {
+        border-color: rgba(255, 255, 255, 0.28);
+        box-shadow:
+          0 1px 2px rgba(0, 0, 0, 0.4),
+          0 4px 12px rgba(0, 0, 0, 0.3);
+      }
     </style>
   </head>
   <body>
@@ -269,12 +319,22 @@
         {% for cluster in clustered_entries %}
         <details class="photo-cluster">
           <summary>
-            Photo cluster {{ cluster.number }} — {{ cluster.photos|length }} photos
+            Photo cluster {{ cluster.number }} ({{ cluster.date }}) — {{ cluster.photos|length }} photos
           </summary>
 
           {% for photo in cluster.photos %}
           <div class="cluster-photo">
-            <strong>{{ photo.path }}</strong>
+            {% if photo.thumbnail_data_uri %}
+            <img
+              class="cluster-thumbnail"
+              src="{{ photo.thumbnail_data_uri }}"
+              alt="Thumbnail of {{ photo.path }}"
+            />
+            {% else %}
+            <div class="cluster-thumbnail-placeholder">No thumbnail</div>
+            {% endif %}
+            <div class="cluster-photo-details">
+              <strong>{{ photo.path }}</strong>
             {% if photo.dhash_distance is not none %}
             <div class="log info">
               <span class="level">INFO</span>
@@ -297,6 +357,7 @@
               {% endif %}
             </div>
             {% endfor %}
+            </div>
           </div>
           {% endfor %}
         </details>

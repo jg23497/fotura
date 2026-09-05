@@ -1,13 +1,16 @@
+from datetime import datetime
 from pathlib import Path
 
 from fotura.domain.photo import Photo
 from fotura.domain.photo_cluster import PhotoCluster
+from fotura.processors.fact_type import FactType
 from fotura.reporting.photo_cluster_report import PhotoClusterReport
 
 
 def test_build_entries_uses_distances_stored_on_cluster():
     first = Photo(Path("first.jpg"))
     second = Photo(Path("second.jpg"))
+    first.facts[FactType.TAKEN_TIMESTAMP] = datetime(2026, 12, 31, 23, 59, 30)
     cluster = PhotoCluster(
         photos=[first, second],
         dhash_distances={first: {second: 7}},
@@ -17,6 +20,9 @@ def test_build_entries_uses_distances_stored_on_cluster():
 
     assert entries[0]["photos"][0]["dhash_distance"] is None
     assert entries[0]["photos"][1]["dhash_distance"] == 7
+    assert entries[0]["date"] == "2026/12/31"
+    assert entries[0]["photos"][0]["thumbnail_data_uri"] is None
+    assert entries[0]["photos"][1]["thumbnail_data_uri"] is None
     assert clustered_paths == {"first.jpg", "second.jpg"}
 
 

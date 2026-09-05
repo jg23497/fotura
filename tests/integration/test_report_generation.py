@@ -6,6 +6,8 @@ from typing import Optional
 import pytest
 from bs4 import BeautifulSoup, Tag
 
+from fotura.domain.photo import Photo
+from fotura.domain.photo_cluster import PhotoCluster
 from fotura.importer import Importer
 from fotura.reporting.logging_config import HTMLReportHandler
 from fotura.utils.synchronized_counter import SynchronizedCounter
@@ -171,7 +173,7 @@ def test_report_collapses_visual_photo_clusters_by_default(clustered_report):
     cluster_section = clustered_report.cluster_section
 
     assert not cluster_section.has_attr("open")
-    assert "Photo cluster 1 — 2 photos" in clean_text(
+    assert "Photo cluster 1 (2026/01/01) — 2 photos" in clean_text(
         cluster_section.find("summary", recursive=False)
     )
 
@@ -183,6 +185,20 @@ def test_report_displays_clustered_photos_and_dhash_distance(clustered_report):
     assert all(filename in cluster_text for filename in clustered_report.filenames)
     assert "dHash distance: 0" in cluster_text
     assert "Moved to" in cluster_text
+
+
+def test_report_displays_clustered_photo_thumbnails(clustered_report):
+    thumbnails = clustered_report.cluster_section.select("img.cluster-thumbnail")
+
+    assert len(thumbnails) == 2
+    assert all(
+        thumbnail.get("src", "").startswith("data:image/jpeg;base64,")
+        for thumbnail in thumbnails
+    )
+    assert (
+        clustered_report.cluster_section.select_one(".cluster-thumbnail-placeholder")
+        is None
+    )
 
 
 def test_report_removes_clustered_photos_from_flat_file_list(clustered_report):
@@ -214,6 +230,36 @@ def test_report_explains_when_clustering_finds_no_visual_clusters(tmp_path):
     assert cluster_section is not None
     assert "No visual photo clusters identified." in clean_text(cluster_section)
     assert cluster_section.select_one(".photo-cluster") is None
+
+
+def test_report_displays_placeholder_when_cluster_thumbnail_is_missing(tmp_path):
+    output_path = tmp_path / "report.html"
+    handler = HTMLReportHandler(output_path)
+
+    first = Photo(Path("first.jpg"))
+    second = Photo(Path("second.jpg"))
+
+    handler.set_photo_clusters(
+        [
+            PhotoCluster(
+                photos=[first, second],
+                dhash_distances={first: {second: 0}},
+            )
+        ]
+    )
+
+    handler.close()
+
+    report = BeautifulSoup(output_path.read_text(encoding="utf-8"), "html.parser")
+    placeholders = report.select(".cluster-thumbnail-placeholder")
+
+    assert len(placeholders) == 2
+    assert "Photo cluster 1 (Unknown date) — 2 photos" in clean_text(
+        report.select_one(".photo-cluster > summary")
+    )
+    assert all(
+        clean_text(placeholder) == "No thumbnail" for placeholder in placeholders
+    )
 
 
 def test_report_photo_contents(report):
