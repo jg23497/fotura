@@ -10,11 +10,7 @@ from fotura.reporting.report_category import ReportCategory
 
 logger = logging.getLogger(__name__)
 
-PHOTO_EXTENSIONS = {
-    ".jpg",
-    ".jpeg",
-    ".tiff",
-    ".tif",
+PHOTO_RAW_EXTENSIONS = {
     ".arw",
     ".nef",
     ".cr2",
@@ -24,6 +20,8 @@ PHOTO_EXTENSIONS = {
     ".raw",
     ".raf",
 }
+PHOTO_EXTENSIONS = {".jpg", ".jpeg", ".tiff", ".tif"} | PHOTO_RAW_EXTENSIONS
+
 VIDEO_EXTENSIONS = {
     ".mp4",
     ".m4v",

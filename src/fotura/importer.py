@@ -21,8 +21,10 @@ from platformdirs import user_config_dir, user_data_dir
 
 from fotura.domain.media_file import MediaFile
 from fotura.domain.photo import Photo
+from fotura.domain.photo_cluster import PhotoCluster
 from fotura.importing.conflict_resolution import registry
 from fotura.importing.media_finder import MediaFinder, MediaType
+from fotura.importing.photo_clusterer import PhotoClusterer
 from fotura.io.files import Files
 from fotura.io.path_resolver import PathResolver
 from fotura.io.photos.exif.exif_data import ExifData
@@ -53,6 +55,7 @@ class Importer:
         target_path_format: str = "%Y/%Y-%m",
         concurrency: int = 1,
         media_types: Collection[MediaType] = (MediaType.PHOTOS,),
+        cluster_photos: bool = False,
     ):
         self.input_path = input_path
         self.target_root = target_root
@@ -61,6 +64,7 @@ class Importer:
         self.open_report = open_report
         self.concurrency = concurrency
         self.media_types = media_types
+        self.cluster_photos = cluster_photos
         self.tally = SynchronizedCounter({"errored": 0})
 
         self.__configure_dependencies(
@@ -88,6 +92,10 @@ class Importer:
             media_files = list(self.media_finder.find())
 
             prepared_media_files = self.__prepare_with_concurrency(media_files)
+
+            if self.cluster_photos:
+                self.__cluster_photos(prepared_media_files)
+
             self.files.ensure_sufficient_space(prepared_media_files, self.target_root)
 
             processed_media_files = self.__process_with_concurrency(
@@ -203,6 +211,38 @@ class Importer:
             self.tally.increment("skipped")
             return False
 
+    def __cluster_photos(self, media_files: list[MediaFile]) -> None:
+        try:
+            photo_clusters = self.photo_clusterer.cluster(
+                [
+                    media_file
+                    for media_file in media_files
+                    if isinstance(media_file, Photo)
+                ]
+            )
+        except Exception:
+            logger.error(
+                "Photo clustering failed; continuing without clusters",
+                exc_info=True,
+            )
+            self.html_report_handler.set_photo_clusters([])
+            return
+
+        self.html_report_handler.set_photo_clusters(photo_clusters)
+        self.__report_photo_clusters(photo_clusters)
+
+    @staticmethod
+    def __report_photo_clusters(photo_clusters: list[PhotoCluster]) -> None:
+        visual_clusters = [
+            cluster for cluster in photo_clusters if len(cluster.photos) > 1
+        ]
+        clustered_photo_count = sum(len(cluster.photos) for cluster in visual_clusters)
+        logger.info(
+            "Photo clustering identified %d cluster(s) containing %d photo(s)",
+            len(visual_clusters),
+            clustered_photo_count,
+        )
+
     def __configure_dependencies(
         self,
         conflict_resolution_strategy,
@@ -220,6 +260,7 @@ class Importer:
         )
         self.media_finder = MediaFinder(self.input_path, media_types=self.media_types)
         self.files = Files(self.dry_run)
+        self.photo_clusterer = PhotoClusterer(concurrency=self.concurrency)
         self.path_resolver = PathResolver(
             self.target_root,
             self.target_path_format,

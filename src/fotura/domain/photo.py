@@ -9,3 +9,4 @@ logger = logging.getLogger(__name__)
 class Photo(MediaFile):
     def __init__(self, path: Path):
         super().__init__(path)
+        self.dhash: int | None = None

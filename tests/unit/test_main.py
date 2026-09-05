@@ -64,6 +64,23 @@ def test_include_media_types_are_passed_to_importer(tmp_path, arguments, expecte
     assert mock_init.call_args.kwargs["media_types"] == expected
 
 
+@pytest.mark.parametrize(
+    ("arguments", "expected"), [([], False), (["--cluster-photos"], True)]
+)
+def test_cluster_photos_flag_is_passed_to_importer(tmp_path, arguments, expected):
+    with (
+        patch.object(importer.Importer, "__init__", return_value=None) as mock_init,
+        patch.object(importer.Importer, "process_media_files", return_value=None),
+    ):
+        result = CliRunner().invoke(
+            main.cli,
+            ["import", str(tmp_path), str(tmp_path / "target"), *arguments],
+        )
+
+    assert result.exit_code == 0, result.output
+    assert mock_init.call_args.kwargs["cluster_photos"] is expected
+
+
 @patch(
     "fotura.processors.registry.BEFORE_EACH_PROCESSOR_MAP",
     {

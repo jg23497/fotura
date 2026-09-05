@@ -12,6 +12,7 @@ import pytest
 
 from fotura.domain.photo import Photo
 from fotura.importer import Importer
+from fotura.importing.media_finder import MediaType
 from fotura.io.photos.exif.exif_data import ExifData
 from fotura.processors.fact_type import FactType
 from tests.helpers import helper
@@ -234,6 +235,106 @@ def test_process_media_files_handles_files_with_supported_extensions(
 
     assert not file_path.exists()
     assert (target_root / "2020" / "2020-01" / f"foo.{extension}").exists()
+
+
+def test_process_creates_expected_photo_clusters_when_clustering_is_enabled():
+    with temporary_images(["Canon_40D.jpg"]) as (
+        input_path,
+        target_root,
+        image_paths,
+    ):
+        filenames = ["IMG_20260101_100000.jpg", "IMG_20260101_100001.jpg"]
+        for filename in filenames:
+            shutil.copy2(image_paths[0], input_path / filename)
+        image_paths[0].unlink()
+
+        importer = Importer(
+            input_path=input_path,
+            target_root=target_root,
+            dry_run=True,
+            enabled_before_each_processors=[("filename_timestamp_extract", {})],
+            cluster_photos=True,
+        )
+
+        with patch.object(
+            importer.html_report_handler,
+            "set_photo_clusters",
+            wraps=importer.html_report_handler.set_photo_clusters,
+        ) as set_photo_clusters:
+            importer.process_media_files()
+
+        clusters = set_photo_clusters.call_args.args[0]
+        visual_clusters = [cluster for cluster in clusters if len(cluster.photos) > 1]
+
+        assert len(visual_clusters) == 1
+        assert [photo.path.name for photo in visual_clusters[0].photos] == filenames
+        assert list(visual_clusters[0].dhash_distances.values()) == [
+            {visual_clusters[0].photos[1]: 0}
+        ]
+
+
+def test_process_excludes_videos_from_photo_clustering(caplog):
+    with temporary_images(["IMG_20240909_103402.jpg"]) as (
+        input_path,
+        target_root,
+        _,
+    ):
+        (input_path / "VID_20240909_103403.mp4").write_bytes(b"video")
+        importer = Importer(
+            input_path=input_path,
+            target_root=target_root,
+            dry_run=True,
+            enabled_before_each_processors=[("filename_timestamp_extract", {})],
+            media_types=(MediaType.PHOTOS, MediaType.VIDEOS),
+            cluster_photos=True,
+        )
+
+        with caplog.at_level(logging.INFO):
+            importer.process_media_files()
+
+        assert "Photo clustering identified 0 cluster(s)" in caplog.text
+        assert "Photo clustering failed" not in caplog.text
+
+
+def test_process_does_not_perform_photo_clustering_by_default():
+    with temporary_images(["Canon_40D.jpg"]) as (input_path, target_root, _):
+        importer = Importer(
+            input_path=input_path,
+            target_root=target_root,
+            dry_run=True,
+        )
+
+        with patch.object(importer.photo_clusterer, "cluster") as cluster:
+            importer.process_media_files()
+
+        cluster.assert_not_called()
+
+
+def test_process_continues_importing_when_photo_clustering_fails(caplog):
+    with temporary_images(["Canon_40D.jpg"]) as (
+        input_path,
+        target_root,
+        image_paths,
+    ):
+        importer = Importer(
+            input_path=input_path,
+            target_root=target_root,
+            cluster_photos=True,
+        )
+
+        with (
+            patch.object(
+                importer.photo_clusterer,
+                "cluster",
+                side_effect=RuntimeError("Unable to cluster"),
+            ),
+            caplog.at_level(logging.ERROR),
+        ):
+            importer.process_media_files()
+
+        assert not image_paths[0].exists()
+        assert (target_root / "2008" / "2008-05" / "Canon_40D.jpg").exists()
+        assert "Photo clustering failed; continuing without clusters" in caplog.text
 
 
 @pytest.mark.parametrize("extension", ["mp4", "txt", ""])

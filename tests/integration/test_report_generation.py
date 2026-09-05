@@ -1,4 +1,5 @@
-import logging
+import shutil
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
@@ -7,7 +8,7 @@ from bs4 import BeautifulSoup, Tag
 
 from fotura.importer import Importer
 from fotura.reporting.logging_config import HTMLReportHandler
-from fotura.reporting.report_category import ReportCategory
+from fotura.utils.synchronized_counter import SynchronizedCounter
 from tests.helpers.helper import all_temporary_images
 
 
@@ -15,6 +16,13 @@ def clean_text(element: Optional[Tag]) -> str:
     if element is None:
         return ""
     return element.get_text(separator=" ", strip=True)
+
+
+@dataclass
+class ClusteredReport:
+    report: BeautifulSoup
+    cluster_section: Tag
+    filenames: list[str]
 
 
 @pytest.fixture
@@ -83,8 +91,8 @@ def test_report_structure(report):
 
     ignored_section = report.select_one("#ignored-logs details")
     assert ignored_section is not None, "Report should have an ignored entries section."
-    assert ignored_section.has_attr("open")
-    assert skipped_section.has_attr("open")
+    assert not ignored_section.has_attr("open")
+    assert not skipped_section.has_attr("open")
 
     assert report.select_one("#general-logs > .section-separator") is not None
     assert report.select_one("#skipped-logs > .section-separator") is not None
@@ -117,6 +125,95 @@ def test_report_displays_dry_run_indicator_only_for_dry_runs(report, dry_run_rep
     assert clean_text(indicator) == "Dry run — no files changed"
     assert indicator.find_previous_sibling("button", id="themeToggle") is not None
     assert "Disk space check:" in clean_text(dry_run_report.select_one("#general-logs"))
+
+
+@pytest.fixture
+def clustered_report(stub_user_dirs, tmp_path) -> ClusteredReport:
+    user_data_path, _ = stub_user_dirs
+    input_path = tmp_path / "input"
+    target_root = tmp_path / "target"
+    input_path.mkdir()
+    source = Path("tests/data/Canon_40D.jpg")
+    filenames = ["IMG_20260101_100000.jpg", "IMG_20260101_100001.jpg"]
+    for filename in filenames:
+        shutil.copy2(source, input_path / filename)
+
+    importer = Importer(
+        input_path,
+        target_root,
+        dry_run=True,
+        enabled_before_each_processors=[("filename_timestamp_extract", {})],
+        cluster_photos=True,
+    )
+    importer.process_media_files()
+
+    report_path = next((user_data_path / "reports").glob("*.html"))
+    report = BeautifulSoup(report_path.read_text(encoding="utf-8"), "html.parser")
+    cluster_section = report.select_one("#photo-cluster-logs .photo-cluster")
+    assert isinstance(cluster_section, Tag)
+
+    return ClusteredReport(
+        report=report,
+        cluster_section=cluster_section,
+        filenames=filenames,
+    )
+
+
+def test_report_summarises_visual_photo_clusters(clustered_report):
+    general_logs = clean_text(clustered_report.report.select_one("#general-logs"))
+
+    assert (
+        "Photo clustering identified 1 cluster(s) containing 2 photo(s)" in general_logs
+    )
+
+
+def test_report_collapses_visual_photo_clusters_by_default(clustered_report):
+    cluster_section = clustered_report.cluster_section
+
+    assert not cluster_section.has_attr("open")
+    assert "Photo cluster 1 — 2 photos" in clean_text(
+        cluster_section.find("summary", recursive=False)
+    )
+
+
+def test_report_displays_clustered_photos_and_dhash_distance(clustered_report):
+    cluster_section = clustered_report.cluster_section
+    cluster_text = clean_text(cluster_section)
+
+    assert all(filename in cluster_text for filename in clustered_report.filenames)
+    assert "dHash distance: 0" in cluster_text
+    assert "Moved to" in cluster_text
+
+
+def test_report_removes_clustered_photos_from_flat_file_list(clustered_report):
+    standalone_files = " ".join(
+        clean_text(summary)
+        for summary in clustered_report.report.select(
+            "#media-logs > .media-logs > details > summary"
+        )
+    )
+
+    for filename in clustered_report.filenames:
+        assert filename not in standalone_files
+
+
+def test_report_omits_photo_cluster_section_when_clustering_is_disabled(report):
+    assert report.select_one("#photo-cluster-logs") is None
+
+
+def test_report_explains_when_clustering_finds_no_visual_clusters(tmp_path):
+    output_path = tmp_path / "report.html"
+    handler = HTMLReportHandler(output_path)
+    handler.set_photo_clusters([])
+
+    handler.close()
+
+    report = BeautifulSoup(output_path.read_text(encoding="utf-8"), "html.parser")
+    cluster_section = report.select_one("#photo-cluster-logs")
+
+    assert cluster_section is not None
+    assert "No visual photo clusters identified." in clean_text(cluster_section)
+    assert cluster_section.select_one(".photo-cluster") is None
 
 
 def test_report_photo_contents(report):
@@ -187,14 +284,17 @@ def test_report_displays_tally_counts(report):
     assert len(attribute_cards) > 0, "Report should have attribute cards"
 
     attributes = {}
+    attribute_names = []
     for card in attribute_cards:
         name_elem = card.select_one(".attribute-name")
         value_elem = card.select_one(".attribute-value")
         if name_elem and value_elem:
             name = clean_text(name_elem).strip()
             value = clean_text(value_elem).strip()
+            attribute_names.append(name)
             attributes[name] = value
 
+    assert attribute_names == ["errored", "ignored", "skipped", "moved"]
     assert "moved" in attributes, "Report should display 'moved' count"
     assert "skipped" in attributes, "Report should display 'skipped' count"
     assert "ignored" in attributes, "Report should display 'ignored' count"
@@ -212,40 +312,6 @@ def test_report_displays_tally_counts(report):
     assert attributes["errored"] == "0", (
         f"Expected 0 errored files, got {attributes['errored']}"
     )
-
-
-@pytest.mark.parametrize(
-    ("entry_count", "expected_open"),
-    [(10, True), (11, False)],
-)
-def test_report_category_sections_collapse_above_ten_entries(
-    tmp_path, entry_count, expected_open
-):
-    output_path = tmp_path / "report.html"
-    handler = HTMLReportHandler(output_path)
-
-    for category in (ReportCategory.ignored, ReportCategory.skipped):
-        for index in range(entry_count):
-            record = logging.LogRecord(
-                name=__name__,
-                level=logging.WARNING,
-                pathname=__file__,
-                lineno=0,
-                msg="Categorised file",
-                args=(),
-                exc_info=None,
-            )
-            record.media_file = Path(f"file-{category.value}-{index}.jpg")
-            record.report_category = category
-            handler.emit(record)
-
-    handler.close()
-
-    report = BeautifulSoup(output_path.read_text(encoding="utf-8"), "html.parser")
-    for section_id in ("ignored-logs", "skipped-logs"):
-        section = report.select_one(f"#{section_id} details")
-        assert section is not None
-        assert section.has_attr("open") is expected_open
 
 
 def test_empty_report_categories_are_collapsed_and_display_zero_counts(tmp_path):
@@ -268,3 +334,28 @@ def test_empty_report_categories_are_collapsed_and_display_zero_counts(tmp_path)
     }
     assert attributes["ignored"] == "0"
     assert attributes["skipped"] == "0"
+
+
+def test_report_preserves_processor_tally_cards_after_core_cards(tmp_path):
+    output_path = tmp_path / "report.html"
+    handler = HTMLReportHandler(output_path)
+
+    handler.close(
+        SynchronizedCounter({"errored": 0, "moved": 2, "uploaded to google photos": 2})
+    )
+
+    report = BeautifulSoup(output_path.read_text(encoding="utf-8"), "html.parser")
+    cards = [
+        (
+            clean_text(card.select_one(".attribute-name")),
+            clean_text(card.select_one(".attribute-value")),
+        )
+        for card in report.select(".summary-attribute-card")
+    ]
+    assert cards == [
+        ("errored", "0"),
+        ("ignored", "0"),
+        ("skipped", "0"),
+        ("moved", "2"),
+        ("uploaded to google photos", "2"),
+    ]

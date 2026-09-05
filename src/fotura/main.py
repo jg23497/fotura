@@ -82,6 +82,7 @@ def run_import(
     target_path_format: str,
     concurrency: int,
     media_types: Tuple[MediaType, ...],
+    cluster_photos: bool,
 ) -> None:
     """
     Execute the import operation.
@@ -106,6 +107,7 @@ def run_import(
             date format codes)
         concurrency: Number of media files to process concurrently.
         media_types: Media types to discover in the source.
+        cluster_photos: Whether to identify photo clustering candidates.
     """
     if not PathFormat.is_valid(target_path_format):
         raise click.BadParameter("Target path format is invalid")
@@ -155,6 +157,7 @@ def run_import(
         target_path_format=target_path_format,
         concurrency=concurrency,
         media_types=media_types,
+        cluster_photos=cluster_photos,
     )
     importer.process_media_files()
 
@@ -216,6 +219,11 @@ def cli() -> None:
     help="Media type to import. Repeat to include both photos and videos",
 )
 @click.option(
+    "--cluster-photos",
+    is_flag=True,
+    help="Identify photo clustering candidates before importing",
+)
+@click.option(
     "--concurrency",
     type=click.IntRange(min=1, max=MAX_CONCURRENCY),
     default=1,
@@ -234,6 +242,7 @@ def import_cmd(
     target_path_format: str,
     concurrency: int,
     media_types: Tuple[MediaType, ...],
+    cluster_photos: bool,
 ) -> None:
     run_import(
         directory=directory,
@@ -247,6 +256,7 @@ def import_cmd(
         target_path_format=target_path_format,
         concurrency=concurrency,
         media_types=media_types,
+        cluster_photos=cluster_photos,
     )
 
 
