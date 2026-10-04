@@ -79,27 +79,10 @@ winget install astral-sh.uv
 
 ### Run Fotura
 
-Run the following commands:
-
+Run the following command:
 ```bash
-# Create a virtual environment
-uv venv
-
-# Activate the virtual environment
-source .venv/bin/activate # MacOS and Linux
-.venv\Scripts\activate # Windows only
-
-# Install the dependencies and package in editable mode
-uv pip install -e .
-```
-
-This will make the `fotura` command available during development. Next time, you will only need to activate
-the virtual environment and run `fotura`.
-
-Alternatively, you can also use `uv run`:
-
-```
-uv run src/fotura/main.py
+uv run fotura
+uv run src/fotura/main.py # Or invoke the entry point directly
 ```
 
 ### Run tests
